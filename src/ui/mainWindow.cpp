@@ -287,9 +287,9 @@ namespace shoecomp
             pan.y += io.MouseDelta.y;
         }
 
-        // Clamp pan so at least half the image is visible
-        float limX = avail.x * 0.5f;
-        float limY = avail.y * 0.5f;
+        // Clamp pan: allow scrolling to image edges
+        float limX = std::max(avail.x, dispW) * 0.5f;
+        float limY = std::max(avail.y, dispH) * 0.5f;
         pan.x = std::clamp(pan.x, -limX, limX);
         pan.y = std::clamp(pan.y, -limY, limY);
 
