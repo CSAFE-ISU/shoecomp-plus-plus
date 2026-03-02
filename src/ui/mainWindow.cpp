@@ -248,7 +248,9 @@ namespace shoecomp
                                    int& selectedIdx,
                                    int otherIdx,
                                    float& zoom,
+                                   float& zoomTarget,
                                    ImVec2& pan,
+                                   ImVec2& panTarget,
                                    const char* label)
     {
         const char* preview = (selectedIdx >= 0
@@ -265,8 +267,8 @@ namespace shoecomp
                                   selectedIdx < 0))
             {
                 selectedIdx = -1;
-                zoom = 1.0f;
-                pan = ImVec2(0, 0);
+                zoom = zoomTarget = 1.0f;
+                pan = panTarget = ImVec2(0, 0);
             }
             for (int i = 0;
                  i < (int)state.images.size();
@@ -280,8 +282,8 @@ namespace shoecomp
                         selected))
                 {
                     selectedIdx = i;
-                    zoom = 0.0f;
-                    pan = ImVec2(0, 0);
+                    zoom = zoomTarget = 0.0f;
+                    pan = panTarget = ImVec2(0, 0);
                 }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
@@ -301,10 +303,10 @@ namespace shoecomp
         float scaleY = avail.y / (float)img.height;
         float baseScale = std::min(scaleX, scaleY);
         // Initial zoom: fit width to pane
+        if (zoomTarget <= 0.0f)
+            zoomTarget = scaleX / baseScale;
         if (zoom <= 0.0f)
-            zoom = scaleX / baseScale;
-        float dispW = img.width * baseScale * zoom;
-        float dispH = img.height * baseScale * zoom;
+            zoom = zoomTarget;
 
         // Canvas for clipping and input
         ImVec2 canvasPos = ImGui::GetCursorScreenPos();
@@ -315,43 +317,61 @@ namespace shoecomp
         bool active = ImGui::IsItemActive();
         ImGuiIO& io = ImGui::GetIO();
 
-        // Ctrl + scroll to zoom
+        // Ctrl + scroll to zoom (updates targets)
         if (hovered && io.KeyCtrl
             && io.MouseWheel != 0.0f)
         {
-            float oldZoom = zoom;
-            zoom *= (io.MouseWheel > 0) ? 1.15f : 0.87f;
-            zoom = std::clamp(zoom, 0.1f, 50.0f);
+            float oldTarget = zoomTarget;
+            zoomTarget *=
+                (io.MouseWheel > 0) ? 1.15f : 0.87f;
+            zoomTarget =
+                std::clamp(zoomTarget, 0.1f, 50.0f);
             // Zoom toward mouse position
             ImVec2 mouse = ImVec2(
                 io.MousePos.x - canvasPos.x,
                 io.MousePos.y - canvasPos.y);
-            float ratio = zoom / oldZoom;
-            pan.x = (1.0f - ratio)
+            float ratio = zoomTarget / oldTarget;
+            panTarget.x = (1.0f - ratio)
                     * (mouse.x - avail.x * 0.5f)
-                + ratio * pan.x;
-            pan.y = (1.0f - ratio)
+                + ratio * panTarget.x;
+            panTarget.y = (1.0f - ratio)
                     * (mouse.y - avail.y * 0.5f)
-                + ratio * pan.y;
+                + ratio * panTarget.y;
         }
 
         // Normal scroll to pan vertically
         if (hovered && !io.KeyCtrl
             && io.MouseWheel != 0.0f)
-            pan.y += io.MouseWheel * 30.0f;
+            panTarget.y += io.MouseWheel * 30.0f;
 
-        // Ctrl + drag to pan
+        // Ctrl + drag to pan (immediate, no lerp)
         if (active && io.KeyCtrl
             && ImGui::IsMouseDragging(
                 ImGuiMouseButton_Left))
         {
+            panTarget.x += io.MouseDelta.x;
+            panTarget.y += io.MouseDelta.y;
             pan.x += io.MouseDelta.x;
             pan.y += io.MouseDelta.y;
         }
 
+        // Smooth interpolation toward targets
+        float speed = 12.0f * io.DeltaTime;
+        speed = std::clamp(speed, 0.0f, 1.0f);
+        zoom += (zoomTarget - zoom) * speed;
+        pan.x += (panTarget.x - pan.x) * speed;
+        pan.y += (panTarget.y - pan.y) * speed;
+
+        float dispW = img.width * baseScale * zoom;
+        float dispH = img.height * baseScale * zoom;
+
         // Clamp pan: allow scrolling to image edges
         float limX = std::max(avail.x, dispW) * 0.5f;
         float limY = std::max(avail.y, dispH) * 0.5f;
+        panTarget.x =
+            std::clamp(panTarget.x, -limX, limX);
+        panTarget.y =
+            std::clamp(panTarget.y, -limY, limY);
         pan.x = std::clamp(pan.x, -limX, limX);
         pan.y = std::clamp(pan.y, -limY, limY);
 
@@ -406,9 +426,13 @@ namespace shoecomp
                 && ImGui::IsMouseDragging(
                     ImGuiMouseButton_Left);
             if (barDrag)
-                pan.x -= io.MouseDelta.x
+            {
+                float dx = -io.MouseDelta.x
                     / (avail.x - barW)
                     * (2.0f * limX);
+                pan.x += dx;
+                panTarget.x += dx;
+            }
             dl->AddRectFilled(
                 bMin, bMax,
                 barDrag || barHov ? barColHov : barCol,
@@ -437,9 +461,13 @@ namespace shoecomp
                 && ImGui::IsMouseDragging(
                     ImGuiMouseButton_Left);
             if (barDrag)
-                pan.y -= io.MouseDelta.y
+            {
+                float dy = -io.MouseDelta.y
                     / (avail.y - barH)
                     * (2.0f * limY);
+                pan.y += dy;
+                panTarget.y += dy;
+            }
             dl->AddRectFilled(
                 bMin, bMax,
                 barDrag || barHov ? barColHov : barCol,
@@ -447,6 +475,10 @@ namespace shoecomp
         }
 
         // Re-clamp after scrollbar drag
+        panTarget.x =
+            std::clamp(panTarget.x, -limX, limX);
+        panTarget.y =
+            std::clamp(panTarget.y, -limY, limY);
         pan.x = std::clamp(pan.x, -limX, limX);
         pan.y = std::clamp(pan.y, -limY, limY);
 
@@ -469,7 +501,9 @@ namespace shoecomp
         renderSingleViewer(
             state, state.viewerLeftIdx,
             state.viewerRightIdx,
-            state.zoomLeft, state.panLeft, "##Left");
+            state.zoomLeft, state.zoomLeftTarget,
+            state.panLeft, state.panLeftTarget,
+            "##Left");
         ImGui::EndChild();
 
         ImGui::SameLine();
@@ -498,7 +532,8 @@ namespace shoecomp
         renderSingleViewer(
             state, state.viewerRightIdx,
             state.viewerLeftIdx,
-            state.zoomRight, state.panRight,
+            state.zoomRight, state.zoomRightTarget,
+            state.panRight, state.panRightTarget,
             "##Right");
         ImGui::EndChild();
     }

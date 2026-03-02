@@ -32,11 +32,15 @@ namespace shoecomp
         int viewerRightIdx = -1;
         float viewerSplitRatio = 0.5f;
 
-        // Per-viewer zoom and pan
+        // Per-viewer zoom and pan (actual + targets)
         float zoomLeft = 1.0f;
         float zoomRight = 1.0f;
+        float zoomLeftTarget = 1.0f;
+        float zoomRightTarget = 1.0f;
         ImVec2 panLeft = ImVec2(0, 0);
         ImVec2 panRight = ImVec2(0, 0);
+        ImVec2 panLeftTarget = ImVec2(0, 0);
+        ImVec2 panRightTarget = ImVec2(0, 0);
     };
 
     void submain(void);
