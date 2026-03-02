@@ -305,6 +305,9 @@ namespace shoecomp
         dl->AddImage(img.textureId,
                      ImVec2(ox, oy),
                      ImVec2(ox + dispW, oy + dispH));
+        dl->AddRect(ImVec2(ox, oy),
+                    ImVec2(ox + dispW, oy + dispH),
+                    IM_COL32(180, 180, 180, 200));
 
         // Translucent scrollbars when image overflows
         float barThick = 8.0f;
