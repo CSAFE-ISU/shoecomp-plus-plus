@@ -13,13 +13,6 @@ if (NOT TARGET hello_imgui)
     message(FATAL_ERROR "couldn't find hello_imgui, submodule missing?")
 endif()
 
-# 3/  Option 3: via vcpkg
-# i/ You can install hello_imgui via vcpkg with:
-#     vcpkg install "hello-imgui[opengl3-binding,glfw-binding]"
-# ii/ Then you can use it inside CMake with:
-#     find_package(hello-imgui CONFIG REQUIRED)
-
-
 # Build your app
 # ==============
 # hello_imgui_add_app is a helper function, similar to cmake's "add_executable"
@@ -31,36 +24,11 @@ endif()
 # * It will embed the assets (for desktop, mobile, and emscripten apps)
 # * It will perform additional customization (app icon and name on mobile platforms, etc)
 
-# Now you can build your app with
-#     mkdir build && cd build && cmake .. && cmake --build .
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
-# By default, we install in a portable way (i.e. assets and executable are in the same folder)
-option(EXAMPLE_INTEGRATION_PORTABLE_INSTALL "Install in a portable way" ON)
-
-
-if (EXAMPLE_INTEGRATION_PORTABLE_INSTALL)
-    # portable installation is the easiest way to install the app
-    hello_imgui_add_app(hello_world_ hello_world.main.cpp)
-else()
-    # Disable HelloImGui default install behavior
-    set(HELLOIMGUI_ADD_APP_WITH_INSTALL OFF CACHE BOOL "" FORCE)
-
-    hello_imgui_add_app(hello_world_ hello_world.main.cpp)
-
-    # If not portable, we have to
-    # - install the app manually
-    # - install the assets manually
-    # - pass the assets location to the app, and set this assets location in main() via the compile definition ASSETS_LOCATION:
-    #     #ifdef ASSETS_LOCATION \n HelloImGui::SetAssetsFolder(ASSETS_LOCATION); \n #endif
-    include(GNUInstallDirs)
-    install(TARGETS hello_world_ DESTINATION ${CMAKE_INSTALL_BINDIR})
-    set(assets_install_dir ${CMAKE_INSTALL_DATADIR}/hello_world_)
-    install(DIRECTORY assets DESTINATION ${assets_install_dir})
-    
-    # Calculate relative path from bin to assets and pass to HelloImGui,
-    # which will resolve it relative to the executable location at runtime.
-    file(RELATIVE_PATH assets_relative_to_bin 
-            "/${CMAKE_INSTALL_BINDIR}" 
-            "/${assets_install_dir}/assets")
-    target_compile_definitions(hello_world_ PRIVATE ASSETS_LOCATION="${assets_relative_to_bin}")
-endif()
+# portable installation is the easiest way to install the app
+set(SC_SRCS
+    src/ui/mainWindow.cpp
+    src/main.cpp
+)
+hello_imgui_add_app(hello_world ${SC_SRCS})
