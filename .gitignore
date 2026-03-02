@@ -1,3 +1,4 @@
+*.png
 build*/
 cmake-build-*/
 external/

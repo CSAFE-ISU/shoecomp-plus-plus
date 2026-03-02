@@ -29,6 +29,7 @@ include_directories(${CMAKE_SOURCE_DIR}/include)
 # portable installation is the easiest way to install the app
 set(SC_SRCS
     src/ui/mainWindow.cpp
+    src/formats/pngLoader.cpp
     src/main.cpp
 )
 hello_imgui_add_app(hello_world ${SC_SRCS})
