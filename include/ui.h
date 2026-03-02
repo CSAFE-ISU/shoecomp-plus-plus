@@ -35,6 +35,7 @@ namespace shoecomp
         // Image viewer selections (-1 = none)
         int viewerLeftIdx = -1;
         int viewerRightIdx = -1;
+        float viewerSplitRatio = 0.5f;
 
         // Settings
         float settingZoom = 1.0f;

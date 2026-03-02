@@ -260,10 +260,15 @@ namespace shoecomp
     static void renderImageViewer(AppState& state)
     {
         float totalW = ImGui::GetContentRegionAvail().x;
-        float halfW = totalW * 0.5f;
+        float splitterW = 8.0f;
+        float leftW =
+            totalW * state.viewerSplitRatio - splitterW * 0.5f;
+        float rightW =
+            totalW * (1.0f - state.viewerSplitRatio)
+            - splitterW * 0.5f;
 
         ImGui::BeginChild("LeftViewer",
-                          ImVec2(halfW, 0),
+                          ImVec2(leftW, 0),
                           ImGuiChildFlags_Borders);
         renderSingleViewer(
             state, state.viewerLeftIdx, "##Left");
@@ -271,8 +276,26 @@ namespace shoecomp
 
         ImGui::SameLine();
 
+        // Draggable splitter
+        float height = ImGui::GetContentRegionAvail().y;
+        ImGui::Button("##Splitter",
+                      ImVec2(splitterW, height));
+        if (ImGui::IsItemActive())
+        {
+            float delta = ImGui::GetIO().MouseDelta.x;
+            state.viewerSplitRatio += delta / totalW;
+            state.viewerSplitRatio = std::clamp(
+                state.viewerSplitRatio, 0.1f, 0.9f);
+        }
+        if (ImGui::IsItemHovered()
+            || ImGui::IsItemActive())
+            ImGui::SetMouseCursor(
+                ImGuiMouseCursor_ResizeEW);
+
+        ImGui::SameLine();
+
         ImGui::BeginChild("RightViewer",
-                          ImVec2(0, 0),
+                          ImVec2(rightW, 0),
                           ImGuiChildFlags_Borders);
         renderSingleViewer(
             state, state.viewerRightIdx, "##Right");
@@ -317,6 +340,8 @@ namespace shoecomp
             .defaultImGuiWindowType = HelloImGui::
                 DefaultImGuiWindowType::
                     ProvideFullScreenWindow;
+        params.callbacks.PostInit = []()
+        { ImGui::GetIO().FontGlobalScale = 2.5f; };
         params.callbacks.ShowGui =
             [&state]() { renderGui(state); };
         params.callbacks.BeforeExit = [&state]()
