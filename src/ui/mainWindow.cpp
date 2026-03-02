@@ -218,7 +218,7 @@ namespace shoecomp
                         selected))
                 {
                     selectedIdx = i;
-                    zoom = 1.0f;
+                    zoom = 0.0f;
                     pan = ImVec2(0, 0);
                 }
                 if (selected)
@@ -238,6 +238,9 @@ namespace shoecomp
         float scaleX = avail.x / (float)img.width;
         float scaleY = avail.y / (float)img.height;
         float baseScale = std::min(scaleX, scaleY);
+        // Initial zoom: fit width to pane
+        if (zoom <= 0.0f)
+            zoom = scaleX / baseScale;
         float dispW = img.width * baseScale * zoom;
         float dispH = img.height * baseScale * zoom;
 
