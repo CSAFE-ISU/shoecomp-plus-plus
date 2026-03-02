@@ -318,23 +318,39 @@ namespace shoecomp
         float barThick = 8.0f;
         float barPad = 2.0f;
         ImU32 barCol = IM_COL32(200, 200, 200, 100);
+        ImU32 barColHov = IM_COL32(200, 200, 200, 180);
+        ImVec2 mpos = io.MousePos;
 
         if (dispW > avail.x)
         {
             float viewRatio = avail.x / dispW;
             float barW = avail.x * viewRatio;
-            // pan range: [-limX, limX], map to bar pos
+            // Negative pan = image left, viewport right
             float t =
-                (pan.x + limX) / (2.0f * limX);
+                (limX - pan.x) / (2.0f * limX);
             float barX = canvasPos.x
                 + t * (avail.x - barW);
             float barY = canvasPos.y + avail.y
                 - barThick - barPad;
+            ImVec2 bMin(barX, barY);
+            ImVec2 bMax(barX + barW,
+                        barY + barThick);
+
+            bool barHov =
+                mpos.x >= bMin.x && mpos.x <= bMax.x
+                && mpos.y >= bMin.y
+                && mpos.y <= bMax.y;
+            bool barDrag = barHov
+                && ImGui::IsMouseDragging(
+                    ImGuiMouseButton_Left);
+            if (barDrag)
+                pan.x -= io.MouseDelta.x
+                    / (avail.x - barW)
+                    * (2.0f * limX);
             dl->AddRectFilled(
-                ImVec2(barX, barY),
-                ImVec2(barX + barW,
-                       barY + barThick),
-                barCol, barThick * 0.5f);
+                bMin, bMax,
+                barDrag || barHov ? barColHov : barCol,
+                barThick * 0.5f);
         }
 
         if (dispH > avail.y)
@@ -342,17 +358,35 @@ namespace shoecomp
             float viewRatio = avail.y / dispH;
             float barH = avail.y * viewRatio;
             float t =
-                (pan.y + limY) / (2.0f * limY);
+                (limY - pan.y) / (2.0f * limY);
             float barX = canvasPos.x + avail.x
                 - barThick - barPad;
             float barY = canvasPos.y
                 + t * (avail.y - barH);
+            ImVec2 bMin(barX, barY);
+            ImVec2 bMax(barX + barThick,
+                        barY + barH);
+
+            bool barHov =
+                mpos.x >= bMin.x && mpos.x <= bMax.x
+                && mpos.y >= bMin.y
+                && mpos.y <= bMax.y;
+            bool barDrag = barHov
+                && ImGui::IsMouseDragging(
+                    ImGuiMouseButton_Left);
+            if (barDrag)
+                pan.y -= io.MouseDelta.y
+                    / (avail.y - barH)
+                    * (2.0f * limY);
             dl->AddRectFilled(
-                ImVec2(barX, barY),
-                ImVec2(barX + barThick,
-                       barY + barH),
-                barCol, barThick * 0.5f);
+                bMin, bMax,
+                barDrag || barHov ? barColHov : barCol,
+                barThick * 0.5f);
         }
+
+        // Re-clamp after scrollbar drag
+        pan.x = std::clamp(pan.x, -limX, limX);
+        pan.y = std::clamp(pan.y, -limY, limY);
 
         dl->PopClipRect();
     }
