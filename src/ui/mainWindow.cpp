@@ -305,6 +305,47 @@ namespace shoecomp
         dl->AddImage(img.textureId,
                      ImVec2(ox, oy),
                      ImVec2(ox + dispW, oy + dispH));
+
+        // Translucent scrollbars when image overflows
+        float barThick = 8.0f;
+        float barPad = 2.0f;
+        ImU32 barCol = IM_COL32(200, 200, 200, 100);
+
+        if (dispW > avail.x)
+        {
+            float viewRatio = avail.x / dispW;
+            float barW = avail.x * viewRatio;
+            // pan range: [-limX, limX], map to bar pos
+            float t =
+                (pan.x + limX) / (2.0f * limX);
+            float barX = canvasPos.x
+                + t * (avail.x - barW);
+            float barY = canvasPos.y + avail.y
+                - barThick - barPad;
+            dl->AddRectFilled(
+                ImVec2(barX, barY),
+                ImVec2(barX + barW,
+                       barY + barThick),
+                barCol, barThick * 0.5f);
+        }
+
+        if (dispH > avail.y)
+        {
+            float viewRatio = avail.y / dispH;
+            float barH = avail.y * viewRatio;
+            float t =
+                (pan.y + limY) / (2.0f * limY);
+            float barX = canvasPos.x + avail.x
+                - barThick - barPad;
+            float barY = canvasPos.y
+                + t * (avail.y - barH);
+            dl->AddRectFilled(
+                ImVec2(barX, barY),
+                ImVec2(barX + barThick,
+                       barY + barH),
+                barCol, barThick * 0.5f);
+        }
+
         dl->PopClipRect();
     }
 
