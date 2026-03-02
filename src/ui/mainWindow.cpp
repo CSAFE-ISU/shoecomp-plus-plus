@@ -207,6 +207,7 @@ namespace shoecomp
 
     static void renderSingleViewer(AppState& state,
                                    int& selectedIdx,
+                                   int otherIdx,
                                    float& zoom,
                                    ImVec2& pan,
                                    const char* label)
@@ -220,10 +221,20 @@ namespace shoecomp
 
         if (ImGui::BeginCombo(label, preview))
         {
+            // None option
+            if (ImGui::Selectable("<none>",
+                                  selectedIdx < 0))
+            {
+                selectedIdx = -1;
+                zoom = 1.0f;
+                pan = ImVec2(0, 0);
+            }
             for (int i = 0;
                  i < (int)state.images.size();
                  ++i)
             {
+                if (i == otherIdx)
+                    continue;
                 bool selected = (i == selectedIdx);
                 if (ImGui::Selectable(
                         state.images[i].name.c_str(),
@@ -418,6 +429,7 @@ namespace shoecomp
                           ImGuiChildFlags_Borders);
         renderSingleViewer(
             state, state.viewerLeftIdx,
+            state.viewerRightIdx,
             state.zoomLeft, state.panLeft, "##Left");
         ImGui::EndChild();
 
@@ -446,6 +458,7 @@ namespace shoecomp
                           ImGuiChildFlags_Borders);
         renderSingleViewer(
             state, state.viewerRightIdx,
+            state.viewerLeftIdx,
             state.zoomRight, state.panRight,
             "##Right");
         ImGui::EndChild();
