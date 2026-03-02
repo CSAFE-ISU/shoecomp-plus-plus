@@ -17,6 +17,10 @@ namespace shoecomp
         params.appWindowParams.windowGeometry.size = {
             640, 360};
         params.appWindowParams.borderless = true;
+        params.appWindowParams.borderlessMovable = false;
+        params.appWindowParams.borderlessResizable = false;
+        params.appWindowParams.borderlessClosable = false;
+        params.appWindowParams.resizable = false;
         params.appWindowParams.windowGeometry
             .positionMode = HelloImGui::
                 WindowPositionMode::MonitorCenter;
