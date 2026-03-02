@@ -19,11 +19,6 @@ namespace shoecomp
 
     struct AppState
     {
-        // Splash
-        bool showSplash = true;
-        double splashStartTime = 0.0;
-        double splashDuration = 2.0;
-
         // File browser
         std::string currentDir = ".";
         std::vector<std::string> dirEntries;

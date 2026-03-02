@@ -8,31 +8,66 @@ namespace shoecomp
 {
     namespace fs = std::filesystem;
 
-    static void renderSplash(AppState& state)
+    static void runSplash(double duration)
     {
-        if (state.splashStartTime == 0.0)
-            state.splashStartTime = ImGui::GetTime();
+        double startTime = 0.0;
 
-        ImVec2 winSize = ImGui::GetWindowSize();
+        HelloImGui::RunnerParams params;
+        params.appWindowParams.windowTitle = "ShoeComp";
+        params.appWindowParams.windowGeometry.size = {
+            640, 360};
+        params.appWindowParams.borderless = true;
+        params.appWindowParams.windowGeometry
+            .positionMode = HelloImGui::
+                WindowPositionMode::MonitorCenter;
+        params.imGuiWindowParams
+            .defaultImGuiWindowType = HelloImGui::
+                DefaultImGuiWindowType::
+                    ProvideFullScreenWindow;
+        params.callbacks.PostInit = []()
+        { ImGui::GetIO().FontGlobalScale = 2.5f; };
+        params.callbacks.ShowGui =
+            [&startTime, duration]()
+        {
+            if (startTime == 0.0)
+                startTime = ImGui::GetTime();
 
-        const char* title = "ShoeComp";
-        ImVec2 titleSize = ImGui::CalcTextSize(title);
-        ImGui::SetCursorPos(
-            ImVec2((winSize.x - titleSize.x) * 0.5f,
-                   (winSize.y - titleSize.y) * 0.5f - 20.0f));
-        ImGui::Text("%s", title);
+            double elapsed =
+                ImGui::GetTime() - startTime;
 
-        const char* subtitle = "Loading...";
-        ImVec2 subSize = ImGui::CalcTextSize(subtitle);
-        ImGui::SetCursorPos(
-            ImVec2((winSize.x - subSize.x) * 0.5f,
-                   (winSize.y - subSize.y) * 0.5f + 20.0f));
-        ImGui::Text("%s", subtitle);
+            ImVec2 winSize = ImGui::GetWindowSize();
 
-        double elapsed =
-            ImGui::GetTime() - state.splashStartTime;
-        if (elapsed >= state.splashDuration)
-            state.showSplash = false;
+            const char* title = "ShoeComp";
+            ImVec2 titleSize =
+                ImGui::CalcTextSize(title);
+            ImGui::SetCursorPos(ImVec2(
+                (winSize.x - titleSize.x) * 0.5f,
+                (winSize.y - titleSize.y) * 0.5f
+                    - 30.0f));
+            ImGui::Text("%s", title);
+
+            // Animated dots: cycle 1-3
+            int dots =
+                (int)(elapsed / 0.4) % 3 + 1;
+            char subtitle[16];
+            snprintf(subtitle, sizeof(subtitle),
+                     "Loading%.*s", dots, "...");
+            // Use fixed width so text doesn't shift
+            const char* widest = "Loading...";
+            ImVec2 wSize =
+                ImGui::CalcTextSize(widest);
+            ImGui::SetCursorPos(ImVec2(
+                (winSize.x - wSize.x) * 0.5f,
+                (winSize.y - wSize.y) * 0.5f
+                    + 30.0f));
+            ImGui::Text("%s", subtitle);
+
+            if (elapsed >= duration)
+                HelloImGui::GetRunnerParams()
+                    ->appShallExit = true;
+        };
+
+        HelloImGui::Run(params);
     }
 
     static void renderFileBrowser(AppState& state)
@@ -466,12 +501,6 @@ namespace shoecomp
 
     static void renderGui(AppState& state)
     {
-        if (state.showSplash)
-        {
-            renderSplash(state);
-            return;
-        }
-
         if (ImGui::BeginTabBar("MainTabs"))
         {
             if (ImGui::BeginTabItem(
@@ -491,6 +520,8 @@ namespace shoecomp
 
     void submain(void)
     {
+        runSplash(2.0);
+
         AppState state;
 
         HelloImGui::RunnerParams params;
