@@ -265,10 +265,12 @@ namespace shoecomp
                 io.MousePos.x - canvasPos.x,
                 io.MousePos.y - canvasPos.y);
             float ratio = zoom / oldZoom;
-            pan.x = mouse.x
-                - ratio * (mouse.x - pan.x);
-            pan.y = mouse.y
-                - ratio * (mouse.y - pan.y);
+            pan.x = (1.0f - ratio)
+                    * (mouse.x - avail.x * 0.5f)
+                + ratio * pan.x;
+            pan.y = (1.0f - ratio)
+                    * (mouse.y - avail.y * 0.5f)
+                + ratio * pan.y;
         }
 
         // Normal scroll to pan vertically
