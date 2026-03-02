@@ -282,6 +282,12 @@ namespace shoecomp
             pan.y += io.MouseDelta.y;
         }
 
+        // Clamp pan so at least half the image is visible
+        float limX = avail.x * 0.5f;
+        float limY = avail.y * 0.5f;
+        pan.x = std::clamp(pan.x, -limX, limX);
+        pan.y = std::clamp(pan.y, -limY, limY);
+
         // Draw image at pan offset, clipped to canvas
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->PushClipRect(
