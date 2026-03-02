@@ -37,9 +37,11 @@ namespace shoecomp
         int viewerRightIdx = -1;
         float viewerSplitRatio = 0.5f;
 
-        // Settings
-        float settingZoom = 1.0f;
-        bool settingAutoFit = true;
+        // Per-viewer zoom and pan
+        float zoomLeft = 1.0f;
+        float zoomRight = 1.0f;
+        ImVec2 panLeft = ImVec2(0, 0);
+        ImVec2 panRight = ImVec2(0, 0);
     };
 
     void submain(void);

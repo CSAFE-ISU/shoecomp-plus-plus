@@ -146,14 +146,6 @@ namespace shoecomp
 
     static void renderSettings(AppState& state)
     {
-        ImGui::SliderFloat("Zoom",
-                           &state.settingZoom,
-                           0.1f,
-                           10.0f);
-        ImGui::Checkbox("Auto-fit",
-                        &state.settingAutoFit);
-
-        ImGui::Separator();
         ImGui::Text("Loaded images:");
         int removeIdx = -1;
         for (int i = 0;
@@ -203,6 +195,8 @@ namespace shoecomp
 
     static void renderSingleViewer(AppState& state,
                                    int& selectedIdx,
+                                   float& zoom,
+                                   ImVec2& pan,
                                    const char* label)
     {
         const char* preview = (selectedIdx >= 0
@@ -222,39 +216,90 @@ namespace shoecomp
                 if (ImGui::Selectable(
                         state.images[i].name.c_str(),
                         selected))
+                {
                     selectedIdx = i;
+                    zoom = 1.0f;
+                    pan = ImVec2(0, 0);
+                }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
 
-        if (selectedIdx >= 0
-            && selectedIdx < (int)state.images.size())
+        if (selectedIdx < 0
+            || selectedIdx >= (int)state.images.size())
+            return;
+
+        auto& img = state.images[selectedIdx];
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+
+        // Fit image to available space, then apply zoom
+        float scaleX = avail.x / (float)img.width;
+        float scaleY = avail.y / (float)img.height;
+        float baseScale = std::min(scaleX, scaleY);
+        float dispW = img.width * baseScale * zoom;
+        float dispH = img.height * baseScale * zoom;
+
+        // Canvas for clipping and input
+        ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+        ImGui::InvisibleButton(
+            "##canvas", avail,
+            ImGuiButtonFlags_MouseButtonLeft);
+        bool hovered = ImGui::IsItemHovered();
+        bool active = ImGui::IsItemActive();
+        ImGuiIO& io = ImGui::GetIO();
+
+        // Ctrl + scroll to zoom
+        if (hovered && io.KeyCtrl
+            && io.MouseWheel != 0.0f)
         {
-            auto& img = state.images[selectedIdx];
-            ImVec2 avail = ImGui::GetContentRegionAvail();
-            float dispW, dispH;
-
-            if (state.settingAutoFit)
-            {
-                float scaleX = avail.x / (float)img.width;
-                float scaleY =
-                    avail.y / (float)img.height;
-                float scale = std::min(scaleX, scaleY)
-                    * state.settingZoom;
-                dispW = img.width * scale;
-                dispH = img.height * scale;
-            }
-            else
-            {
-                dispW = img.width * state.settingZoom;
-                dispH = img.height * state.settingZoom;
-            }
-
-            ImGui::Image(img.textureId,
-                         ImVec2(dispW, dispH));
+            float oldZoom = zoom;
+            zoom *= (io.MouseWheel > 0) ? 1.15f : 0.87f;
+            zoom = std::clamp(zoom, 0.1f, 50.0f);
+            // Zoom toward mouse position
+            ImVec2 mouse = ImVec2(
+                io.MousePos.x - canvasPos.x,
+                io.MousePos.y - canvasPos.y);
+            float ratio = zoom / oldZoom;
+            pan.x = mouse.x
+                - ratio * (mouse.x - pan.x);
+            pan.y = mouse.y
+                - ratio * (mouse.y - pan.y);
         }
+
+        // Normal scroll to pan vertically
+        if (hovered && !io.KeyCtrl
+            && io.MouseWheel != 0.0f)
+            pan.y += io.MouseWheel * 30.0f;
+
+        // Ctrl + drag to pan
+        if (active && io.KeyCtrl
+            && ImGui::IsMouseDragging(
+                ImGuiMouseButton_Left))
+        {
+            pan.x += io.MouseDelta.x;
+            pan.y += io.MouseDelta.y;
+        }
+
+        // Draw image at pan offset, clipped to canvas
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        dl->PushClipRect(
+            canvasPos,
+            ImVec2(canvasPos.x + avail.x,
+                   canvasPos.y + avail.y),
+            true);
+        // Center image then apply pan
+        float ox =
+            canvasPos.x + (avail.x - dispW) * 0.5f
+            + pan.x;
+        float oy =
+            canvasPos.y + (avail.y - dispH) * 0.5f
+            + pan.y;
+        dl->AddImage(img.textureId,
+                     ImVec2(ox, oy),
+                     ImVec2(ox + dispW, oy + dispH));
+        dl->PopClipRect();
     }
 
     static void renderImageViewer(AppState& state)
@@ -271,7 +316,8 @@ namespace shoecomp
                           ImVec2(leftW, 0),
                           ImGuiChildFlags_Borders);
         renderSingleViewer(
-            state, state.viewerLeftIdx, "##Left");
+            state, state.viewerLeftIdx,
+            state.zoomLeft, state.panLeft, "##Left");
         ImGui::EndChild();
 
         ImGui::SameLine();
@@ -298,7 +344,9 @@ namespace shoecomp
                           ImVec2(rightW, 0),
                           ImGuiChildFlags_Borders);
         renderSingleViewer(
-            state, state.viewerRightIdx, "##Right");
+            state, state.viewerRightIdx,
+            state.zoomRight, state.panRight,
+            "##Right");
         ImGui::EndChild();
     }
 
