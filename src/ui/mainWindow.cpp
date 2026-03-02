@@ -75,7 +75,14 @@ namespace shoecomp
                           ImGuiChildFlags_None);
         for (auto& entry : state.dirEntries)
         {
-            if (ImGui::Selectable(entry.c_str()))
+            bool isDir = entry == ".."
+                || entry.back() == '/';
+            ImGuiSelectableFlags flags = isDir
+                ? ImGuiSelectableFlags_None
+                : ImGuiSelectableFlags_AllowDoubleClick;
+
+            if (ImGui::Selectable(entry.c_str(), false,
+                                  flags))
             {
                 if (entry == "..")
                 {
@@ -95,12 +102,14 @@ namespace shoecomp
                 else if (entry.back() == '/')
                 {
                     std::string dirName =
-                        entry.substr(0, entry.size() - 1);
+                        entry.substr(
+                            0, entry.size() - 1);
                     try
                     {
                         state.currentDir =
                             fs::canonical(
-                                fs::path(state.currentDir)
+                                fs::path(
+                                    state.currentDir)
                                 / dirName)
                                 .string();
                     }
@@ -109,7 +118,8 @@ namespace shoecomp
                     }
                     state.dirNeedsRefresh = true;
                 }
-                else
+                else if (ImGui::IsMouseDoubleClicked(
+                             ImGuiMouseButton_Left))
                 {
                     std::string fullPath =
                         fs::canonical(
@@ -130,12 +140,14 @@ namespace shoecomp
                         LoadedImage img;
                         img.name = entry;
                         img.path = fullPath;
-                        if (loadPngFromDisk(fullPath,
-                                            img.textureId,
-                                            img.width,
-                                            img.height))
+                        if (loadPngFromDisk(
+                                fullPath,
+                                img.textureId,
+                                img.width,
+                                img.height))
                         {
-                            state.images.push_back(img);
+                            state.images.push_back(
+                                img);
                         }
                     }
                 }
