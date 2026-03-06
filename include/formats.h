@@ -10,6 +10,10 @@ namespace shoecomp
                          ImTextureID& outTextureId,
                          int& outWidth,
                          int& outHeight);
+    bool loadJpegFromDisk(const std::string& filePath,
+                          ImTextureID& outTextureId,
+                          int& outWidth,
+                          int& outHeight);
     void freeTexture(ImTextureID textureId);
 } /* namespace shoecomp */
 
