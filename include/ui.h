@@ -14,6 +14,8 @@ namespace shoecomp
         float zoomTarget = 1.0f;
         ImVec2 pan = ImVec2(0, 0);
         ImVec2 panTarget = ImVec2(0, 0);
+        float rotation = 0.0f;
+        float rotationTarget = 0.0f;
     };
 
     struct LoadedImage
@@ -44,6 +46,7 @@ namespace shoecomp
         // Per-viewer zoom and pan state
         ImageViewState viewerLeftState;
         ImageViewState viewerRightState;
+        bool viewerLocked = false;
     };
 
     void submain(void);

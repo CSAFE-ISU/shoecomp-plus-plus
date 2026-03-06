@@ -2,6 +2,7 @@
 #include "formats.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
 #include <algorithm>
+#include <cmath>
 #include <filesystem>
 
 namespace shoecomp
@@ -247,7 +248,8 @@ namespace shoecomp
     static void renderImageCanvas(
         LoadedImage& img,
         ImageViewState& vs,
-        const char* canvasId)
+        const char* canvasId,
+        ImageViewState* linked = nullptr)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
 
@@ -285,11 +287,21 @@ namespace shoecomp
             vs.panTarget.y = (1.0f - ratio)
                     * (mouse.y - avail.y * 0.5f)
                 + ratio * vs.panTarget.y;
+            if (linked)
+            {
+                linked->zoomTarget = vs.zoomTarget;
+                linked->panTarget = vs.panTarget;
+            }
         }
 
         if (hovered && !io.KeyCtrl
             && io.MouseWheel != 0.0f)
+        {
             vs.panTarget.y += io.MouseWheel * 30.0f;
+            if (linked)
+                linked->panTarget.y =
+                    vs.panTarget.y;
+        }
 
         if (active && io.KeyCtrl
             && ImGui::IsMouseDragging(
@@ -299,6 +311,13 @@ namespace shoecomp
             vs.panTarget.y += io.MouseDelta.y;
             vs.pan.x += io.MouseDelta.x;
             vs.pan.y += io.MouseDelta.y;
+            if (linked)
+            {
+                linked->panTarget.x += io.MouseDelta.x;
+                linked->panTarget.y += io.MouseDelta.y;
+                linked->pan.x += io.MouseDelta.x;
+                linked->pan.y += io.MouseDelta.y;
+            }
         }
 
         float speed = 12.0f * io.DeltaTime;
@@ -308,6 +327,9 @@ namespace shoecomp
             (vs.panTarget.x - vs.pan.x) * speed;
         vs.pan.y +=
             (vs.panTarget.y - vs.pan.y) * speed;
+        vs.rotation +=
+            (vs.rotationTarget - vs.rotation)
+            * speed;
 
         float dispW =
             img.width * baseScale * vs.zoom;
@@ -333,17 +355,29 @@ namespace shoecomp
             ImVec2(canvasPos.x + avail.x,
                    canvasPos.y + avail.y),
             true);
-        float ox =
-            canvasPos.x + (avail.x - dispW) * 0.5f
-            + vs.pan.x;
-        float oy =
-            canvasPos.y + (avail.y - dispH) * 0.5f
-            + vs.pan.y;
-        dl->AddImage(img.textureId,
-                     ImVec2(ox, oy),
-                     ImVec2(ox + dispW, oy + dispH));
-        dl->AddRect(ImVec2(ox, oy),
-                    ImVec2(ox + dispW, oy + dispH),
+        float cx =
+            canvasPos.x + avail.x * 0.5f + vs.pan.x;
+        float cy =
+            canvasPos.y + avail.y * 0.5f + vs.pan.y;
+        float hw = dispW * 0.5f;
+        float hh = dispH * 0.5f;
+        float cosR = cosf(vs.rotation);
+        float sinR = sinf(vs.rotation);
+        auto rot = [&](float lx, float ly) -> ImVec2
+        {
+            return ImVec2(
+                cx + lx * cosR - ly * sinR,
+                cy + lx * sinR + ly * cosR);
+        };
+        ImVec2 tl = rot(-hw, -hh);
+        ImVec2 tr = rot(hw, -hh);
+        ImVec2 br = rot(hw, hh);
+        ImVec2 bl = rot(-hw, hh);
+        dl->AddImageQuad(
+            img.textureId, tl, tr, br, bl,
+            ImVec2(0, 0), ImVec2(1, 0),
+            ImVec2(1, 1), ImVec2(0, 1));
+        dl->AddQuad(tl, tr, br, bl,
                     IM_COL32(180, 180, 180, 200));
 
         float barThick = 8.0f;
@@ -381,6 +415,11 @@ namespace shoecomp
                     * (2.0f * limX);
                 vs.pan.x += dx;
                 vs.panTarget.x += dx;
+                if (linked)
+                {
+                    linked->pan.x += dx;
+                    linked->panTarget.x += dx;
+                }
             }
             dl->AddRectFilled(
                 bMin, bMax,
@@ -417,6 +456,11 @@ namespace shoecomp
                     * (2.0f * limY);
                 vs.pan.y += dy;
                 vs.panTarget.y += dy;
+                if (linked)
+                {
+                    linked->pan.y += dy;
+                    linked->panTarget.y += dy;
+                }
             }
             dl->AddRectFilled(
                 bMin, bMax,
@@ -437,12 +481,121 @@ namespace shoecomp
         dl->PopClipRect();
     }
 
+    static void renderImageToolbar(
+        LoadedImage& img,
+        ImageViewState& vs,
+        const char* toolbarId,
+        ImageViewState* linked = nullptr,
+        bool* lockToggle = nullptr)
+    {
+        ImGui::PushID(toolbarId);
+
+        float frameH = ImGui::GetFrameHeight();
+
+        // Lock toggle (comparison mode only)
+        if (lockToggle)
+        {
+            if (ImGui::Button(
+                    *lockToggle ? "Unlock" : "Lock"))
+                *lockToggle = !*lockToggle;
+            ImGui::SameLine();
+        }
+
+        // Home: fit image vertically, reset pan
+        if (ImGui::Button("Home"))
+        {
+            vs.zoomTarget = 1.0f;
+            vs.panTarget = ImVec2(0, 0);
+            vs.rotationTarget = 0.0f;
+            if (linked)
+            {
+                linked->zoomTarget = 1.0f;
+                linked->panTarget = ImVec2(0, 0);
+                linked->rotationTarget = 0.0f;
+            }
+        }
+        ImGui::SameLine();
+
+        // Zoom in
+        if (ImGui::Button("+"))
+        {
+            vs.zoomTarget = std::clamp(
+                vs.zoomTarget * 1.25f, 0.1f, 50.0f);
+            if (linked)
+                linked->zoomTarget = vs.zoomTarget;
+        }
+        ImGui::SameLine();
+
+        // Zoom out
+        if (ImGui::Button("-"))
+        {
+            vs.zoomTarget = std::clamp(
+                vs.zoomTarget * 0.8f, 0.1f, 50.0f);
+            if (linked)
+                linked->zoomTarget = vs.zoomTarget;
+        }
+        ImGui::SameLine();
+
+        // Rotation dial
+        float dialR = frameH * 0.5f;
+        ImVec2 cursor = ImGui::GetCursorScreenPos();
+        ImVec2 center(cursor.x + dialR,
+                      cursor.y + dialR);
+        ImGui::InvisibleButton(
+            "##dial",
+            ImVec2(dialR * 2.0f, dialR * 2.0f));
+        bool dialHov = ImGui::IsItemHovered();
+        bool dialAct = ImGui::IsItemActive();
+
+        if (dialAct)
+        {
+            ImGuiIO& io = ImGui::GetIO();
+            float angle = atan2f(
+                io.MousePos.y - center.y,
+                io.MousePos.x - center.x);
+            vs.rotationTarget = angle;
+            vs.rotation = angle;
+            if (linked)
+            {
+                linked->rotationTarget = angle;
+                linked->rotation = angle;
+            }
+        }
+
+        ImDrawList* dl = ImGui::GetWindowDrawList();
+        ImU32 ringCol = dialHov || dialAct
+            ? IM_COL32(200, 200, 200, 255)
+            : IM_COL32(150, 150, 150, 200);
+        dl->AddCircle(center, dialR, ringCol, 24,
+                      2.0f);
+        float indX =
+            center.x + cosf(vs.rotation) * dialR;
+        float indY =
+            center.y + sinf(vs.rotation) * dialR;
+        dl->AddLine(center, ImVec2(indX, indY),
+                    IM_COL32(255, 180, 50, 255),
+                    2.0f);
+        dl->AddCircleFilled(ImVec2(indX, indY),
+                            3.0f,
+                            IM_COL32(255, 180, 50,
+                                     255));
+
+        ImGui::SameLine();
+        ImGui::Text("%.0f deg",
+                    vs.rotation * 180.0f
+                        / 3.14159265f);
+
+        ImGui::PopID();
+    }
+
     static void renderSingleViewer(
         AppState& state,
         int& selectedIdx,
         int otherIdx,
         ImageViewState& vs,
-        const char* label)
+        const char* label,
+        ImageViewState* linked = nullptr,
+        bool* lockToggle = nullptr)
     {
         const char* preview = (selectedIdx >= 0
                                && selectedIdx
@@ -487,9 +640,23 @@ namespace shoecomp
                    >= (int)state.images.size())
             return;
 
-        renderImageCanvas(
-            state.images[selectedIdx], vs,
-            "##canvas");
+        auto& img = state.images[selectedIdx];
+        float toolbarH =
+            ImGui::GetFrameHeightWithSpacing();
+        ImVec2 region =
+            ImGui::GetContentRegionAvail();
+        float canvasH = region.y - toolbarH;
+        if (canvasH > 0.0f)
+        {
+            ImGui::BeginChild(
+                "##cvs", ImVec2(0, canvasH),
+                ImGuiChildFlags_None);
+            renderImageCanvas(
+                img, vs, "##canvas", linked);
+            ImGui::EndChild();
+        }
+        renderImageToolbar(
+            img, vs, label, linked, lockToggle);
     }
 
     static void renderImageViewer(AppState& state)
@@ -508,7 +675,11 @@ namespace shoecomp
         renderSingleViewer(
             state, state.viewerLeftIdx,
             state.viewerRightIdx,
-            state.viewerLeftState, "##Left");
+            state.viewerLeftState, "##Left",
+            state.viewerLocked
+                ? &state.viewerRightState
+                : nullptr,
+            &state.viewerLocked);
         ImGui::EndChild();
 
         ImGui::SameLine();
@@ -537,7 +708,11 @@ namespace shoecomp
         renderSingleViewer(
             state, state.viewerRightIdx,
             state.viewerLeftIdx,
-            state.viewerRightState, "##Right");
+            state.viewerRightState, "##Right",
+            state.viewerLocked
+                ? &state.viewerLeftState
+                : nullptr,
+            &state.viewerLocked);
         ImGui::EndChild();
     }
 
@@ -594,8 +769,29 @@ namespace shoecomp
             if (ImGui::Begin(winId, &open,
                     ImGuiWindowFlags_NoSavedSettings))
             {
-                renderImageCanvas(
-                    img, img.viewState, canvasId);
+                float toolbarH =
+                    ImGui::GetFrameHeightWithSpacing();
+                ImVec2 region =
+                    ImGui::GetContentRegionAvail();
+                float canvasH =
+                    region.y - toolbarH;
+                if (canvasH > 0.0f)
+                {
+                    ImGui::BeginChild(
+                        canvasId, ImVec2(0, canvasH),
+                        ImGuiChildFlags_None);
+                    char cid[64];
+                    snprintf(cid, sizeof(cid),
+                             "##gc_%d", i);
+                    renderImageCanvas(
+                        img, img.viewState, cid);
+                    ImGui::EndChild();
+                }
+                char tbId[64];
+                snprintf(tbId, sizeof(tbId),
+                         "##gtb_%d", i);
+                renderImageToolbar(
+                    img, img.viewState, tbId);
             }
             ImGui::End();
 
