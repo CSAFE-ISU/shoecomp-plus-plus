@@ -1,0 +1,21 @@
+ShoeComp
+
+Third-party libraries:
+
+  Dear ImGui (MIT)
+  https://github.com/ocornut/imgui
+
+  Hello ImGui (MIT)
+  https://github.com/pthom/hello_imgui
+
+  FreeType (FreeType License)
+  https://github.com/freetype/freetype
+
+  zlib (zlib License)
+  https://github.com/madler/zlib
+
+  JSON for Classic C++ (Apache 2.0)
+  https://github.com/jart/json.cpp
+
+  stb_image (MIT / Public Domain)
+  https://github.com/nothings/stb

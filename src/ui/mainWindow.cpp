@@ -538,6 +538,31 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    static void renderAbout()
+    {
+        static std::string aboutText;
+        if (aboutText.empty())
+        {
+            auto data =
+                HelloImGui::LoadAssetFileData("about.txt");
+            if (data.data)
+            {
+                aboutText.assign(
+                    (const char*)data.data,
+                    data.dataSize);
+                HelloImGui::FreeAssetFileData(&data);
+            }
+        }
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImGui::InputTextMultiline(
+            "##about",
+            const_cast<char*>(aboutText.c_str()),
+            aboutText.size() + 1,
+            avail,
+            ImGuiInputTextFlags_ReadOnly);
+    }
+
     static void renderGui(AppState& state)
     {
         if (ImGui::BeginTabBar("MainTabs"))
@@ -551,6 +576,11 @@ namespace shoecomp
             if (ImGui::BeginTabItem("Image Viewer"))
             {
                 renderImageViewer(state);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("About"))
+            {
+                renderAbout();
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
