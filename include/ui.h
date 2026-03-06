@@ -8,6 +8,14 @@
 
 namespace shoecomp
 {
+    struct ImageViewState
+    {
+        float zoom = 1.0f;
+        float zoomTarget = 1.0f;
+        ImVec2 pan = ImVec2(0, 0);
+        ImVec2 panTarget = ImVec2(0, 0);
+    };
+
     struct LoadedImage
     {
         std::string name;
@@ -15,6 +23,7 @@ namespace shoecomp
         ImTextureID textureId = 0;
         int width = 0;
         int height = 0;
+        ImageViewState viewState;
     };
 
     struct AppState
@@ -32,15 +41,9 @@ namespace shoecomp
         int viewerRightIdx = -1;
         float viewerSplitRatio = 0.5f;
 
-        // Per-viewer zoom and pan (actual + targets)
-        float zoomLeft = 1.0f;
-        float zoomRight = 1.0f;
-        float zoomLeftTarget = 1.0f;
-        float zoomRightTarget = 1.0f;
-        ImVec2 panLeft = ImVec2(0, 0);
-        ImVec2 panRight = ImVec2(0, 0);
-        ImVec2 panLeftTarget = ImVec2(0, 0);
-        ImVec2 panRightTarget = ImVec2(0, 0);
+        // Per-viewer zoom and pan state
+        ImageViewState viewerLeftState;
+        ImageViewState viewerRightState;
     };
 
     void submain(void);

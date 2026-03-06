@@ -244,151 +244,101 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
-    static void renderSingleViewer(AppState& state,
-                                   int& selectedIdx,
-                                   int otherIdx,
-                                   float& zoom,
-                                   float& zoomTarget,
-                                   ImVec2& pan,
-                                   ImVec2& panTarget,
-                                   const char* label)
+    static void renderImageCanvas(
+        LoadedImage& img,
+        ImageViewState& vs,
+        const char* canvasId)
     {
-        const char* preview = (selectedIdx >= 0
-                               && selectedIdx
-                                      < (int)state.images
-                                            .size())
-            ? state.images[selectedIdx].name.c_str()
-            : "<none>";
-
-        if (ImGui::BeginCombo(label, preview))
-        {
-            // None option
-            if (ImGui::Selectable("<none>",
-                                  selectedIdx < 0))
-            {
-                selectedIdx = -1;
-                zoom = zoomTarget = 1.0f;
-                pan = panTarget = ImVec2(0, 0);
-            }
-            for (int i = 0;
-                 i < (int)state.images.size();
-                 ++i)
-            {
-                if (i == otherIdx)
-                    continue;
-                bool selected = (i == selectedIdx);
-                if (ImGui::Selectable(
-                        state.images[i].name.c_str(),
-                        selected))
-                {
-                    selectedIdx = i;
-                    zoom = zoomTarget = 0.0f;
-                    pan = panTarget = ImVec2(0, 0);
-                }
-                if (selected)
-                    ImGui::SetItemDefaultFocus();
-            }
-            ImGui::EndCombo();
-        }
-
-        if (selectedIdx < 0
-            || selectedIdx >= (int)state.images.size())
-            return;
-
-        auto& img = state.images[selectedIdx];
         ImVec2 avail = ImGui::GetContentRegionAvail();
 
-        // Fit image to available space, then apply zoom
         float scaleX = avail.x / (float)img.width;
         float scaleY = avail.y / (float)img.height;
         float baseScale = std::min(scaleX, scaleY);
-        // Initial zoom: fit width to pane
-        if (zoomTarget <= 0.0f)
-            zoomTarget = scaleX / baseScale;
-        if (zoom <= 0.0f)
-            zoom = zoomTarget;
+        if (vs.zoomTarget <= 0.0f)
+            vs.zoomTarget = scaleX / baseScale;
+        if (vs.zoom <= 0.0f)
+            vs.zoom = vs.zoomTarget;
 
-        // Canvas for clipping and input
         ImVec2 canvasPos = ImGui::GetCursorScreenPos();
         ImGui::InvisibleButton(
-            "##canvas", avail,
+            canvasId, avail,
             ImGuiButtonFlags_MouseButtonLeft);
         bool hovered = ImGui::IsItemHovered();
         bool active = ImGui::IsItemActive();
         ImGuiIO& io = ImGui::GetIO();
 
-        // Ctrl + scroll to zoom (updates targets)
         if (hovered && io.KeyCtrl
             && io.MouseWheel != 0.0f)
         {
-            float oldTarget = zoomTarget;
-            zoomTarget *=
+            float oldTarget = vs.zoomTarget;
+            vs.zoomTarget *=
                 (io.MouseWheel > 0) ? 1.15f : 0.87f;
-            zoomTarget =
-                std::clamp(zoomTarget, 0.1f, 50.0f);
-            // Zoom toward mouse position
+            vs.zoomTarget =
+                std::clamp(vs.zoomTarget, 0.1f, 50.0f);
             ImVec2 mouse = ImVec2(
                 io.MousePos.x - canvasPos.x,
                 io.MousePos.y - canvasPos.y);
-            float ratio = zoomTarget / oldTarget;
-            panTarget.x = (1.0f - ratio)
+            float ratio = vs.zoomTarget / oldTarget;
+            vs.panTarget.x = (1.0f - ratio)
                     * (mouse.x - avail.x * 0.5f)
-                + ratio * panTarget.x;
-            panTarget.y = (1.0f - ratio)
+                + ratio * vs.panTarget.x;
+            vs.panTarget.y = (1.0f - ratio)
                     * (mouse.y - avail.y * 0.5f)
-                + ratio * panTarget.y;
+                + ratio * vs.panTarget.y;
         }
 
-        // Normal scroll to pan vertically
         if (hovered && !io.KeyCtrl
             && io.MouseWheel != 0.0f)
-            panTarget.y += io.MouseWheel * 30.0f;
+            vs.panTarget.y += io.MouseWheel * 30.0f;
 
-        // Ctrl + drag to pan (immediate, no lerp)
         if (active && io.KeyCtrl
             && ImGui::IsMouseDragging(
                 ImGuiMouseButton_Left))
         {
-            panTarget.x += io.MouseDelta.x;
-            panTarget.y += io.MouseDelta.y;
-            pan.x += io.MouseDelta.x;
-            pan.y += io.MouseDelta.y;
+            vs.panTarget.x += io.MouseDelta.x;
+            vs.panTarget.y += io.MouseDelta.y;
+            vs.pan.x += io.MouseDelta.x;
+            vs.pan.y += io.MouseDelta.y;
         }
 
-        // Smooth interpolation toward targets
         float speed = 12.0f * io.DeltaTime;
         speed = std::clamp(speed, 0.0f, 1.0f);
-        zoom += (zoomTarget - zoom) * speed;
-        pan.x += (panTarget.x - pan.x) * speed;
-        pan.y += (panTarget.y - pan.y) * speed;
+        vs.zoom += (vs.zoomTarget - vs.zoom) * speed;
+        vs.pan.x +=
+            (vs.panTarget.x - vs.pan.x) * speed;
+        vs.pan.y +=
+            (vs.panTarget.y - vs.pan.y) * speed;
 
-        float dispW = img.width * baseScale * zoom;
-        float dispH = img.height * baseScale * zoom;
+        float dispW =
+            img.width * baseScale * vs.zoom;
+        float dispH =
+            img.height * baseScale * vs.zoom;
 
-        // Clamp pan: allow scrolling to image edges
-        float limX = std::max(avail.x, dispW) * 0.5f;
-        float limY = std::max(avail.y, dispH) * 0.5f;
-        panTarget.x =
-            std::clamp(panTarget.x, -limX, limX);
-        panTarget.y =
-            std::clamp(panTarget.y, -limY, limY);
-        pan.x = std::clamp(pan.x, -limX, limX);
-        pan.y = std::clamp(pan.y, -limY, limY);
+        float limX =
+            std::max(avail.x, dispW) * 0.5f;
+        float limY =
+            std::max(avail.y, dispH) * 0.5f;
+        vs.panTarget.x =
+            std::clamp(vs.panTarget.x, -limX, limX);
+        vs.panTarget.y =
+            std::clamp(vs.panTarget.y, -limY, limY);
+        vs.pan.x =
+            std::clamp(vs.pan.x, -limX, limX);
+        vs.pan.y =
+            std::clamp(vs.pan.y, -limY, limY);
 
-        // Draw image at pan offset, clipped to canvas
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->PushClipRect(
             canvasPos,
             ImVec2(canvasPos.x + avail.x,
                    canvasPos.y + avail.y),
             true);
-        // Center image then apply pan
         float ox =
             canvasPos.x + (avail.x - dispW) * 0.5f
-            + pan.x;
+            + vs.pan.x;
         float oy =
             canvasPos.y + (avail.y - dispH) * 0.5f
-            + pan.y;
+            + vs.pan.y;
         dl->AddImage(img.textureId,
                      ImVec2(ox, oy),
                      ImVec2(ox + dispW, oy + dispH));
@@ -396,20 +346,19 @@ namespace shoecomp
                     ImVec2(ox + dispW, oy + dispH),
                     IM_COL32(180, 180, 180, 200));
 
-        // Translucent scrollbars when image overflows
         float barThick = 8.0f;
         float barPad = 2.0f;
         ImU32 barCol = IM_COL32(200, 200, 200, 100);
-        ImU32 barColHov = IM_COL32(200, 200, 200, 180);
+        ImU32 barColHov =
+            IM_COL32(200, 200, 200, 180);
         ImVec2 mpos = io.MousePos;
 
         if (dispW > avail.x)
         {
             float viewRatio = avail.x / dispW;
             float barW = avail.x * viewRatio;
-            // Negative pan = image left, viewport right
             float t =
-                (limX - pan.x) / (2.0f * limX);
+                (limX - vs.pan.x) / (2.0f * limX);
             float barX = canvasPos.x
                 + t * (avail.x - barW);
             float barY = canvasPos.y + avail.y
@@ -430,12 +379,13 @@ namespace shoecomp
                 float dx = -io.MouseDelta.x
                     / (avail.x - barW)
                     * (2.0f * limX);
-                pan.x += dx;
-                panTarget.x += dx;
+                vs.pan.x += dx;
+                vs.panTarget.x += dx;
             }
             dl->AddRectFilled(
                 bMin, bMax,
-                barDrag || barHov ? barColHov : barCol,
+                barDrag || barHov ? barColHov
+                                  : barCol,
                 barThick * 0.5f);
         }
 
@@ -444,7 +394,7 @@ namespace shoecomp
             float viewRatio = avail.y / dispH;
             float barH = avail.y * viewRatio;
             float t =
-                (limY - pan.y) / (2.0f * limY);
+                (limY - vs.pan.y) / (2.0f * limY);
             float barX = canvasPos.x + avail.x
                 - barThick - barPad;
             float barY = canvasPos.y
@@ -465,24 +415,81 @@ namespace shoecomp
                 float dy = -io.MouseDelta.y
                     / (avail.y - barH)
                     * (2.0f * limY);
-                pan.y += dy;
-                panTarget.y += dy;
+                vs.pan.y += dy;
+                vs.panTarget.y += dy;
             }
             dl->AddRectFilled(
                 bMin, bMax,
-                barDrag || barHov ? barColHov : barCol,
+                barDrag || barHov ? barColHov
+                                  : barCol,
                 barThick * 0.5f);
         }
 
-        // Re-clamp after scrollbar drag
-        panTarget.x =
-            std::clamp(panTarget.x, -limX, limX);
-        panTarget.y =
-            std::clamp(panTarget.y, -limY, limY);
-        pan.x = std::clamp(pan.x, -limX, limX);
-        pan.y = std::clamp(pan.y, -limY, limY);
+        vs.panTarget.x =
+            std::clamp(vs.panTarget.x, -limX, limX);
+        vs.panTarget.y =
+            std::clamp(vs.panTarget.y, -limY, limY);
+        vs.pan.x =
+            std::clamp(vs.pan.x, -limX, limX);
+        vs.pan.y =
+            std::clamp(vs.pan.y, -limY, limY);
 
         dl->PopClipRect();
+    }
+
+    static void renderSingleViewer(
+        AppState& state,
+        int& selectedIdx,
+        int otherIdx,
+        ImageViewState& vs,
+        const char* label)
+    {
+        const char* preview = (selectedIdx >= 0
+                               && selectedIdx
+                                      < (int)state.images
+                                            .size())
+            ? state.images[selectedIdx].name.c_str()
+            : "<none>";
+
+        if (ImGui::BeginCombo(label, preview))
+        {
+            if (ImGui::Selectable("<none>",
+                                  selectedIdx < 0))
+            {
+                selectedIdx = -1;
+                vs.zoom = vs.zoomTarget = 1.0f;
+                vs.pan = vs.panTarget = ImVec2(0, 0);
+            }
+            for (int i = 0;
+                 i < (int)state.images.size();
+                 ++i)
+            {
+                if (i == otherIdx)
+                    continue;
+                bool selected = (i == selectedIdx);
+                if (ImGui::Selectable(
+                        state.images[i].name.c_str(),
+                        selected))
+                {
+                    selectedIdx = i;
+                    vs.zoom = vs.zoomTarget = 0.0f;
+                    vs.pan = vs.panTarget =
+                        ImVec2(0, 0);
+                }
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
+        }
+
+        if (selectedIdx < 0
+            || selectedIdx
+                   >= (int)state.images.size())
+            return;
+
+        renderImageCanvas(
+            state.images[selectedIdx], vs,
+            "##canvas");
     }
 
     static void renderImageViewer(AppState& state)
@@ -501,9 +508,7 @@ namespace shoecomp
         renderSingleViewer(
             state, state.viewerLeftIdx,
             state.viewerRightIdx,
-            state.zoomLeft, state.zoomLeftTarget,
-            state.panLeft, state.panLeftTarget,
-            "##Left");
+            state.viewerLeftState, "##Left");
         ImGui::EndChild();
 
         ImGui::SameLine();
@@ -532,9 +537,92 @@ namespace shoecomp
         renderSingleViewer(
             state, state.viewerRightIdx,
             state.viewerLeftIdx,
-            state.zoomRight, state.zoomRightTarget,
-            state.panRight, state.panRightTarget,
-            "##Right");
+            state.viewerRightState, "##Right");
+        ImGui::EndChild();
+    }
+
+    static void renderImageGallery(AppState& state)
+    {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImVec2 origin = ImGui::GetCursorScreenPos();
+
+        ImGui::BeginChild(
+            "GalleryArea", avail,
+            ImGuiChildFlags_None);
+
+        // Title bar height for sizing the window
+        float titleH =
+            ImGui::GetFrameHeight()
+            + ImGui::GetStyle().FramePadding.y;
+        ImVec2 pad = ImGui::GetStyle().WindowPadding;
+        float maxW = avail.x * 0.5f;
+        float maxH = avail.y * 0.5f;
+
+        int removeIdx = -1;
+        for (int i = 0;
+             i < (int)state.images.size(); ++i)
+        {
+            auto& img = state.images[i];
+
+            // Scale image to fit within max bounds
+            float scale = std::min(
+                maxW / (float)img.width,
+                maxH / (float)img.height);
+            scale = std::min(scale, 1.0f);
+            float dispW = img.width * scale;
+            float dispH = img.height * scale;
+
+            ImGui::SetNextWindowSize(
+                ImVec2(dispW + pad.x * 2,
+                       dispH + pad.y * 2 + titleH),
+                ImGuiCond_FirstUseEver);
+            ImGui::SetNextWindowPos(
+                ImVec2(origin.x + 20 + i * 30,
+                       origin.y + 20 + i * 30),
+                ImGuiCond_FirstUseEver);
+
+            char winId[128];
+            snprintf(winId, sizeof(winId),
+                     "%s###gallery_%d",
+                     img.name.c_str(), i);
+
+            char canvasId[64];
+            snprintf(canvasId, sizeof(canvasId),
+                     "##gcanvas_%d", i);
+
+            bool open = true;
+            if (ImGui::Begin(winId, &open,
+                    ImGuiWindowFlags_NoSavedSettings))
+            {
+                renderImageCanvas(
+                    img, img.viewState, canvasId);
+            }
+            ImGui::End();
+
+            if (!open)
+                removeIdx = i;
+        }
+
+        if (removeIdx >= 0)
+        {
+            freeTexture(
+                state.images[removeIdx].textureId);
+            state.images.erase(
+                state.images.begin() + removeIdx);
+            if (state.viewerLeftIdx
+                >= (int)state.images.size())
+                state.viewerLeftIdx =
+                    (int)state.images.size() - 1;
+            if (state.viewerRightIdx
+                >= (int)state.images.size())
+                state.viewerRightIdx =
+                    (int)state.images.size() - 1;
+        }
+
+        if (state.images.empty())
+            ImGui::Text(
+                "Load images from Files & Settings");
+
         ImGui::EndChild();
     }
 
@@ -574,6 +662,12 @@ namespace shoecomp
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Image Viewer"))
+            {
+                renderImageGallery(state);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem(
+                    "Image Comparison"))
             {
                 renderImageViewer(state);
                 ImGui::EndTabItem();
