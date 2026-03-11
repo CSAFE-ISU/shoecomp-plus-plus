@@ -59,6 +59,18 @@ namespace shoecomp
         ImageViewState viewerRightState;
         bool viewerLocked = false;
 
+        // Annotation file browser dialog
+        bool showAnnotationFileBrowser = false;
+        bool annotationFileSave = false;
+        int annotationFileTarget = -1;
+        std::string annotationBrowseDir = ".";
+        std::vector<std::string> annotationDirEntries;
+        bool annotationDirNeedsRefresh = true;
+        std::string annotationFileName;
+
+        // Error popup
+        bool showAnnotationError = false;
+        std::string annotationErrorMsg;
     };
 
     void submain(void);

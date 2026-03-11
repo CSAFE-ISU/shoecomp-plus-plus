@@ -81,6 +81,7 @@ set(SC_SRCS
     src/ui/mainWindow.cpp
     src/formats/pngLoader.cpp
     src/formats/jpegLoader.cpp
+    src/formats/annotationIo.cpp
     src/main.cpp
 )
 hello_imgui_add_app(hello_world ${SC_SRCS})

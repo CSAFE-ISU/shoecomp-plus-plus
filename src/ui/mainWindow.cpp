@@ -1160,7 +1160,7 @@ namespace shoecomp
 
         auto& img = state.images[selectedIdx];
         float toolbarH =
-            ImGui::GetFrameHeightWithSpacing() * 2.0f;
+            ImGui::GetFrameHeightWithSpacing() * 3.0f;
         ImVec2 region =
             ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
@@ -1182,6 +1182,23 @@ namespace shoecomp
         renderImageToolbar(
             img, vs, label,
             &img.annotationMode, linked);
+        if (ImGui::Button("Load JSON"))
+        {
+            state.showAnnotationFileBrowser = true;
+            state.annotationFileSave = false;
+            state.annotationFileTarget = selectedIdx;
+            state.annotationDirNeedsRefresh = true;
+            state.annotationFileName.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save JSON"))
+        {
+            state.showAnnotationFileBrowser = true;
+            state.annotationFileSave = true;
+            state.annotationFileTarget = selectedIdx;
+            state.annotationDirNeedsRefresh = true;
+            state.annotationFileName.clear();
+        }
     }
 
     static void renderImageViewer(AppState& state)
@@ -1272,11 +1289,11 @@ namespace shoecomp
             float dispW = img.width * scale;
             float dispH = img.height * scale;
 
-            // Two toolbar rows: view controls +
-            // annotation buttons
+            // Three toolbar rows: view controls,
+            // annotation buttons, load/save
             float tbRows =
                 ImGui::GetFrameHeightWithSpacing()
-                * 2.0f;
+                * 3.0f;
             // Minimum width so all buttons are visible
             float minW = 400.0f;
             float winW = std::max(
@@ -1306,7 +1323,7 @@ namespace shoecomp
             {
                 float toolbarH =
                     ImGui::GetFrameHeightWithSpacing()
-                    * 2.0f;
+                    * 3.0f;
                 ImVec2 region =
                     ImGui::GetContentRegionAvail();
                 float canvasH =
@@ -1331,6 +1348,32 @@ namespace shoecomp
                 renderImageToolbar(
                     img, img.viewState, tbId,
                     &img.annotationMode);
+                char lbId[64];
+                snprintf(lbId, sizeof(lbId),
+                         "##gld_%d", i);
+                ImGui::PushID(lbId);
+                if (ImGui::Button("Load JSON"))
+                {
+                    state.showAnnotationFileBrowser =
+                        true;
+                    state.annotationFileSave = false;
+                    state.annotationFileTarget = i;
+                    state.annotationDirNeedsRefresh =
+                        true;
+                    state.annotationFileName.clear();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Save JSON"))
+                {
+                    state.showAnnotationFileBrowser =
+                        true;
+                    state.annotationFileSave = true;
+                    state.annotationFileTarget = i;
+                    state.annotationDirNeedsRefresh =
+                        true;
+                    state.annotationFileName.clear();
+                }
+                ImGui::PopID();
             }
             ImGui::End();
 
@@ -1386,8 +1429,217 @@ namespace shoecomp
             ImGuiInputTextFlags_ReadOnly);
     }
 
+    static void renderAnnotationErrorPopup(
+        AppState& state)
+    {
+        if (state.showAnnotationError)
+        {
+            ImGui::OpenPopup("Annotation Error");
+            ImVec2 displaySize =
+                ImGui::GetIO().DisplaySize;
+            ImGui::SetNextWindowSize(
+                ImVec2(displaySize.x * 0.7f, 0),
+                ImGuiCond_Always);
+            ImGui::SetNextWindowPos(
+                ImVec2(displaySize.x * 0.15f,
+                       displaySize.y * 0.4f),
+                ImGuiCond_Always);
+        }
+        if (ImGui::BeginPopupModal(
+                "Annotation Error", nullptr,
+                ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::TextWrapped(
+                "%s",
+                state.annotationErrorMsg.c_str());
+            if (ImGui::Button("OK"))
+            {
+                state.showAnnotationError = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    static void renderAnnotationFileBrowser(
+        AppState& state)
+    {
+        if (state.showAnnotationFileBrowser)
+        {
+            ImGui::OpenPopup("Annotation File");
+            state.showAnnotationFileBrowser = false;
+        }
+
+        if (!ImGui::BeginPopupModal(
+                "Annotation File", nullptr,
+                ImGuiWindowFlags_AlwaysAutoResize))
+            return;
+
+        const char* title = state.annotationFileSave
+            ? "Save Annotations"
+            : "Load Annotations";
+        ImGui::Text("%s", title);
+        ImGui::Separator();
+
+        ImGui::Text("Directory: %s",
+                     state.annotationBrowseDir.c_str());
+
+        if (state.annotationDirNeedsRefresh)
+        {
+            state.annotationDirEntries.clear();
+            state.annotationDirEntries.push_back("..");
+            try
+            {
+                for (auto& entry :
+                     fs::directory_iterator(
+                         state.annotationBrowseDir))
+                {
+                    std::string name =
+                        entry.path()
+                            .filename()
+                            .string();
+                    if (entry.is_directory())
+                        state.annotationDirEntries
+                            .push_back(name + "/");
+                    else if (entry.path().extension()
+                             == ".json")
+                        state.annotationDirEntries
+                            .push_back(name);
+                }
+            }
+            catch (...)
+            {
+            }
+            std::sort(
+                state.annotationDirEntries.begin() + 1,
+                state.annotationDirEntries.end());
+            state.annotationDirNeedsRefresh = false;
+        }
+
+        ImGui::BeginChild(
+            "AnnFileList", ImVec2(400, 300),
+            ImGuiChildFlags_Borders);
+        for (auto& entry : state.annotationDirEntries)
+        {
+            bool isDir = entry == ".."
+                || entry.back() == '/';
+            if (ImGui::Selectable(entry.c_str(), false))
+            {
+                if (entry == "..")
+                {
+                    try
+                    {
+                        state.annotationBrowseDir =
+                            fs::canonical(
+                                fs::path(
+                                    state
+                                        .annotationBrowseDir)
+                                / "..")
+                                .string();
+                    }
+                    catch (...)
+                    {
+                    }
+                    state.annotationDirNeedsRefresh =
+                        true;
+                }
+                else if (isDir)
+                {
+                    std::string dirName =
+                        entry.substr(
+                            0, entry.size() - 1);
+                    try
+                    {
+                        state.annotationBrowseDir =
+                            fs::canonical(
+                                fs::path(
+                                    state
+                                        .annotationBrowseDir)
+                                / dirName)
+                                .string();
+                    }
+                    catch (...)
+                    {
+                    }
+                    state.annotationDirNeedsRefresh =
+                        true;
+                }
+                else
+                {
+                    state.annotationFileName = entry;
+                }
+            }
+        }
+        ImGui::EndChild();
+
+        char fnBuf[256];
+        snprintf(fnBuf, sizeof(fnBuf), "%s",
+                 state.annotationFileName.c_str());
+        if (ImGui::InputText("Filename", fnBuf,
+                             sizeof(fnBuf)))
+        {
+            state.annotationFileName = fnBuf;
+        }
+
+        if (ImGui::Button("OK"))
+        {
+            if (!state.annotationFileName.empty()
+                && state.annotationFileTarget >= 0
+                && state.annotationFileTarget
+                       < (int)state.images.size())
+            {
+                std::string fullPath =
+                    state.annotationBrowseDir + "/"
+                    + state.annotationFileName;
+                auto& img = state.images
+                    [state.annotationFileTarget];
+                if (state.annotationFileSave)
+                {
+                    if (saveAnnotationsToFile(
+                            fullPath,
+                            img.annotations)
+                        != 0)
+                    {
+                        state.showAnnotationError =
+                            true;
+                        state.annotationErrorMsg =
+                            "Failed to save "
+                            "annotations to:\n"
+                            + fullPath;
+                    }
+                }
+                else
+                {
+                    if (loadAnnotationsFromFile(
+                            fullPath,
+                            img.annotations)
+                        != 0)
+                    {
+                        state.showAnnotationError =
+                            true;
+                        state.annotationErrorMsg =
+                            "Failed to load "
+                            "annotations from:\n"
+                            + fullPath;
+                    }
+                }
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
     static void renderGui(AppState& state)
     {
+        renderAnnotationErrorPopup(state);
+        renderAnnotationFileBrowser(state);
+
         if (ImGui::BeginTabBar("MainTabs"))
         {
             if (ImGui::BeginTabItem(
