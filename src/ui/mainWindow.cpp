@@ -442,6 +442,13 @@ namespace shoecomp
                     ? "points"
                     : "bounds";
 
+            // Screen-pixel threshold converted to
+            // image-space
+            float screenPx = 10.0f;
+            float imgPx =
+                screenPx / (baseScale * vs.zoom);
+            float thresh2 = imgPx * imgPx;
+
             // Close bounds polygon by clicking
             // near the first vertex
             if (mode == AnnotationMode::AddBounds
@@ -460,8 +467,7 @@ namespace shoecomp
                     bnd[0]["x"].getFloat() - ic.x;
                 float dy =
                     bnd[0]["y"].getFloat() - ic.y;
-                if (dx * dx + dy * dy
-                    < 10.0f * 10.0f)
+                if (dx * dx + dy * dy < thresh2)
                 {
                     mode = AnnotationMode::None;
                     removePointsOutsideBounds(img);
@@ -482,7 +488,7 @@ namespace shoecomp
                     auto& arr =
                         img.annotations[key]
                             .getArray();
-                    float bestDist = 10.0f * 10.0f;
+                    float bestDist = thresh2;
                     int bestIdx = -1;
                     for (int ai = 0;
                          ai < (int)arr.size(); ++ai)
