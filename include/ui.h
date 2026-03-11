@@ -35,8 +35,7 @@ namespace shoecomp
         int height = 0;
         ImageViewState viewState;
         jt::Json annotations;
-        AnnotationMode annotationMode =
-            AnnotationMode::None;
+        AnnotationMode annotationMode = AnnotationMode::None;
     };
 
     struct AppState

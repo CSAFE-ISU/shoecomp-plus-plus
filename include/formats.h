@@ -8,21 +8,17 @@
 namespace shoecomp
 {
     bool loadPngFromDisk(const std::string& filePath,
-                         ImTextureID& outTextureId,
-                         int& outWidth,
+                         ImTextureID& outTextureId, int& outWidth,
                          int& outHeight);
     bool loadJpegFromDisk(const std::string& filePath,
-                          ImTextureID& outTextureId,
-                          int& outWidth,
+                          ImTextureID& outTextureId, int& outWidth,
                           int& outHeight);
     void freeTexture(ImTextureID textureId);
 
-    int saveAnnotationsToFile(
-        const std::string& filePath,
-        const jt::Json& annotations);
-    int loadAnnotationsFromFile(
-        const std::string& filePath,
-        jt::Json& annotations);
+    int saveAnnotationsToFile(const std::string& filePath,
+                              const jt::Json& annotations);
+    int loadAnnotationsFromFile(const std::string& filePath,
+                                jt::Json& annotations);
 } /* namespace shoecomp */
 
 #endif
