@@ -297,13 +297,67 @@ namespace shoecomp
             cy + lx * sinR + ly * cosR);
     }
 
+    static bool pointInPolygon(
+        float px, float py,
+        std::vector<jt::Json>& poly)
+    {
+        bool inside = false;
+        int n = (int)poly.size();
+        for (int i = 0, j = n - 1; i < n; j = i++)
+        {
+            float xi = poly[i]["x"].getFloat();
+            float yi = poly[i]["y"].getFloat();
+            float xj = poly[j]["x"].getFloat();
+            float yj = poly[j]["y"].getFloat();
+            if (((yi > py) != (yj > py))
+                && (px < (xj - xi) * (py - yi)
+                             / (yj - yi)
+                         + xi))
+                inside = !inside;
+        }
+        return inside;
+    }
+
+    static void removePointsOutsideBounds(
+        LoadedImage& img)
+    {
+        if (!img.annotations.isObject()
+            || !img.annotations.contains("bounds")
+            || !img.annotations["bounds"].isArray())
+            return;
+        auto& bnd =
+            img.annotations["bounds"].getArray();
+        if (bnd.size() < 3)
+            return;
+        if (!img.annotations.contains("points")
+            || !img.annotations["points"].isArray())
+            return;
+        auto& pts =
+            img.annotations["points"].getArray();
+        pts.erase(
+            std::remove_if(
+                pts.begin(), pts.end(),
+                [&bnd](jt::Json& p)
+                {
+                    return !pointInPolygon(
+                        p["x"].getFloat(),
+                        p["y"].getFloat(),
+                        bnd);
+                }),
+            pts.end());
+    }
+
     static void renderImageCanvas(
         LoadedImage& img,
         ImageViewState& vs,
         const char* canvasId,
         ImageViewState* linked = nullptr,
-        AnnotationMode mode = AnnotationMode::None)
+        AnnotationMode* pMode = nullptr)
     {
+        AnnotationMode modeVal = pMode
+            ? *pMode : AnnotationMode::None;
+        AnnotationMode& mode = pMode
+            ? *pMode : modeVal;
         ImVec2 avail = ImGui::GetContentRegionAvail();
 
         float scaleX = avail.x / (float)img.width;
@@ -383,16 +437,102 @@ namespace shoecomp
                 io.MousePos, canvasPos, avail,
                 vs.pan, vs.zoom, baseScale,
                 vs.rotation, img.width, img.height);
-            jt::Json pt;
-            pt.setObject();
-            pt["x"] = ic.x;
-            pt["y"] = ic.y;
             const char* key =
                 (mode == AnnotationMode::AddPoint)
                     ? "points"
                     : "bounds";
-            img.annotations[key].getArray()
-                .push_back(std::move(pt));
+
+            // Close bounds polygon by clicking
+            // near the first vertex
+            if (mode == AnnotationMode::AddBounds
+                && !io.KeyShift
+                && img.annotations.contains("bounds")
+                && img.annotations["bounds"].isArray()
+                && img.annotations["bounds"]
+                           .getArray()
+                           .size()
+                       >= 3)
+            {
+                auto& bnd =
+                    img.annotations["bounds"]
+                        .getArray();
+                float dx =
+                    bnd[0]["x"].getFloat() - ic.x;
+                float dy =
+                    bnd[0]["y"].getFloat() - ic.y;
+                if (dx * dx + dy * dy
+                    < 10.0f * 10.0f)
+                {
+                    mode = AnnotationMode::None;
+                    removePointsOutsideBounds(img);
+                }
+            }
+
+            if (mode == AnnotationMode::None)
+            {
+                // Already closed bounds above
+            }
+            else if (io.KeyShift)
+            {
+                // Remove nearest annotation within
+                // 10 image-pixels
+                if (img.annotations.contains(key)
+                    && img.annotations[key].isArray())
+                {
+                    auto& arr =
+                        img.annotations[key]
+                            .getArray();
+                    float bestDist = 10.0f * 10.0f;
+                    int bestIdx = -1;
+                    for (int ai = 0;
+                         ai < (int)arr.size(); ++ai)
+                    {
+                        float dx =
+                            arr[ai]["x"].getFloat()
+                            - ic.x;
+                        float dy =
+                            arr[ai]["y"].getFloat()
+                            - ic.y;
+                        float d2 = dx * dx + dy * dy;
+                        if (d2 < bestDist)
+                        {
+                            bestDist = d2;
+                            bestIdx = ai;
+                        }
+                    }
+                    if (bestIdx >= 0)
+                        arr.erase(
+                            arr.begin() + bestIdx);
+                }
+            }
+            else
+            {
+                bool allow = true;
+                if (mode == AnnotationMode::AddPoint
+                    && img.annotations.contains(
+                           "bounds")
+                    && img.annotations["bounds"]
+                           .isArray()
+                    && img.annotations["bounds"]
+                               .getArray()
+                               .size()
+                           >= 3)
+                {
+                    allow = pointInPolygon(
+                        ic.x, ic.y,
+                        img.annotations["bounds"]
+                            .getArray());
+                }
+                if (allow)
+                {
+                    jt::Json pt;
+                    pt.setObject();
+                    pt["x"] = ic.x;
+                    pt["y"] = ic.y;
+                    img.annotations[key].getArray()
+                        .push_back(std::move(pt));
+                }
+            }
         }
 
         float speed = 12.0f * io.DeltaTime;
@@ -455,8 +595,57 @@ namespace shoecomp
         dl->AddQuad(tl, tr, br, bl,
                     IM_COL32(180, 180, 180, 200));
 
-        // Annotation overlays
+        // Dim area outside bounds when not editing
         float annScale = baseScale * vs.zoom;
+        if (mode != AnnotationMode::AddBounds
+            && img.annotations.isObject()
+            && img.annotations.contains("bounds")
+            && img.annotations["bounds"].isArray()
+            && img.annotations["bounds"].getArray()
+                       .size()
+                   >= 3)
+        {
+            auto& bnd =
+                img.annotations["bounds"].getArray();
+            // Build screen-space bounds polygon
+            std::vector<ImVec2> screenBnd;
+            screenBnd.reserve(bnd.size());
+            for (auto& v : bnd)
+            {
+                screenBnd.push_back(
+                    imageToScreenCoord(
+                        v["x"].getFloat(),
+                        v["y"].getFloat(),
+                        cx, cy, annScale,
+                        cosR, sinR,
+                        img.width, img.height));
+            }
+            // Outer frame: canvas rect CW, bridge
+            // to polygon, polygon CCW, bridge back
+            ImVec2 cTL = canvasPos;
+            ImVec2 cTR(canvasPos.x + avail.x,
+                       canvasPos.y);
+            ImVec2 cBR(canvasPos.x + avail.x,
+                       canvasPos.y + avail.y);
+            ImVec2 cBL(canvasPos.x,
+                       canvasPos.y + avail.y);
+            std::vector<ImVec2> frame;
+            frame.reserve(bnd.size() + 6);
+            frame.push_back(cTL);
+            frame.push_back(cTR);
+            frame.push_back(cBR);
+            frame.push_back(cBL);
+            frame.push_back(screenBnd[0]);
+            for (int si = (int)screenBnd.size() - 1;
+                 si >= 0; --si)
+                frame.push_back(screenBnd[si]);
+            frame.push_back(cBL);
+            dl->AddConcavePolyFilled(
+                frame.data(), (int)frame.size(),
+                IM_COL32(0, 0, 0, 120));
+        }
+
+        // Annotation overlays
         if (img.annotations.isObject())
         {
             if (img.annotations.contains("points")
@@ -490,13 +679,15 @@ namespace shoecomp
                 auto& bnd =
                     img.annotations["bounds"]
                         .getArray();
+                bool editing = (mode
+                    == AnnotationMode::AddBounds);
+                // Solid edges between consecutive
+                // vertices
                 if (bnd.size() >= 2)
                 {
                     for (size_t i = 0;
-                         i < bnd.size(); ++i)
+                         i + 1 < bnd.size(); ++i)
                     {
-                        size_t j =
-                            (i + 1) % bnd.size();
                         ImVec2 a =
                             imageToScreenCoord(
                                 bnd[i]["x"]
@@ -509,9 +700,9 @@ namespace shoecomp
                                 img.height);
                         ImVec2 b =
                             imageToScreenCoord(
-                                bnd[j]["x"]
+                                bnd[i + 1]["x"]
                                     .getFloat(),
-                                bnd[j]["y"]
+                                bnd[i + 1]["y"]
                                     .getFloat(),
                                 cx, cy, annScale,
                                 cosR, sinR,
@@ -522,6 +713,89 @@ namespace shoecomp
                             IM_COL32(
                                 50, 255, 50, 220),
                             2.0f);
+                    }
+                }
+                // Closing segment: solid when not
+                // editing, dashed when editing
+                if (bnd.size() >= 2)
+                {
+                    ImVec2 last =
+                        imageToScreenCoord(
+                            bnd.back()["x"]
+                                .getFloat(),
+                            bnd.back()["y"]
+                                .getFloat(),
+                            cx, cy, annScale,
+                            cosR, sinR,
+                            img.width, img.height);
+                    ImVec2 first =
+                        imageToScreenCoord(
+                            bnd[0]["x"].getFloat(),
+                            bnd[0]["y"].getFloat(),
+                            cx, cy, annScale,
+                            cosR, sinR,
+                            img.width, img.height);
+                    if (!editing)
+                    {
+                        dl->AddLine(
+                            last, first,
+                            IM_COL32(
+                                50, 255, 50, 220),
+                            2.0f);
+                    }
+                    else
+                    {
+                        // Dashed closing segment
+                        float dashLen = 8.0f;
+                        float gapLen = 6.0f;
+                        auto drawDashed =
+                            [&](ImVec2 p0, ImVec2 p1)
+                        {
+                            float dx = p1.x - p0.x;
+                            float dy = p1.y - p0.y;
+                            float len = sqrtf(
+                                dx * dx + dy * dy);
+                            if (len < 1.0f)
+                                return;
+                            float nx = dx / len;
+                            float ny = dy / len;
+                            float t = 0.0f;
+                            while (t < len)
+                            {
+                                float t1 = std::min(
+                                    t + dashLen,
+                                    len);
+                                dl->AddLine(
+                                    ImVec2(
+                                        p0.x
+                                            + nx * t,
+                                        p0.y
+                                            + ny * t),
+                                    ImVec2(
+                                        p0.x
+                                            + nx
+                                                  * t1,
+                                        p0.y
+                                            + ny
+                                                  * t1),
+                                    IM_COL32(
+                                        50, 255, 50,
+                                        120),
+                                    1.5f);
+                                t = t1 + gapLen;
+                            }
+                        };
+                        if (hovered)
+                        {
+                            drawDashed(last,
+                                       io.MousePos);
+                            drawDashed(io.MousePos,
+                                       first);
+                        }
+                        else
+                        {
+                            drawDashed(last, first);
+                        }
                     }
                 }
                 for (auto& v : bnd)
@@ -766,9 +1040,13 @@ namespace shoecomp
                     ImGuiCol_Button,
                     ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
             if (ImGui::Button("+ Bounds"))
+            {
                 *mode = boundsActive
                     ? AnnotationMode::None
                     : AnnotationMode::AddBounds;
+                if (boundsActive)
+                    removePointsOutsideBounds(img);
+            }
             if (boundsActive)
                 ImGui::PopStyleColor();
 
@@ -874,7 +1152,7 @@ namespace shoecomp
                 ImGuiChildFlags_None);
             renderImageCanvas(
                 img, vs, "##canvas", linked,
-                img.annotationMode);
+                &img.annotationMode);
             ImGui::EndChild();
         }
         if (lockToggle)
@@ -1025,7 +1303,7 @@ namespace shoecomp
                     renderImageCanvas(
                         img, img.viewState, cid,
                         nullptr,
-                        img.annotationMode);
+                        &img.annotationMode);
                     ImGui::EndChild();
                 }
                 char tbId[64];
