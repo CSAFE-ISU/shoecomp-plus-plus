@@ -5,9 +5,17 @@
 #include "imgui.h"
 #include <string>
 #include <vector>
+#include "json.h"
 
 namespace shoecomp
 {
+    enum class AnnotationMode
+    {
+        None,
+        AddPoint,
+        AddBounds
+    };
+
     struct ImageViewState
     {
         float zoom = 1.0f;
@@ -26,6 +34,9 @@ namespace shoecomp
         int width = 0;
         int height = 0;
         ImageViewState viewState;
+        jt::Json annotations;
+        AnnotationMode annotationMode =
+            AnnotationMode::None;
     };
 
     struct AppState
@@ -47,6 +58,7 @@ namespace shoecomp
         ImageViewState viewerLeftState;
         ImageViewState viewerRightState;
         bool viewerLocked = false;
+
     };
 
     void submain(void);

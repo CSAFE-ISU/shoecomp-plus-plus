@@ -72,7 +72,10 @@ endif()
 # =====================================================================
 # 5. App target
 # =====================================================================
-include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/third_party/jtjson
+)
 
 set(SC_SRCS
     src/ui/mainWindow.cpp

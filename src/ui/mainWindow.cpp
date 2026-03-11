@@ -1,5 +1,6 @@
 #include "ui.h"
 #include "formats.h"
+#include "json.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
 #include <algorithm>
 #include <cmath>
@@ -186,6 +187,12 @@ namespace shoecomp
                                 img.width,
                                 img.height))
                         {
+                            img.annotations
+                                .setObject();
+                            img.annotations["bounds"]
+                                .setArray();
+                            img.annotations["points"]
+                                .setArray();
                             state.images.push_back(
                                 img);
                         }
@@ -245,11 +252,57 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    static ImVec2 screenToImageCoord(
+        ImVec2 sp,
+        ImVec2 canvasPos,
+        ImVec2 avail,
+        ImVec2 pan,
+        float zoom,
+        float baseScale,
+        float rotation,
+        int imgW,
+        int imgH)
+    {
+        float cx =
+            canvasPos.x + avail.x * 0.5f + pan.x;
+        float cy =
+            canvasPos.y + avail.y * 0.5f + pan.y;
+        float dx = sp.x - cx;
+        float dy = sp.y - cy;
+        float cosR = cosf(-rotation);
+        float sinR = sinf(-rotation);
+        float lx = dx * cosR - dy * sinR;
+        float ly = dx * sinR + dy * cosR;
+        float scale = baseScale * zoom;
+        return ImVec2(
+            lx / scale + imgW * 0.5f,
+            ly / scale + imgH * 0.5f);
+    }
+
+    static ImVec2 imageToScreenCoord(
+        float ix,
+        float iy,
+        float cx,
+        float cy,
+        float scale,
+        float cosR,
+        float sinR,
+        int imgW,
+        int imgH)
+    {
+        float lx = (ix - imgW * 0.5f) * scale;
+        float ly = (iy - imgH * 0.5f) * scale;
+        return ImVec2(
+            cx + lx * cosR - ly * sinR,
+            cy + lx * sinR + ly * cosR);
+    }
+
     static void renderImageCanvas(
         LoadedImage& img,
         ImageViewState& vs,
         const char* canvasId,
-        ImageViewState* linked = nullptr)
+        ImageViewState* linked = nullptr,
+        AnnotationMode mode = AnnotationMode::None)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
 
@@ -320,6 +373,28 @@ namespace shoecomp
             }
         }
 
+        if (hovered
+            && ImGui::IsMouseClicked(
+                   ImGuiMouseButton_Left)
+            && !io.KeyCtrl
+            && mode != AnnotationMode::None)
+        {
+            ImVec2 ic = screenToImageCoord(
+                io.MousePos, canvasPos, avail,
+                vs.pan, vs.zoom, baseScale,
+                vs.rotation, img.width, img.height);
+            jt::Json pt;
+            pt.setObject();
+            pt["x"] = ic.x;
+            pt["y"] = ic.y;
+            const char* key =
+                (mode == AnnotationMode::AddPoint)
+                    ? "points"
+                    : "bounds";
+            img.annotations[key].getArray()
+                .push_back(std::move(pt));
+        }
+
         float speed = 12.0f * io.DeltaTime;
         speed = std::clamp(speed, 0.0f, 1.0f);
         vs.zoom += (vs.zoomTarget - vs.zoom) * speed;
@@ -379,6 +454,90 @@ namespace shoecomp
             ImVec2(1, 1), ImVec2(0, 1));
         dl->AddQuad(tl, tr, br, bl,
                     IM_COL32(180, 180, 180, 200));
+
+        // Annotation overlays
+        float annScale = baseScale * vs.zoom;
+        if (img.annotations.isObject())
+        {
+            if (img.annotations.contains("points")
+                && img.annotations["points"]
+                       .isArray())
+            {
+                auto& pts =
+                    img.annotations["points"]
+                        .getArray();
+                for (auto& p : pts)
+                {
+                    ImVec2 sp = imageToScreenCoord(
+                        p["x"].getFloat(),
+                        p["y"].getFloat(),
+                        cx, cy, annScale,
+                        cosR, sinR,
+                        img.width, img.height);
+                    dl->AddCircleFilled(
+                        sp, 5.0f,
+                        IM_COL32(255, 50, 50, 220));
+                    dl->AddCircle(
+                        sp, 5.0f,
+                        IM_COL32(255, 255, 255, 200),
+                        12, 1.5f);
+                }
+            }
+            if (img.annotations.contains("bounds")
+                && img.annotations["bounds"]
+                       .isArray())
+            {
+                auto& bnd =
+                    img.annotations["bounds"]
+                        .getArray();
+                if (bnd.size() >= 2)
+                {
+                    for (size_t i = 0;
+                         i < bnd.size(); ++i)
+                    {
+                        size_t j =
+                            (i + 1) % bnd.size();
+                        ImVec2 a =
+                            imageToScreenCoord(
+                                bnd[i]["x"]
+                                    .getFloat(),
+                                bnd[i]["y"]
+                                    .getFloat(),
+                                cx, cy, annScale,
+                                cosR, sinR,
+                                img.width,
+                                img.height);
+                        ImVec2 b =
+                            imageToScreenCoord(
+                                bnd[j]["x"]
+                                    .getFloat(),
+                                bnd[j]["y"]
+                                    .getFloat(),
+                                cx, cy, annScale,
+                                cosR, sinR,
+                                img.width,
+                                img.height);
+                        dl->AddLine(
+                            a, b,
+                            IM_COL32(
+                                50, 255, 50, 220),
+                            2.0f);
+                    }
+                }
+                for (auto& v : bnd)
+                {
+                    ImVec2 sp = imageToScreenCoord(
+                        v["x"].getFloat(),
+                        v["y"].getFloat(),
+                        cx, cy, annScale,
+                        cosR, sinR,
+                        img.width, img.height);
+                    dl->AddCircleFilled(
+                        sp, 4.0f,
+                        IM_COL32(50, 255, 50, 220));
+                }
+            }
+        }
 
         float barThick = 8.0f;
         float barPad = 2.0f;
@@ -481,25 +640,22 @@ namespace shoecomp
         dl->PopClipRect();
     }
 
+    static void renderLockToggle(bool& locked)
+    {
+        if (ImGui::Button(locked ? "Unlock" : "Lock"))
+            locked = !locked;
+    }
+
     static void renderImageToolbar(
         LoadedImage& img,
         ImageViewState& vs,
         const char* toolbarId,
-        ImageViewState* linked = nullptr,
-        bool* lockToggle = nullptr)
+        AnnotationMode* mode,
+        ImageViewState* linked = nullptr)
     {
         ImGui::PushID(toolbarId);
 
         float frameH = ImGui::GetFrameHeight();
-
-        // Lock toggle (comparison mode only)
-        if (lockToggle)
-        {
-            if (ImGui::Button(
-                    *lockToggle ? "Unlock" : "Lock"))
-                *lockToggle = !*lockToggle;
-            ImGui::SameLine();
-        }
 
         // Home: fit image vertically, reset pan
         if (ImGui::Button("Home"))
@@ -585,6 +741,71 @@ namespace shoecomp
                     vs.rotation * 180.0f
                         / 3.14159265f);
 
+        if (mode)
+        {
+            bool pointActive =
+                (*mode == AnnotationMode::AddPoint);
+            if (pointActive)
+                ImGui::PushStyleColor(
+                    ImGuiCol_Button,
+                    ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
+            if (ImGui::Button("+ Point"))
+                *mode = pointActive
+                    ? AnnotationMode::None
+                    : AnnotationMode::AddPoint;
+            if (pointActive)
+                ImGui::PopStyleColor();
+
+            ImGui::SameLine();
+
+            bool boundsActive =
+                (*mode
+                 == AnnotationMode::AddBounds);
+            if (boundsActive)
+                ImGui::PushStyleColor(
+                    ImGuiCol_Button,
+                    ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
+            if (ImGui::Button("+ Bounds"))
+                *mode = boundsActive
+                    ? AnnotationMode::None
+                    : AnnotationMode::AddBounds;
+            if (boundsActive)
+                ImGui::PopStyleColor();
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Undo"))
+            {
+                const char* key = nullptr;
+                if (*mode
+                    == AnnotationMode::AddPoint)
+                    key = "points";
+                else if (*mode
+                         == AnnotationMode::AddBounds)
+                    key = "bounds";
+                if (key
+                    && img.annotations.contains(key)
+                    && img.annotations[key].isArray())
+                {
+                    auto& arr =
+                        img.annotations[key]
+                            .getArray();
+                    if (!arr.empty())
+                        arr.pop_back();
+                }
+            }
+
+            ImGui::SameLine();
+
+            if (ImGui::Button("Clear"))
+            {
+                img.annotations["bounds"]
+                    .setArray();
+                img.annotations["points"]
+                    .setArray();
+            }
+        }
+
         ImGui::PopID();
     }
 
@@ -642,7 +863,7 @@ namespace shoecomp
 
         auto& img = state.images[selectedIdx];
         float toolbarH =
-            ImGui::GetFrameHeightWithSpacing();
+            ImGui::GetFrameHeightWithSpacing() * 2.0f;
         ImVec2 region =
             ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
@@ -652,11 +873,18 @@ namespace shoecomp
                 "##cvs", ImVec2(0, canvasH),
                 ImGuiChildFlags_None);
             renderImageCanvas(
-                img, vs, "##canvas", linked);
+                img, vs, "##canvas", linked,
+                img.annotationMode);
             ImGui::EndChild();
         }
+        if (lockToggle)
+        {
+            renderLockToggle(*lockToggle);
+            ImGui::SameLine();
+        }
         renderImageToolbar(
-            img, vs, label, linked, lockToggle);
+            img, vs, label,
+            &img.annotationMode, linked);
     }
 
     static void renderImageViewer(AppState& state)
@@ -747,9 +975,19 @@ namespace shoecomp
             float dispW = img.width * scale;
             float dispH = img.height * scale;
 
+            // Two toolbar rows: view controls +
+            // annotation buttons
+            float tbRows =
+                ImGui::GetFrameHeightWithSpacing()
+                * 2.0f;
+            // Minimum width so all buttons are visible
+            float minW = 400.0f;
+            float winW = std::max(
+                dispW + pad.x * 2, minW);
             ImGui::SetNextWindowSize(
-                ImVec2(dispW + pad.x * 2,
-                       dispH + pad.y * 2 + titleH),
+                ImVec2(winW,
+                       dispH + pad.y * 2 + titleH
+                           + tbRows),
                 ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowPos(
                 ImVec2(origin.x + 20 + i * 30,
@@ -770,7 +1008,8 @@ namespace shoecomp
                     ImGuiWindowFlags_NoSavedSettings))
             {
                 float toolbarH =
-                    ImGui::GetFrameHeightWithSpacing();
+                    ImGui::GetFrameHeightWithSpacing()
+                    * 2.0f;
                 ImVec2 region =
                     ImGui::GetContentRegionAvail();
                 float canvasH =
@@ -784,14 +1023,17 @@ namespace shoecomp
                     snprintf(cid, sizeof(cid),
                              "##gc_%d", i);
                     renderImageCanvas(
-                        img, img.viewState, cid);
+                        img, img.viewState, cid,
+                        nullptr,
+                        img.annotationMode);
                     ImGui::EndChild();
                 }
                 char tbId[64];
                 snprintf(tbId, sizeof(tbId),
                          "##gtb_%d", i);
                 renderImageToolbar(
-                    img, img.viewState, tbId);
+                    img, img.viewState, tbId,
+                    &img.annotationMode);
             }
             ImGui::End();
 
