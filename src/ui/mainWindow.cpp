@@ -626,17 +626,30 @@ namespace shoecomp
                         cosR, sinR,
                         img.width, img.height));
             }
-            // Outer frame: canvas rect CW, bridge
-            // to polygon, polygon CCW, bridge back
-            ImVec2 cTL = canvasPos;
-            ImVec2 cTR(canvasPos.x + avail.x,
-                       canvasPos.y);
-            ImVec2 cBR(canvasPos.x + avail.x,
-                       canvasPos.y + avail.y);
-            ImVec2 cBL(canvasPos.x,
-                       canvasPos.y + avail.y);
+            // Outer rect large enough to cover all
+            // bounds vertices and the canvas
+            float oMinX = canvasPos.x;
+            float oMinY = canvasPos.y;
+            float oMaxX = canvasPos.x + avail.x;
+            float oMaxY = canvasPos.y + avail.y;
+            for (auto& sp : screenBnd)
+            {
+                oMinX = std::min(oMinX, sp.x);
+                oMinY = std::min(oMinY, sp.y);
+                oMaxX = std::max(oMaxX, sp.x);
+                oMaxY = std::max(oMaxY, sp.y);
+            }
+            float pad = 10.0f;
+            oMinX -= pad;
+            oMinY -= pad;
+            oMaxX += pad;
+            oMaxY += pad;
+            ImVec2 cTL(oMinX, oMinY);
+            ImVec2 cTR(oMaxX, oMinY);
+            ImVec2 cBR(oMaxX, oMaxY);
+            ImVec2 cBL(oMinX, oMaxY);
             std::vector<ImVec2> frame;
-            frame.reserve(bnd.size() + 6);
+            frame.reserve(screenBnd.size() + 6);
             frame.push_back(cTL);
             frame.push_back(cTR);
             frame.push_back(cBR);
