@@ -57,6 +57,15 @@ set(DOUBLE_CONVERSION_VENDORED ON CACHE BOOL "" FORCE)
 add_subdirectory(third_party/jtjson EXCLUDE_FROM_ALL)
 
 # =====================================================================
+# 3b. libpng (uses zlib)
+# =====================================================================
+set(PNG_SHARED OFF CACHE BOOL "" FORCE)
+set(PNG_STATIC ON CACHE BOOL "" FORCE)
+set(PNG_TESTS OFF CACHE BOOL "" FORCE)
+set(PNG_TOOLS OFF CACHE BOOL "" FORCE)
+add_subdirectory(third_party/libpng EXCLUDE_FROM_ALL)
+
+# =====================================================================
 # 4. hello_imgui (detects TARGET freetype automatically)
 # =====================================================================
 set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED OFF CACHE BOOL "" FORCE)
@@ -80,9 +89,10 @@ include_directories(
 set(SC_SRCS
     src/ui/mainWindow.cpp
     src/formats/pngLoader.cpp
+    src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
     src/formats/annotationIo.cpp
     src/main.cpp
 )
 hello_imgui_add_app(hello_world ${SC_SRCS})
-target_link_libraries(hello_world PRIVATE json)
+target_link_libraries(hello_world PRIVATE json png_static)

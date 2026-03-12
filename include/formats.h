@@ -15,6 +15,10 @@ namespace shoecomp
                           int& outHeight);
     void freeTexture(ImTextureID textureId);
 
+    int savePngToDisk(const std::string& filePath,
+                      const unsigned char* rgbaData,
+                      int width, int height);
+
     int saveAnnotationsToFile(const std::string& filePath,
                               const jt::Json& annotations);
     int loadAnnotationsFromFile(const std::string& filePath,

@@ -880,7 +880,7 @@ namespace shoecomp
             return;
 
         auto& img = state.images[selectedIdx];
-        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 3.0f;
+        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 4.0f;
         ImVec2 region = ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
         if (canvasH > 0.0f)
@@ -913,6 +913,14 @@ namespace shoecomp
             state.annotationFileTarget = selectedIdx;
             state.annotationDirNeedsRefresh = true;
             state.annotationFileName.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save PNG"))
+        {
+            state.showImageSaveFileBrowser = true;
+            state.imageSaveTarget = selectedIdx;
+            state.imageSaveDirNeedsRefresh = true;
+            state.imageSaveFileName.clear();
         }
     }
 
@@ -989,7 +997,7 @@ namespace shoecomp
 
             // Three toolbar rows: view controls,
             // annotation buttons, load/save
-            float tbRows = ImGui::GetFrameHeightWithSpacing() * 3.0f;
+            float tbRows = ImGui::GetFrameHeightWithSpacing() * 4.0f;
             // Minimum width so all buttons are visible
             float minW = 400.0f;
             float winW = std::max(dispW + pad.x * 2, minW);
@@ -1012,7 +1020,7 @@ namespace shoecomp
                              ImGuiWindowFlags_NoSavedSettings))
             {
                 float toolbarH =
-                    ImGui::GetFrameHeightWithSpacing() * 3.0f;
+                    ImGui::GetFrameHeightWithSpacing() * 4.0f;
                 ImVec2 region = ImGui::GetContentRegionAvail();
                 float canvasH = region.y - toolbarH;
                 if (canvasH > 0.0f)
@@ -1048,6 +1056,14 @@ namespace shoecomp
                     state.annotationFileTarget = i;
                     state.annotationDirNeedsRefresh = true;
                     state.annotationFileName.clear();
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Save PNG"))
+                {
+                    state.showImageSaveFileBrowser = true;
+                    state.imageSaveTarget = i;
+                    state.imageSaveDirNeedsRefresh = true;
+                    state.imageSaveFileName.clear();
                 }
                 ImGui::PopID();
             }
@@ -1089,6 +1105,240 @@ namespace shoecomp
         ImGui::InputTextMultiline(
             "##about", const_cast<char*>(aboutText.c_str()),
             aboutText.size() + 1, avail, ImGuiInputTextFlags_ReadOnly);
+    }
+
+    static void renderImageSaveErrorPopup(AppState& state)
+    {
+        if (state.showImageSaveError)
+        {
+            ImGui::OpenPopup("Image Save Error");
+            ImVec2 displaySize = ImGui::GetIO().DisplaySize;
+            ImGui::SetNextWindowSize(
+                ImVec2(displaySize.x * 0.7f, 0),
+                ImGuiCond_Always);
+            ImGui::SetNextWindowPos(
+                ImVec2(displaySize.x * 0.15f,
+                       displaySize.y * 0.4f),
+                ImGuiCond_Always);
+        }
+        if (ImGui::BeginPopupModal(
+                "Image Save Error", nullptr,
+                ImGuiWindowFlags_AlwaysAutoResize))
+        {
+            ImGui::TextWrapped(
+                "%s", state.imageSaveErrorMsg.c_str());
+            if (ImGui::Button("OK"))
+            {
+                state.showImageSaveError = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
+    }
+
+    static void renderImageSaveFileBrowser(AppState& state)
+    {
+        if (state.showImageSaveFileBrowser)
+        {
+            ImGui::OpenPopup("Save Image");
+            state.showImageSaveFileBrowser = false;
+        }
+
+        if (!ImGui::BeginPopupModal(
+                "Save Image", nullptr,
+                ImGuiWindowFlags_AlwaysAutoResize))
+            return;
+
+        ImGui::Text("Save Image as PNG");
+        ImGui::Separator();
+
+        ImGui::Text("Directory: %s",
+                     state.imageSaveBrowseDir.c_str());
+
+        if (state.imageSaveDirNeedsRefresh)
+        {
+            state.imageSaveDirEntries.clear();
+            state.imageSaveDirEntries.push_back("..");
+            try
+            {
+                for (auto& entry : fs::directory_iterator(
+                         state.imageSaveBrowseDir))
+                {
+                    std::string name =
+                        entry.path().filename().string();
+                    if (entry.is_directory())
+                        state.imageSaveDirEntries.push_back(
+                            name + "/");
+                    else if (entry.path().extension() ==
+                             ".png")
+                        state.imageSaveDirEntries.push_back(
+                            name);
+                }
+            }
+            catch (...)
+            {
+            }
+            std::sort(state.imageSaveDirEntries.begin() + 1,
+                      state.imageSaveDirEntries.end());
+            state.imageSaveDirNeedsRefresh = false;
+        }
+
+        ImGui::BeginChild("ImgSaveFileList",
+                          ImVec2(400, 300),
+                          ImGuiChildFlags_Borders);
+        for (auto& entry : state.imageSaveDirEntries)
+        {
+            bool isDir =
+                entry == ".." || entry.back() == '/';
+            if (ImGui::Selectable(entry.c_str(), false))
+            {
+                if (entry == "..")
+                {
+                    try
+                    {
+                        state.imageSaveBrowseDir =
+                            fs::canonical(
+                                fs::path(
+                                    state
+                                        .imageSaveBrowseDir) /
+                                "..")
+                                .string();
+                    }
+                    catch (...)
+                    {
+                    }
+                    state.imageSaveDirNeedsRefresh = true;
+                }
+                else if (isDir)
+                {
+                    std::string dirName =
+                        entry.substr(0, entry.size() - 1);
+                    try
+                    {
+                        state.imageSaveBrowseDir =
+                            fs::canonical(
+                                fs::path(
+                                    state
+                                        .imageSaveBrowseDir) /
+                                dirName)
+                                .string();
+                    }
+                    catch (...)
+                    {
+                    }
+                    state.imageSaveDirNeedsRefresh = true;
+                }
+                else
+                {
+                    state.imageSaveFileName = entry;
+                }
+            }
+        }
+        ImGui::EndChild();
+
+        char fnBuf[256];
+        snprintf(fnBuf, sizeof(fnBuf), "%s",
+                 state.imageSaveFileName.c_str());
+        if (ImGui::InputText("Filename", fnBuf,
+                             sizeof(fnBuf)))
+        {
+            state.imageSaveFileName = fnBuf;
+        }
+
+        if (ImGui::Button("OK"))
+        {
+            if (!state.imageSaveFileName.empty() &&
+                state.imageSaveTarget >= 0 &&
+                state.imageSaveTarget <
+                    (int)state.images.size() &&
+                !state.imageSaveInProgress.load())
+            {
+                std::string fullPath =
+                    state.imageSaveBrowseDir + "/" +
+                    state.imageSaveFileName;
+                auto& img =
+                    state.images[state.imageSaveTarget];
+
+                // GL readback on UI thread
+                int w = img.width;
+                int h = img.height;
+                auto buffer =
+                    std::make_shared<
+                        std::vector<unsigned char>>(
+                        w * h * 4);
+                GLuint tex =
+                    (GLuint)(intptr_t)img.textureId;
+                glBindTexture(GL_TEXTURE_2D, tex);
+                glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA,
+                              GL_UNSIGNED_BYTE,
+                              buffer->data());
+
+                // Launch background thread
+                state.imageSaveInProgress = true;
+                state.imageSaveDone = false;
+                state.imageSaveProgressPath = fullPath;
+                if (state.imageSaveThread.joinable())
+                    state.imageSaveThread.join();
+                state.imageSaveThread = std::thread(
+                    [&state, fullPath, buffer, w, h]()
+                    {
+                        int res = savePngToDisk(
+                            fullPath, buffer->data(),
+                            w, h);
+                        state.imageSaveResult = res;
+                        state.imageSaveDone = true;
+                    });
+            }
+            ImGui::CloseCurrentPopup();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Cancel"))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
+    }
+
+    static void renderImageSaveProgressPopup(
+        AppState& state)
+    {
+        if (state.imageSaveInProgress.load())
+        {
+            ImGui::OpenPopup("Saving Image...");
+        }
+        if (ImGui::BeginPopupModal(
+                "Saving Image...", nullptr,
+                ImGuiWindowFlags_AlwaysAutoResize |
+                    ImGuiWindowFlags_NoMove))
+        {
+            ImGui::Text("Saving to: %s",
+                        state.imageSaveProgressPath
+                            .c_str());
+            ImGui::Spacing();
+
+            // Animated spinner dots
+            int dots =
+                (int)(ImGui::GetTime() / 0.4) % 3 + 1;
+            ImGui::Text("Please wait%.*s", dots, "...");
+
+            if (state.imageSaveDone.load())
+            {
+                if (state.imageSaveThread.joinable())
+                    state.imageSaveThread.join();
+                if (state.imageSaveResult.load() != 0)
+                {
+                    state.showImageSaveError = true;
+                    state.imageSaveErrorMsg =
+                        "Failed to save image "
+                        "to:\n" +
+                        state.imageSaveProgressPath;
+                }
+                state.imageSaveInProgress = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::EndPopup();
+        }
     }
 
     static void renderAnnotationErrorPopup(AppState& state)
@@ -1259,6 +1509,9 @@ namespace shoecomp
     {
         renderAnnotationErrorPopup(state);
         renderAnnotationFileBrowser(state);
+        renderImageSaveErrorPopup(state);
+        renderImageSaveFileBrowser(state);
+        renderImageSaveProgressPopup(state);
 
         if (ImGui::BeginTabBar("MainTabs"))
         {
@@ -1303,6 +1556,8 @@ namespace shoecomp
         params.callbacks.ShowGui = [&state]() { renderGui(state); };
         params.callbacks.BeforeExit = [&state]()
         {
+            if (state.imageSaveThread.joinable())
+                state.imageSaveThread.join();
             for (auto& img : state.images) freeTexture(img.textureId);
             state.images.clear();
         };

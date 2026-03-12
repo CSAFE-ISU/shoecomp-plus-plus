@@ -5,6 +5,9 @@
 #include "imgui.h"
 #include <string>
 #include <vector>
+#include <thread>
+#include <atomic>
+#include <mutex>
 #include "json.h"
 
 namespace shoecomp
@@ -70,6 +73,23 @@ namespace shoecomp
         // Error popup
         bool showAnnotationError = false;
         std::string annotationErrorMsg;
+
+        // Image save file browser dialog
+        bool showImageSaveFileBrowser = false;
+        int imageSaveTarget = -1;
+        std::string imageSaveBrowseDir = ".";
+        std::vector<std::string> imageSaveDirEntries;
+        bool imageSaveDirNeedsRefresh = true;
+        std::string imageSaveFileName;
+        bool showImageSaveError = false;
+        std::string imageSaveErrorMsg;
+
+        // Image save progress (background thread)
+        std::atomic<bool> imageSaveInProgress{false};
+        std::atomic<bool> imageSaveDone{false};
+        std::atomic<int> imageSaveResult{0};
+        std::string imageSaveProgressPath;
+        std::thread imageSaveThread;
     };
 
     void submain(void);
