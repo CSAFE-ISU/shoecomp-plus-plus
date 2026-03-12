@@ -63,11 +63,39 @@ namespace shoecomp
         HelloImGui::Run(params);
     }
 
-    static void renderFileBrowser(AppState& state)
+    static void renderImageLoadBrowser(AppState& state)
     {
-        ImGui::Text("Directory: %s", state.currentDir.c_str());
+        if (state.showImageLoadBrowser)
+        {
+            ImGui::OpenPopup("Load Image");
+            state.showImageLoadBrowser = false;
+        }
+
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
+            ImGuiCond_Always);
+
+        bool loadImageOpen = true;
+        if (!ImGui::BeginPopupModal(
+                "Load Image", &loadImageOpen,
+                ImGuiWindowFlags_NoResize))
+            return;
+        if (!loadImageOpen)
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        ImGui::Text("Directory: %s",
+                     state.currentDir.c_str());
         ImGui::SameLine();
-        if (ImGui::Button("Refresh")) state.dirNeedsRefresh = true;
+        if (ImGui::Button("Refresh"))
+            state.dirNeedsRefresh = true;
 
         if (state.dirNeedsRefresh)
         {
@@ -75,13 +103,16 @@ namespace shoecomp
             state.dirEntries.push_back("..");
             try
             {
-                for (auto& entry :
-                     fs::directory_iterator(state.currentDir))
+                for (auto& entry : fs::directory_iterator(
+                         state.currentDir))
                 {
-                    std::string name = entry.path().filename().string();
+                    std::string name =
+                        entry.path().filename().string();
                     if (entry.is_directory())
-                        state.dirEntries.push_back(name + "/");
-                    else if (entry.path().extension() == ".png")
+                        state.dirEntries.push_back(
+                            name + "/");
+                    else if (entry.path().extension() ==
+                             ".png")
                         state.dirEntries.push_back(name);
                 }
             }
@@ -93,24 +124,36 @@ namespace shoecomp
             state.dirNeedsRefresh = false;
         }
 
-        ImGui::BeginChild("FileList", ImVec2(0, 0),
-                          ImGuiChildFlags_None);
+        ImVec2 listAvail =
+            ImGui::GetContentRegionAvail();
+        float bottomH =
+            ImGui::GetFrameHeightWithSpacing();
+        ImGui::BeginChild(
+            "FileList",
+            ImVec2(listAvail.x,
+                   listAvail.y - bottomH),
+            ImGuiChildFlags_Borders);
         for (auto& entry : state.dirEntries)
         {
-            bool isDir = entry == ".." || entry.back() == '/';
+            bool isDir =
+                entry == ".." || entry.back() == '/';
             ImGuiSelectableFlags flags =
-                isDir ? ImGuiSelectableFlags_None
-                      : ImGuiSelectableFlags_AllowDoubleClick;
+                isDir
+                    ? ImGuiSelectableFlags_None
+                    : ImGuiSelectableFlags_AllowDoubleClick;
 
-            if (ImGui::Selectable(entry.c_str(), false, flags))
+            if (ImGui::Selectable(entry.c_str(), false,
+                                  flags))
             {
                 if (entry == "..")
                 {
                     try
                     {
                         state.currentDir =
-                            fs::canonical(fs::path(state.currentDir) /
-                                          "..")
+                            fs::canonical(
+                                fs::path(
+                                    state.currentDir) /
+                                "..")
                                 .string();
                     }
                     catch (...)
@@ -120,13 +163,15 @@ namespace shoecomp
                 }
                 else if (entry.back() == '/')
                 {
-                    std::string dirName =
-                        entry.substr(0, entry.size() - 1);
+                    std::string dirName = entry.substr(
+                        0, entry.size() - 1);
                     try
                     {
                         state.currentDir =
-                            fs::canonical(fs::path(state.currentDir) /
-                                          dirName)
+                            fs::canonical(
+                                fs::path(
+                                    state.currentDir) /
+                                dirName)
                                 .string();
                     }
                     catch (...)
@@ -138,8 +183,9 @@ namespace shoecomp
                              ImGuiMouseButton_Left))
                 {
                     std::string fullPath =
-                        fs::canonical(fs::path(state.currentDir) /
-                                      entry)
+                        fs::canonical(
+                            fs::path(state.currentDir) /
+                            entry)
                             .string();
                     bool alreadyLoaded = false;
                     for (auto& img : state.images)
@@ -155,19 +201,30 @@ namespace shoecomp
                         LoadedImage img;
                         img.name = entry;
                         img.path = fullPath;
-                        if (loadPngFromDisk(fullPath, img.textureId,
-                                            img.width, img.height))
+                        if (loadPngFromDisk(
+                                fullPath, img.textureId,
+                                img.width, img.height))
                         {
                             img.annotations.setObject();
-                            img.annotations["bounds"].setArray();
-                            img.annotations["points"].setArray();
+                            img.annotations["bounds"]
+                                .setArray();
+                            img.annotations["points"]
+                                .setArray();
                             state.images.push_back(img);
                         }
                     }
+                    ImGui::CloseCurrentPopup();
                 }
             }
         }
         ImGui::EndChild();
+
+        if (ImGui::Button("Cancel"))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 
     static void renderSettings(AppState& state)
@@ -195,14 +252,6 @@ namespace shoecomp
 
     static void renderFilesAndSettings(AppState& state)
     {
-        float totalH = ImGui::GetContentRegionAvail().y;
-        float halfH = totalH * 0.5f;
-
-        ImGui::BeginChild("FileBrowserPane", ImVec2(0, halfH),
-                          ImGuiChildFlags_Borders);
-        renderFileBrowser(state);
-        ImGui::EndChild();
-
         ImGui::BeginChild("SettingsPane", ImVec2(0, 0),
                           ImGuiChildFlags_Borders);
         renderSettings(state);
@@ -841,132 +890,152 @@ namespace shoecomp
         ImGui::PopID();
     }
 
-    static void renderSingleViewer(AppState& state, int& selectedIdx,
-                                   int otherIdx, ImageViewState& vs,
+    static void renderSingleViewer(AppState& state,
+                                   int& selectedIdx,
+                                   int otherIdx,
+                                   ImageViewState& vs,
                                    const char* label,
-                                   ImageViewState* linked = nullptr,
-                                   bool* lockToggle = nullptr)
+                                   ImageViewState* linked =
+                                       nullptr)
     {
         const char* preview =
-            (selectedIdx >= 0 && selectedIdx < (int)state.images.size())
+            (selectedIdx >= 0 &&
+             selectedIdx < (int)state.images.size())
                 ? state.images[selectedIdx].name.c_str()
                 : "<none>";
 
         if (ImGui::BeginCombo(label, preview))
         {
-            if (ImGui::Selectable("<none>", selectedIdx < 0))
+            if (ImGui::Selectable("<none>",
+                                  selectedIdx < 0))
             {
                 selectedIdx = -1;
                 vs.zoom = vs.zoomTarget = 1.0f;
                 vs.pan = vs.panTarget = ImVec2(0, 0);
             }
-            for (int i = 0; i < (int)state.images.size(); ++i)
+            for (int i = 0;
+                 i < (int)state.images.size(); ++i)
             {
                 if (i == otherIdx) continue;
                 bool selected = (i == selectedIdx);
-                if (ImGui::Selectable(state.images[i].name.c_str(),
-                                      selected))
+                if (ImGui::Selectable(
+                        state.images[i].name.c_str(),
+                        selected))
                 {
                     selectedIdx = i;
                     vs.zoom = vs.zoomTarget = 0.0f;
-                    vs.pan = vs.panTarget = ImVec2(0, 0);
+                    vs.pan = vs.panTarget =
+                        ImVec2(0, 0);
                 }
-                if (selected) ImGui::SetItemDefaultFocus();
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
             }
             ImGui::EndCombo();
         }
 
-        if (selectedIdx < 0 || selectedIdx >= (int)state.images.size())
+        if (selectedIdx < 0 ||
+            selectedIdx >= (int)state.images.size())
             return;
 
         auto& img = state.images[selectedIdx];
-        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 4.0f;
+        float toolbarH =
+            ImGui::GetFrameHeightWithSpacing() * 3.0f;
         ImVec2 region = ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
         if (canvasH > 0.0f)
         {
-            ImGui::BeginChild("##cvs", ImVec2(0, canvasH),
+            ImGui::BeginChild("##cvs",
+                              ImVec2(0, canvasH),
                               ImGuiChildFlags_None);
-            renderImageCanvas(img, vs, "##canvas", linked,
+            renderImageCanvas(img, vs, "##canvas",
+                              linked,
                               &img.annotationMode);
             ImGui::EndChild();
         }
-        if (lockToggle)
-        {
-            renderLockToggle(*lockToggle);
-            ImGui::SameLine();
-        }
-        renderImageToolbar(img, vs, label, &img.annotationMode, linked);
-        if (ImGui::Button("Load JSON"))
-        {
-            state.showAnnotationFileBrowser = true;
-            state.annotationFileSave = false;
-            state.annotationFileTarget = selectedIdx;
-            state.annotationDirNeedsRefresh = true;
-            state.annotationFileName.clear();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Save JSON"))
-        {
-            state.showAnnotationFileBrowser = true;
-            state.annotationFileSave = true;
-            state.annotationFileTarget = selectedIdx;
-            state.annotationDirNeedsRefresh = true;
-            state.annotationFileName.clear();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Save PNG"))
-        {
-            state.showImageSaveFileBrowser = true;
-            state.imageSaveTarget = selectedIdx;
-            state.imageSaveDirNeedsRefresh = true;
-            state.imageSaveFileName.clear();
-        }
+        renderImageToolbar(img, vs, label,
+                           &img.annotationMode,
+                           linked);
     }
 
     static void renderImageViewer(AppState& state)
     {
-        float totalW = ImGui::GetContentRegionAvail().x;
-        float splitterW = 8.0f;
-        float leftW =
-            totalW * state.viewerSplitRatio - splitterW * 0.5f;
-        float rightW =
-            totalW * (1.0f - state.viewerSplitRatio) - splitterW * 0.5f;
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        float dockH =
+            ImGui::GetFrameHeightWithSpacing() +
+            ImGui::GetStyle().ItemSpacing.y;
+        float contentH = avail.y - dockH;
 
-        ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
-                          ImGuiChildFlags_Borders);
-        renderSingleViewer(
-            state, state.viewerLeftIdx, state.viewerRightIdx,
-            state.viewerLeftState, "##Left",
-            state.viewerLocked ? &state.viewerRightState : nullptr,
-            &state.viewerLocked);
-        ImGui::EndChild();
-
-        ImGui::SameLine();
-
-        // Draggable splitter
-        float height = ImGui::GetContentRegionAvail().y;
-        ImGui::Button("##Splitter", ImVec2(splitterW, height));
-        if (ImGui::IsItemActive())
+        ImGui::BeginChild("ComparisonContent",
+                          ImVec2(avail.x, contentH),
+                          ImGuiChildFlags_None);
         {
-            float delta = ImGui::GetIO().MouseDelta.x;
-            state.viewerSplitRatio += delta / totalW;
-            state.viewerSplitRatio =
-                std::clamp(state.viewerSplitRatio, 0.1f, 0.9f);
+            float totalW =
+                ImGui::GetContentRegionAvail().x;
+            float splitterW = 8.0f;
+            float leftW =
+                totalW * state.viewerSplitRatio -
+                splitterW * 0.5f;
+            float rightW =
+                totalW *
+                    (1.0f - state.viewerSplitRatio) -
+                splitterW * 0.5f;
+
+            ImGui::BeginChild("LeftViewer",
+                              ImVec2(leftW, 0),
+                              ImGuiChildFlags_Borders);
+            renderSingleViewer(
+                state, state.viewerLeftIdx,
+                state.viewerRightIdx,
+                state.viewerLeftState, "##Left",
+                state.viewerLocked
+                    ? &state.viewerRightState
+                    : nullptr);
+            ImGui::EndChild();
+
+            ImGui::SameLine();
+
+            // Draggable splitter
+            float height =
+                ImGui::GetContentRegionAvail().y;
+            ImGui::Button("##Splitter",
+                          ImVec2(splitterW, height));
+            if (ImGui::IsItemActive())
+            {
+                float delta =
+                    ImGui::GetIO().MouseDelta.x;
+                state.viewerSplitRatio +=
+                    delta / totalW;
+                state.viewerSplitRatio = std::clamp(
+                    state.viewerSplitRatio, 0.1f,
+                    0.9f);
+            }
+            if (ImGui::IsItemHovered() ||
+                ImGui::IsItemActive())
+                ImGui::SetMouseCursor(
+                    ImGuiMouseCursor_ResizeEW);
+
+            ImGui::SameLine();
+
+            ImGui::BeginChild("RightViewer",
+                              ImVec2(rightW, 0),
+                              ImGuiChildFlags_Borders);
+            renderSingleViewer(
+                state, state.viewerRightIdx,
+                state.viewerLeftIdx,
+                state.viewerRightState, "##Right",
+                state.viewerLocked
+                    ? &state.viewerLeftState
+                    : nullptr);
+            ImGui::EndChild();
         }
-        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-
-        ImGui::SameLine();
-
-        ImGui::BeginChild("RightViewer", ImVec2(rightW, 0),
-                          ImGuiChildFlags_Borders);
-        renderSingleViewer(
-            state, state.viewerRightIdx, state.viewerLeftIdx,
-            state.viewerRightState, "##Right",
-            state.viewerLocked ? &state.viewerLeftState : nullptr,
-            &state.viewerLocked);
         ImGui::EndChild();
+
+        // --- Dock bar ---
+        ImGui::Separator();
+        if (ImGui::Button(state.viewerLocked
+                              ? "Unlock"
+                              : "Lock"))
+            state.viewerLocked = !state.viewerLocked;
     }
 
     static void renderImageGallery(AppState& state)
@@ -974,14 +1043,23 @@ namespace shoecomp
         ImVec2 avail = ImGui::GetContentRegionAvail();
         ImVec2 origin = ImGui::GetCursorScreenPos();
 
-        ImGui::BeginChild("GalleryArea", avail, ImGuiChildFlags_None);
+        // Reserve space for dock bar at bottom
+        float dockH =
+            ImGui::GetFrameHeightWithSpacing() +
+            ImGui::GetStyle().ItemSpacing.y;
+        float galleryH = avail.y - dockH;
+
+        ImGui::BeginChild("GalleryArea",
+                          ImVec2(avail.x, galleryH),
+                          ImGuiChildFlags_None);
 
         // Title bar height for sizing the window
         float titleH =
-            ImGui::GetFrameHeight() + ImGui::GetStyle().FramePadding.y;
+            ImGui::GetFrameHeight() +
+            ImGui::GetStyle().FramePadding.y;
         ImVec2 pad = ImGui::GetStyle().WindowPadding;
         float maxW = avail.x * 0.5f;
-        float maxH = avail.y * 0.5f;
+        float maxH = galleryH * 0.5f;
 
         int removeIdx = -1;
         for (int i = 0; i < (int)state.images.size(); ++i)
@@ -989,83 +1067,78 @@ namespace shoecomp
             auto& img = state.images[i];
 
             // Scale image to fit within max bounds
-            float scale = std::min(maxW / (float)img.width,
-                                   maxH / (float)img.height);
+            float scale =
+                std::min(maxW / (float)img.width,
+                         maxH / (float)img.height);
             scale = std::min(scale, 1.0f);
             float dispW = img.width * scale;
             float dispH = img.height * scale;
 
-            // Three toolbar rows: view controls,
-            // annotation buttons, load/save
-            float tbRows = ImGui::GetFrameHeightWithSpacing() * 4.0f;
-            // Minimum width so all buttons are visible
+            float tbRows =
+                ImGui::GetFrameHeightWithSpacing() *
+                3.0f;
             float minW = 400.0f;
-            float winW = std::max(dispW + pad.x * 2, minW);
+            float winW =
+                std::max(dispW + pad.x * 2, minW);
             ImGui::SetNextWindowSize(
-                ImVec2(winW, dispH + pad.y * 2 + titleH + tbRows),
+                ImVec2(winW,
+                       dispH + pad.y * 2 + titleH +
+                           tbRows),
                 ImGuiCond_FirstUseEver);
             ImGui::SetNextWindowPos(
-                ImVec2(origin.x + 20 + i * 30, origin.y + 20 + i * 30),
+                ImVec2(origin.x + 20 + i * 30,
+                       origin.y + 20 + i * 30),
                 ImGuiCond_FirstUseEver);
 
             char winId[128];
-            snprintf(winId, sizeof(winId), "%s###gallery_%d",
+            snprintf(winId, sizeof(winId),
+                     "%s###gallery_%d",
                      img.name.c_str(), i);
 
             char canvasId[64];
-            snprintf(canvasId, sizeof(canvasId), "##gcanvas_%d", i);
+            snprintf(canvasId, sizeof(canvasId),
+                     "##gcanvas_%d", i);
+
+            if (img.minimized)
+                ImGui::SetNextWindowCollapsed(
+                    true, ImGuiCond_Always);
 
             bool open = true;
-            if (ImGui::Begin(winId, &open,
-                             ImGuiWindowFlags_NoSavedSettings))
+            if (ImGui::Begin(
+                    winId, &open,
+                    ImGuiWindowFlags_NoSavedSettings))
             {
+                if (img.minimized)
+                    img.minimized = false;
+                if (ImGui::IsWindowFocused(
+                        ImGuiFocusedFlags_ChildWindows))
+                    state.activeGalleryImage = i;
+
                 float toolbarH =
-                    ImGui::GetFrameHeightWithSpacing() * 4.0f;
-                ImVec2 region = ImGui::GetContentRegionAvail();
+                    ImGui::GetFrameHeightWithSpacing() *
+                    3.0f;
+                ImVec2 region =
+                    ImGui::GetContentRegionAvail();
                 float canvasH = region.y - toolbarH;
                 if (canvasH > 0.0f)
                 {
-                    ImGui::BeginChild(canvasId, ImVec2(0, canvasH),
-                                      ImGuiChildFlags_None);
+                    ImGui::BeginChild(
+                        canvasId, ImVec2(0, canvasH),
+                        ImGuiChildFlags_None);
                     char cid[64];
-                    snprintf(cid, sizeof(cid), "##gc_%d", i);
-                    renderImageCanvas(img, img.viewState, cid, nullptr,
-                                      &img.annotationMode);
+                    snprintf(cid, sizeof(cid),
+                             "##gc_%d", i);
+                    renderImageCanvas(
+                        img, img.viewState, cid,
+                        nullptr, &img.annotationMode);
                     ImGui::EndChild();
                 }
                 char tbId[64];
-                snprintf(tbId, sizeof(tbId), "##gtb_%d", i);
-                renderImageToolbar(img, img.viewState, tbId,
+                snprintf(tbId, sizeof(tbId),
+                         "##gtb_%d", i);
+                renderImageToolbar(img, img.viewState,
+                                   tbId,
                                    &img.annotationMode);
-                char lbId[64];
-                snprintf(lbId, sizeof(lbId), "##gld_%d", i);
-                ImGui::PushID(lbId);
-                if (ImGui::Button("Load JSON"))
-                {
-                    state.showAnnotationFileBrowser = true;
-                    state.annotationFileSave = false;
-                    state.annotationFileTarget = i;
-                    state.annotationDirNeedsRefresh = true;
-                    state.annotationFileName.clear();
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Save JSON"))
-                {
-                    state.showAnnotationFileBrowser = true;
-                    state.annotationFileSave = true;
-                    state.annotationFileTarget = i;
-                    state.annotationDirNeedsRefresh = true;
-                    state.annotationFileName.clear();
-                }
-                ImGui::SameLine();
-                if (ImGui::Button("Save PNG"))
-                {
-                    state.showImageSaveFileBrowser = true;
-                    state.imageSaveTarget = i;
-                    state.imageSaveDirNeedsRefresh = true;
-                    state.imageSaveFileName.clear();
-                }
-                ImGui::PopID();
             }
             ImGui::End();
 
@@ -1074,18 +1147,154 @@ namespace shoecomp
 
         if (removeIdx >= 0)
         {
-            freeTexture(state.images[removeIdx].textureId);
-            state.images.erase(state.images.begin() + removeIdx);
-            if (state.viewerLeftIdx >= (int)state.images.size())
-                state.viewerLeftIdx = (int)state.images.size() - 1;
-            if (state.viewerRightIdx >= (int)state.images.size())
-                state.viewerRightIdx = (int)state.images.size() - 1;
+            freeTexture(
+                state.images[removeIdx].textureId);
+            state.images.erase(state.images.begin() +
+                               removeIdx);
+            if (state.viewerLeftIdx >=
+                (int)state.images.size())
+                state.viewerLeftIdx =
+                    (int)state.images.size() - 1;
+            if (state.viewerRightIdx >=
+                (int)state.images.size())
+                state.viewerRightIdx =
+                    (int)state.images.size() - 1;
+            if (state.activeGalleryImage == removeIdx)
+                state.activeGalleryImage = -1;
+            else if (state.activeGalleryImage >
+                     removeIdx)
+                state.activeGalleryImage--;
         }
 
         if (state.images.empty())
-            ImGui::Text("Load images from Files & Settings");
+            ImGui::Text(
+                "Use Load Image to add images");
 
         ImGui::EndChild();
+
+        // --- Dock bar ---
+        ImGui::Separator();
+        bool hasActive =
+            state.activeGalleryImage >= 0 &&
+            state.activeGalleryImage <
+                (int)state.images.size();
+
+        if (ImGui::Button("Load Image"))
+            state.showImageLoadBrowser = true;
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!hasActive);
+        if (ImGui::Button("Save PNG"))
+        {
+            state.showImageSaveFileBrowser = true;
+            state.imageSaveTarget =
+                state.activeGalleryImage;
+            state.imageSaveDirNeedsRefresh = true;
+            state.imageSaveFileName.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Load JSON"))
+        {
+            state.showAnnotationFileBrowser = true;
+            state.annotationFileSave = false;
+            state.annotationFileTarget =
+                state.activeGalleryImage;
+            state.annotationDirNeedsRefresh = true;
+            state.annotationFileName.clear();
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Save JSON"))
+        {
+            state.showAnnotationFileBrowser = true;
+            state.annotationFileSave = true;
+            state.annotationFileTarget =
+                state.activeGalleryImage;
+            state.annotationDirNeedsRefresh = true;
+            state.annotationFileName.clear();
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(state.images.empty());
+        if (ImGui::Button("Images"))
+            state.showImageListDialog = true;
+        ImGui::EndDisabled();
+    }
+
+    static void renderImageListDialog(AppState& state)
+    {
+        if (state.showImageListDialog)
+        {
+            ImGui::OpenPopup("Images");
+            state.showImageListDialog = false;
+        }
+
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
+            ImGuiCond_Always);
+
+        bool imagesOpen = true;
+        if (!ImGui::BeginPopupModal(
+                "Images", &imagesOpen,
+                ImGuiWindowFlags_NoResize))
+            return;
+        if (!imagesOpen)
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
+
+        int popRemoveIdx = -1;
+        for (int i = 0;
+             i < (int)state.images.size(); ++i)
+        {
+            ImGui::PushID(i);
+            if (ImGui::Button("X"))
+                popRemoveIdx = i;
+            ImGui::SameLine();
+            bool min = state.images[i].minimized;
+            if (ImGui::Checkbox("##min", &min))
+                state.images[i].minimized = min;
+            ImGui::SameLine();
+            ImGui::Text(
+                "%s%s",
+                state.images[i].name.c_str(),
+                min ? " (minimized)" : "");
+            ImGui::PopID();
+        }
+        if (popRemoveIdx >= 0)
+        {
+            freeTexture(
+                state.images[popRemoveIdx].textureId);
+            state.images.erase(
+                state.images.begin() + popRemoveIdx);
+            if (state.viewerLeftIdx >=
+                (int)state.images.size())
+                state.viewerLeftIdx =
+                    (int)state.images.size() - 1;
+            if (state.viewerRightIdx >=
+                (int)state.images.size())
+                state.viewerRightIdx =
+                    (int)state.images.size() - 1;
+            if (state.activeGalleryImage ==
+                popRemoveIdx)
+                state.activeGalleryImage = -1;
+            else if (state.activeGalleryImage >
+                     popRemoveIdx)
+                state.activeGalleryImage--;
+        }
+
+        if (ImGui::Button("Close"))
+        {
+            ImGui::CloseCurrentPopup();
+        }
+
+        ImGui::EndPopup();
     }
 
     static void renderAbout()
@@ -1112,24 +1321,25 @@ namespace shoecomp
         if (state.showImageSaveError)
         {
             ImGui::OpenPopup("Image Save Error");
-            ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-            ImGui::SetNextWindowSize(
-                ImVec2(displaySize.x * 0.7f, 0),
-                ImGuiCond_Always);
-            ImGui::SetNextWindowPos(
-                ImVec2(displaySize.x * 0.15f,
-                       displaySize.y * 0.4f),
-                ImGuiCond_Always);
+            state.showImageSaveError = false;
         }
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.5f, ds.y * 0.3f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.25f, ds.y * 0.35f),
+            ImGuiCond_Always);
+        bool saveErrOpen = true;
         if (ImGui::BeginPopupModal(
-                "Image Save Error", nullptr,
-                ImGuiWindowFlags_AlwaysAutoResize))
+                "Image Save Error", &saveErrOpen,
+                ImGuiWindowFlags_NoResize))
         {
             ImGui::TextWrapped(
-                "%s", state.imageSaveErrorMsg.c_str());
+                "%s",
+                state.imageSaveErrorMsg.c_str());
             if (ImGui::Button("OK"))
             {
-                state.showImageSaveError = false;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -1144,10 +1354,25 @@ namespace shoecomp
             state.showImageSaveFileBrowser = false;
         }
 
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
+            ImGuiCond_Always);
+
+        bool saveImgOpen = true;
         if (!ImGui::BeginPopupModal(
-                "Save Image", nullptr,
-                ImGuiWindowFlags_AlwaysAutoResize))
+                "Save Image", &saveImgOpen,
+                ImGuiWindowFlags_NoResize))
             return;
+        if (!saveImgOpen)
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
 
         ImGui::Text("Save Image as PNG");
         ImGui::Separator();
@@ -1183,9 +1408,15 @@ namespace shoecomp
             state.imageSaveDirNeedsRefresh = false;
         }
 
-        ImGui::BeginChild("ImgSaveFileList",
-                          ImVec2(400, 300),
-                          ImGuiChildFlags_Borders);
+        ImVec2 saveListAvail =
+            ImGui::GetContentRegionAvail();
+        float saveBottomH =
+            ImGui::GetFrameHeightWithSpacing() * 2.0f;
+        ImGui::BeginChild(
+            "ImgSaveFileList",
+            ImVec2(saveListAvail.x,
+                   saveListAvail.y - saveBottomH),
+            ImGuiChildFlags_Borders);
         for (auto& entry : state.imageSaveDirEntries)
         {
             bool isDir =
@@ -1307,9 +1538,16 @@ namespace shoecomp
         {
             ImGui::OpenPopup("Saving Image...");
         }
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.4f, ds.y * 0.2f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.3f, ds.y * 0.4f),
+            ImGuiCond_Always);
         if (ImGui::BeginPopupModal(
                 "Saving Image...", nullptr,
-                ImGuiWindowFlags_AlwaysAutoResize |
+                ImGuiWindowFlags_NoResize |
                     ImGuiWindowFlags_NoMove))
         {
             ImGui::Text("Saving to: %s",
@@ -1346,20 +1584,24 @@ namespace shoecomp
         if (state.showAnnotationError)
         {
             ImGui::OpenPopup("Annotation Error");
-            ImVec2 displaySize = ImGui::GetIO().DisplaySize;
-            ImGui::SetNextWindowSize(ImVec2(displaySize.x * 0.7f, 0),
-                                     ImGuiCond_Always);
-            ImGui::SetNextWindowPos(
-                ImVec2(displaySize.x * 0.15f, displaySize.y * 0.4f),
-                ImGuiCond_Always);
+            state.showAnnotationError = false;
         }
-        if (ImGui::BeginPopupModal("Annotation Error", nullptr,
-                                   ImGuiWindowFlags_AlwaysAutoResize))
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.5f, ds.y * 0.3f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.25f, ds.y * 0.35f),
+            ImGuiCond_Always);
+        bool annErrOpen = true;
+        if (ImGui::BeginPopupModal(
+                "Annotation Error", &annErrOpen,
+                ImGuiWindowFlags_NoResize))
         {
-            ImGui::TextWrapped("%s", state.annotationErrorMsg.c_str());
+            ImGui::TextWrapped(
+                "%s", state.annotationErrorMsg.c_str());
             if (ImGui::Button("OK"))
             {
-                state.showAnnotationError = false;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -1374,9 +1616,25 @@ namespace shoecomp
             state.showAnnotationFileBrowser = false;
         }
 
-        if (!ImGui::BeginPopupModal("Annotation File", nullptr,
-                                    ImGuiWindowFlags_AlwaysAutoResize))
+        ImVec2 ds = ImGui::GetIO().DisplaySize;
+        ImGui::SetNextWindowSize(
+            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+            ImGuiCond_Always);
+        ImGui::SetNextWindowPos(
+            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
+            ImGuiCond_Always);
+
+        bool annFileOpen = true;
+        if (!ImGui::BeginPopupModal(
+                "Annotation File", &annFileOpen,
+                ImGuiWindowFlags_NoResize))
             return;
+        if (!annFileOpen)
+        {
+            ImGui::CloseCurrentPopup();
+            ImGui::EndPopup();
+            return;
+        }
 
         const char* title = state.annotationFileSave
                                 ? "Save Annotations"
@@ -1384,7 +1642,8 @@ namespace shoecomp
         ImGui::Text("%s", title);
         ImGui::Separator();
 
-        ImGui::Text("Directory: %s", state.annotationBrowseDir.c_str());
+        ImGui::Text("Directory: %s",
+                     state.annotationBrowseDir.c_str());
 
         if (state.annotationDirNeedsRefresh)
         {
@@ -1392,27 +1651,38 @@ namespace shoecomp
             state.annotationDirEntries.push_back("..");
             try
             {
-                for (auto& entry :
-                     fs::directory_iterator(state.annotationBrowseDir))
+                for (auto& entry : fs::directory_iterator(
+                         state.annotationBrowseDir))
                 {
-                    std::string name = entry.path().filename().string();
+                    std::string name =
+                        entry.path().filename().string();
                     if (entry.is_directory())
-                        state.annotationDirEntries.push_back(name +
-                                                             "/");
-                    else if (entry.path().extension() == ".json")
-                        state.annotationDirEntries.push_back(name);
+                        state.annotationDirEntries
+                            .push_back(name + "/");
+                    else if (entry.path().extension() ==
+                             ".json")
+                        state.annotationDirEntries
+                            .push_back(name);
                 }
             }
             catch (...)
             {
             }
-            std::sort(state.annotationDirEntries.begin() + 1,
-                      state.annotationDirEntries.end());
+            std::sort(
+                state.annotationDirEntries.begin() + 1,
+                state.annotationDirEntries.end());
             state.annotationDirNeedsRefresh = false;
         }
 
-        ImGui::BeginChild("AnnFileList", ImVec2(400, 300),
-                          ImGuiChildFlags_Borders);
+        ImVec2 annListAvail =
+            ImGui::GetContentRegionAvail();
+        float annBottomH =
+            ImGui::GetFrameHeightWithSpacing() * 2.0f;
+        ImGui::BeginChild(
+            "AnnFileList",
+            ImVec2(annListAvail.x,
+                   annListAvail.y - annBottomH),
+            ImGuiChildFlags_Borders);
         for (auto& entry : state.annotationDirEntries)
         {
             bool isDir = entry == ".." || entry.back() == '/';
@@ -1512,14 +1782,11 @@ namespace shoecomp
         renderImageSaveErrorPopup(state);
         renderImageSaveFileBrowser(state);
         renderImageSaveProgressPopup(state);
+        renderImageLoadBrowser(state);
+        renderImageListDialog(state);
 
         if (ImGui::BeginTabBar("MainTabs"))
         {
-            if (ImGui::BeginTabItem("Files & Settings"))
-            {
-                renderFilesAndSettings(state);
-                ImGui::EndTabItem();
-            }
             if (ImGui::BeginTabItem("Image Viewer"))
             {
                 renderImageGallery(state);
@@ -1528,6 +1795,11 @@ namespace shoecomp
             if (ImGui::BeginTabItem("Image Comparison"))
             {
                 renderImageViewer(state);
+                ImGui::EndTabItem();
+            }
+            if (ImGui::BeginTabItem("Settings"))
+            {
+                renderFilesAndSettings(state);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("About"))

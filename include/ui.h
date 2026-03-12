@@ -39,6 +39,7 @@ namespace shoecomp
         ImageViewState viewState;
         jt::Json annotations;
         AnnotationMode annotationMode = AnnotationMode::None;
+        bool minimized = false;
     };
 
     struct AppState
@@ -90,6 +91,15 @@ namespace shoecomp
         std::atomic<int> imageSaveResult{0};
         std::string imageSaveProgressPath;
         std::thread imageSaveThread;
+
+        // Image load file browser modal
+        bool showImageLoadBrowser = false;
+
+        // Active gallery image (last-focused window, -1 = none)
+        int activeGalleryImage = -1;
+
+        // Image list dialog
+        bool showImageListDialog = false;
     };
 
     void submain(void);
