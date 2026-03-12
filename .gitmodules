@@ -16,3 +16,6 @@
 [submodule "third_party/jtjson"]
 	path = third_party/jtjson
 	url = https://github.com/jart/json.cpp
+[submodule "third_party/eigen"]
+	path = third_party/eigen
+	url = https://gitlab.com/libeigen/eigen
