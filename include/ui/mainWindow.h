@@ -1,5 +1,5 @@
-#ifndef SHOECOMP_UI
-#define SHOECOMP_UI
+#ifndef SHOECOMP_MAIN_WINDOW
+#define SHOECOMP_MAIN_WINDOW
 
 #include "hello_imgui/hello_imgui.h"
 #include "imgui.h"
@@ -9,6 +9,10 @@
 #include <atomic>
 #include <mutex>
 #include "json.h"
+#include "ui/errorPopup.h"
+#include "ui/loadBrowser.h"
+#include "ui/saveBrowser.h"
+#include "ui/imageListDialog.h"
 
 namespace shoecomp
 {
@@ -44,11 +48,6 @@ namespace shoecomp
 
     struct AppState
     {
-        // File browser
-        std::string currentDir = ".";
-        std::vector<std::string> dirEntries;
-        bool dirNeedsRefresh = true;
-
         // Loaded images
         std::vector<LoadedImage> images;
 
@@ -62,44 +61,32 @@ namespace shoecomp
         ImageViewState viewerRightState;
         bool viewerLocked = false;
 
-        // Annotation file browser dialog
-        bool showAnnotationFileBrowser = false;
+        // Active gallery image (last-focused window, -1 = none)
+        int activeGalleryImage = -1;
+
+        // Dialogs
+        LoadBrowser imageLoadBrowser;
+        SaveBrowser imageSaveBrowser;
+        SaveBrowser annotationFileBrowser;
+        ImageListDialog imageListDialog;
+
+        // Error popups
+        ErrorPopup imageSaveError;
+        ErrorPopup annotationError;
+
+        // Annotation file browser mode
         bool annotationFileSave = false;
         int annotationFileTarget = -1;
-        std::string annotationBrowseDir = ".";
-        std::vector<std::string> annotationDirEntries;
-        bool annotationDirNeedsRefresh = true;
-        std::string annotationFileName;
 
-        // Error popup
-        bool showAnnotationError = false;
-        std::string annotationErrorMsg;
-
-        // Image save file browser dialog
-        bool showImageSaveFileBrowser = false;
+        // Image save target
         int imageSaveTarget = -1;
-        std::string imageSaveBrowseDir = ".";
-        std::vector<std::string> imageSaveDirEntries;
-        bool imageSaveDirNeedsRefresh = true;
-        std::string imageSaveFileName;
-        bool showImageSaveError = false;
-        std::string imageSaveErrorMsg;
 
-        // Image save progress (background thread)
+        // Image save background thread
         std::atomic<bool> imageSaveInProgress{false};
         std::atomic<bool> imageSaveDone{false};
         std::atomic<int> imageSaveResult{0};
         std::string imageSaveProgressPath;
         std::thread imageSaveThread;
-
-        // Image load file browser modal
-        bool showImageLoadBrowser = false;
-
-        // Active gallery image (last-focused window, -1 = none)
-        int activeGalleryImage = -1;
-
-        // Image list dialog
-        bool showImageListDialog = false;
     };
 
     void submain(void);

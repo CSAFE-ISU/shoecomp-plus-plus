@@ -1,4 +1,4 @@
-#include "ui.h"
+#include "ui/mainWindow.h"
 #include "formats.h"
 #include "json.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
@@ -61,170 +61,6 @@ namespace shoecomp
         };
 
         HelloImGui::Run(params);
-    }
-
-    static void renderImageLoadBrowser(AppState& state)
-    {
-        if (state.showImageLoadBrowser)
-        {
-            ImGui::OpenPopup("Load Image");
-            state.showImageLoadBrowser = false;
-        }
-
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-            ImGuiCond_Always);
-
-        bool loadImageOpen = true;
-        if (!ImGui::BeginPopupModal(
-                "Load Image", &loadImageOpen,
-                ImGuiWindowFlags_NoResize))
-            return;
-        if (!loadImageOpen)
-        {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
-
-        ImGui::Text("Directory: %s",
-                     state.currentDir.c_str());
-        ImGui::SameLine();
-        if (ImGui::Button("Refresh"))
-            state.dirNeedsRefresh = true;
-
-        if (state.dirNeedsRefresh)
-        {
-            state.dirEntries.clear();
-            state.dirEntries.push_back("..");
-            try
-            {
-                for (auto& entry : fs::directory_iterator(
-                         state.currentDir))
-                {
-                    std::string name =
-                        entry.path().filename().string();
-                    if (entry.is_directory())
-                        state.dirEntries.push_back(
-                            name + "/");
-                    else if (entry.path().extension() ==
-                             ".png")
-                        state.dirEntries.push_back(name);
-                }
-            }
-            catch (...)
-            {
-            }
-            std::sort(state.dirEntries.begin() + 1,
-                      state.dirEntries.end());
-            state.dirNeedsRefresh = false;
-        }
-
-        ImVec2 listAvail =
-            ImGui::GetContentRegionAvail();
-        float bottomH =
-            ImGui::GetFrameHeightWithSpacing();
-        ImGui::BeginChild(
-            "FileList",
-            ImVec2(listAvail.x,
-                   listAvail.y - bottomH),
-            ImGuiChildFlags_Borders);
-        for (auto& entry : state.dirEntries)
-        {
-            bool isDir =
-                entry == ".." || entry.back() == '/';
-            ImGuiSelectableFlags flags =
-                isDir
-                    ? ImGuiSelectableFlags_None
-                    : ImGuiSelectableFlags_AllowDoubleClick;
-
-            if (ImGui::Selectable(entry.c_str(), false,
-                                  flags))
-            {
-                if (entry == "..")
-                {
-                    try
-                    {
-                        state.currentDir =
-                            fs::canonical(
-                                fs::path(
-                                    state.currentDir) /
-                                "..")
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    state.dirNeedsRefresh = true;
-                }
-                else if (entry.back() == '/')
-                {
-                    std::string dirName = entry.substr(
-                        0, entry.size() - 1);
-                    try
-                    {
-                        state.currentDir =
-                            fs::canonical(
-                                fs::path(
-                                    state.currentDir) /
-                                dirName)
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    state.dirNeedsRefresh = true;
-                }
-                else if (ImGui::IsMouseDoubleClicked(
-                             ImGuiMouseButton_Left))
-                {
-                    std::string fullPath =
-                        fs::canonical(
-                            fs::path(state.currentDir) /
-                            entry)
-                            .string();
-                    bool alreadyLoaded = false;
-                    for (auto& img : state.images)
-                    {
-                        if (img.path == fullPath)
-                        {
-                            alreadyLoaded = true;
-                            break;
-                        }
-                    }
-                    if (!alreadyLoaded)
-                    {
-                        LoadedImage img;
-                        img.name = entry;
-                        img.path = fullPath;
-                        if (loadPngFromDisk(
-                                fullPath, img.textureId,
-                                img.width, img.height))
-                        {
-                            img.annotations.setObject();
-                            img.annotations["bounds"]
-                                .setArray();
-                            img.annotations["points"]
-                                .setArray();
-                            state.images.push_back(img);
-                        }
-                    }
-                    ImGui::CloseCurrentPopup();
-                }
-            }
-        }
-        ImGui::EndChild();
-
-        if (ImGui::Button("Cancel"))
-        {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
     }
 
     static void renderSettings(AppState& state)
@@ -1180,121 +1016,54 @@ namespace shoecomp
                 (int)state.images.size();
 
         if (ImGui::Button("Load Image"))
-            state.showImageLoadBrowser = true;
+            state.imageLoadBrowser.show = true;
 
         ImGui::SameLine();
         ImGui::BeginDisabled(!hasActive);
         if (ImGui::Button("Save PNG"))
         {
-            state.showImageSaveFileBrowser = true;
+            state.imageSaveBrowser.show = true;
             state.imageSaveTarget =
                 state.activeGalleryImage;
-            state.imageSaveDirNeedsRefresh = true;
-            state.imageSaveFileName.clear();
+            state.imageSaveBrowser.dirNeedsRefresh =
+                true;
+            state.imageSaveBrowser.fileName.clear();
         }
         ImGui::SameLine();
         if (ImGui::Button("Load JSON"))
         {
-            state.showAnnotationFileBrowser = true;
+            state.annotationFileBrowser.show = true;
             state.annotationFileSave = false;
             state.annotationFileTarget =
                 state.activeGalleryImage;
-            state.annotationDirNeedsRefresh = true;
-            state.annotationFileName.clear();
+            state.annotationFileBrowser
+                .dirNeedsRefresh = true;
+            state.annotationFileBrowser.fileName
+                .clear();
+            state.annotationFileBrowser.title =
+                "Load Annotations";
         }
         ImGui::SameLine();
         if (ImGui::Button("Save JSON"))
         {
-            state.showAnnotationFileBrowser = true;
+            state.annotationFileBrowser.show = true;
             state.annotationFileSave = true;
             state.annotationFileTarget =
                 state.activeGalleryImage;
-            state.annotationDirNeedsRefresh = true;
-            state.annotationFileName.clear();
+            state.annotationFileBrowser
+                .dirNeedsRefresh = true;
+            state.annotationFileBrowser.fileName
+                .clear();
+            state.annotationFileBrowser.title =
+                "Save Annotations";
         }
         ImGui::EndDisabled();
 
         ImGui::SameLine();
         ImGui::BeginDisabled(state.images.empty());
         if (ImGui::Button("Images"))
-            state.showImageListDialog = true;
+            state.imageListDialog.show = true;
         ImGui::EndDisabled();
-    }
-
-    static void renderImageListDialog(AppState& state)
-    {
-        if (state.showImageListDialog)
-        {
-            ImGui::OpenPopup("Images");
-            state.showImageListDialog = false;
-        }
-
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-            ImGuiCond_Always);
-
-        bool imagesOpen = true;
-        if (!ImGui::BeginPopupModal(
-                "Images", &imagesOpen,
-                ImGuiWindowFlags_NoResize))
-            return;
-        if (!imagesOpen)
-        {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
-
-        int popRemoveIdx = -1;
-        for (int i = 0;
-             i < (int)state.images.size(); ++i)
-        {
-            ImGui::PushID(i);
-            if (ImGui::Button("X"))
-                popRemoveIdx = i;
-            ImGui::SameLine();
-            bool min = state.images[i].minimized;
-            if (ImGui::Checkbox("##min", &min))
-                state.images[i].minimized = min;
-            ImGui::SameLine();
-            ImGui::Text(
-                "%s%s",
-                state.images[i].name.c_str(),
-                min ? " (minimized)" : "");
-            ImGui::PopID();
-        }
-        if (popRemoveIdx >= 0)
-        {
-            freeTexture(
-                state.images[popRemoveIdx].textureId);
-            state.images.erase(
-                state.images.begin() + popRemoveIdx);
-            if (state.viewerLeftIdx >=
-                (int)state.images.size())
-                state.viewerLeftIdx =
-                    (int)state.images.size() - 1;
-            if (state.viewerRightIdx >=
-                (int)state.images.size())
-                state.viewerRightIdx =
-                    (int)state.images.size() - 1;
-            if (state.activeGalleryImage ==
-                popRemoveIdx)
-                state.activeGalleryImage = -1;
-            else if (state.activeGalleryImage >
-                     popRemoveIdx)
-                state.activeGalleryImage--;
-        }
-
-        if (ImGui::Button("Close"))
-        {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
     }
 
     static void renderAbout()
@@ -1314,221 +1083,6 @@ namespace shoecomp
         ImGui::InputTextMultiline(
             "##about", const_cast<char*>(aboutText.c_str()),
             aboutText.size() + 1, avail, ImGuiInputTextFlags_ReadOnly);
-    }
-
-    static void renderImageSaveErrorPopup(AppState& state)
-    {
-        if (state.showImageSaveError)
-        {
-            ImGui::OpenPopup("Image Save Error");
-            state.showImageSaveError = false;
-        }
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.3f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.35f),
-            ImGuiCond_Always);
-        bool saveErrOpen = true;
-        if (ImGui::BeginPopupModal(
-                "Image Save Error", &saveErrOpen,
-                ImGuiWindowFlags_NoResize))
-        {
-            ImGui::TextWrapped(
-                "%s",
-                state.imageSaveErrorMsg.c_str());
-            if (ImGui::Button("OK"))
-            {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndPopup();
-        }
-    }
-
-    static void renderImageSaveFileBrowser(AppState& state)
-    {
-        if (state.showImageSaveFileBrowser)
-        {
-            ImGui::OpenPopup("Save Image");
-            state.showImageSaveFileBrowser = false;
-        }
-
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-            ImGuiCond_Always);
-
-        bool saveImgOpen = true;
-        if (!ImGui::BeginPopupModal(
-                "Save Image", &saveImgOpen,
-                ImGuiWindowFlags_NoResize))
-            return;
-        if (!saveImgOpen)
-        {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
-
-        ImGui::Text("Save Image as PNG");
-        ImGui::Separator();
-
-        ImGui::Text("Directory: %s",
-                     state.imageSaveBrowseDir.c_str());
-
-        if (state.imageSaveDirNeedsRefresh)
-        {
-            state.imageSaveDirEntries.clear();
-            state.imageSaveDirEntries.push_back("..");
-            try
-            {
-                for (auto& entry : fs::directory_iterator(
-                         state.imageSaveBrowseDir))
-                {
-                    std::string name =
-                        entry.path().filename().string();
-                    if (entry.is_directory())
-                        state.imageSaveDirEntries.push_back(
-                            name + "/");
-                    else if (entry.path().extension() ==
-                             ".png")
-                        state.imageSaveDirEntries.push_back(
-                            name);
-                }
-            }
-            catch (...)
-            {
-            }
-            std::sort(state.imageSaveDirEntries.begin() + 1,
-                      state.imageSaveDirEntries.end());
-            state.imageSaveDirNeedsRefresh = false;
-        }
-
-        ImVec2 saveListAvail =
-            ImGui::GetContentRegionAvail();
-        float saveBottomH =
-            ImGui::GetFrameHeightWithSpacing() * 2.0f;
-        ImGui::BeginChild(
-            "ImgSaveFileList",
-            ImVec2(saveListAvail.x,
-                   saveListAvail.y - saveBottomH),
-            ImGuiChildFlags_Borders);
-        for (auto& entry : state.imageSaveDirEntries)
-        {
-            bool isDir =
-                entry == ".." || entry.back() == '/';
-            if (ImGui::Selectable(entry.c_str(), false))
-            {
-                if (entry == "..")
-                {
-                    try
-                    {
-                        state.imageSaveBrowseDir =
-                            fs::canonical(
-                                fs::path(
-                                    state
-                                        .imageSaveBrowseDir) /
-                                "..")
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    state.imageSaveDirNeedsRefresh = true;
-                }
-                else if (isDir)
-                {
-                    std::string dirName =
-                        entry.substr(0, entry.size() - 1);
-                    try
-                    {
-                        state.imageSaveBrowseDir =
-                            fs::canonical(
-                                fs::path(
-                                    state
-                                        .imageSaveBrowseDir) /
-                                dirName)
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    state.imageSaveDirNeedsRefresh = true;
-                }
-                else
-                {
-                    state.imageSaveFileName = entry;
-                }
-            }
-        }
-        ImGui::EndChild();
-
-        char fnBuf[256];
-        snprintf(fnBuf, sizeof(fnBuf), "%s",
-                 state.imageSaveFileName.c_str());
-        if (ImGui::InputText("Filename", fnBuf,
-                             sizeof(fnBuf)))
-        {
-            state.imageSaveFileName = fnBuf;
-        }
-
-        if (ImGui::Button("OK"))
-        {
-            if (!state.imageSaveFileName.empty() &&
-                state.imageSaveTarget >= 0 &&
-                state.imageSaveTarget <
-                    (int)state.images.size() &&
-                !state.imageSaveInProgress.load())
-            {
-                std::string fullPath =
-                    state.imageSaveBrowseDir + "/" +
-                    state.imageSaveFileName;
-                auto& img =
-                    state.images[state.imageSaveTarget];
-
-                // GL readback on UI thread
-                int w = img.width;
-                int h = img.height;
-                auto buffer =
-                    std::make_shared<
-                        std::vector<unsigned char>>(
-                        w * h * 4);
-                GLuint tex =
-                    (GLuint)(intptr_t)img.textureId;
-                glBindTexture(GL_TEXTURE_2D, tex);
-                glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA,
-                              GL_UNSIGNED_BYTE,
-                              buffer->data());
-
-                // Launch background thread
-                state.imageSaveInProgress = true;
-                state.imageSaveDone = false;
-                state.imageSaveProgressPath = fullPath;
-                if (state.imageSaveThread.joinable())
-                    state.imageSaveThread.join();
-                state.imageSaveThread = std::thread(
-                    [&state, fullPath, buffer, w, h]()
-                    {
-                        int res = savePngToDisk(
-                            fullPath, buffer->data(),
-                            w, h);
-                        state.imageSaveResult = res;
-                        state.imageSaveDone = true;
-                    });
-            }
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel"))
-        {
-            ImGui::CloseCurrentPopup();
-        }
-
-        ImGui::EndPopup();
     }
 
     static void renderImageSaveProgressPopup(
@@ -1566,8 +1120,8 @@ namespace shoecomp
                     state.imageSaveThread.join();
                 if (state.imageSaveResult.load() != 0)
                 {
-                    state.showImageSaveError = true;
-                    state.imageSaveErrorMsg =
+                    state.imageSaveError.show = true;
+                    state.imageSaveError.message =
                         "Failed to save image "
                         "to:\n" +
                         state.imageSaveProgressPath;
@@ -1579,211 +1133,18 @@ namespace shoecomp
         }
     }
 
-    static void renderAnnotationErrorPopup(AppState& state)
-    {
-        if (state.showAnnotationError)
-        {
-            ImGui::OpenPopup("Annotation Error");
-            state.showAnnotationError = false;
-        }
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.3f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.35f),
-            ImGuiCond_Always);
-        bool annErrOpen = true;
-        if (ImGui::BeginPopupModal(
-                "Annotation Error", &annErrOpen,
-                ImGuiWindowFlags_NoResize))
-        {
-            ImGui::TextWrapped(
-                "%s", state.annotationErrorMsg.c_str());
-            if (ImGui::Button("OK"))
-            {
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::EndPopup();
-        }
-    }
-
-    static void renderAnnotationFileBrowser(AppState& state)
-    {
-        if (state.showAnnotationFileBrowser)
-        {
-            ImGui::OpenPopup("Annotation File");
-            state.showAnnotationFileBrowser = false;
-        }
-
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-            ImGuiCond_Always);
-
-        bool annFileOpen = true;
-        if (!ImGui::BeginPopupModal(
-                "Annotation File", &annFileOpen,
-                ImGuiWindowFlags_NoResize))
-            return;
-        if (!annFileOpen)
-        {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
-
-        const char* title = state.annotationFileSave
-                                ? "Save Annotations"
-                                : "Load Annotations";
-        ImGui::Text("%s", title);
-        ImGui::Separator();
-
-        ImGui::Text("Directory: %s",
-                     state.annotationBrowseDir.c_str());
-
-        if (state.annotationDirNeedsRefresh)
-        {
-            state.annotationDirEntries.clear();
-            state.annotationDirEntries.push_back("..");
-            try
-            {
-                for (auto& entry : fs::directory_iterator(
-                         state.annotationBrowseDir))
-                {
-                    std::string name =
-                        entry.path().filename().string();
-                    if (entry.is_directory())
-                        state.annotationDirEntries
-                            .push_back(name + "/");
-                    else if (entry.path().extension() ==
-                             ".json")
-                        state.annotationDirEntries
-                            .push_back(name);
-                }
-            }
-            catch (...)
-            {
-            }
-            std::sort(
-                state.annotationDirEntries.begin() + 1,
-                state.annotationDirEntries.end());
-            state.annotationDirNeedsRefresh = false;
-        }
-
-        ImVec2 annListAvail =
-            ImGui::GetContentRegionAvail();
-        float annBottomH =
-            ImGui::GetFrameHeightWithSpacing() * 2.0f;
-        ImGui::BeginChild(
-            "AnnFileList",
-            ImVec2(annListAvail.x,
-                   annListAvail.y - annBottomH),
-            ImGuiChildFlags_Borders);
-        for (auto& entry : state.annotationDirEntries)
-        {
-            bool isDir = entry == ".." || entry.back() == '/';
-            if (ImGui::Selectable(entry.c_str(), false))
-            {
-                if (entry == "..")
-                {
-                    try
-                    {
-                        state.annotationBrowseDir =
-                            fs::canonical(
-                                fs::path(state.annotationBrowseDir) /
-                                "..")
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    state.annotationDirNeedsRefresh = true;
-                }
-                else if (isDir)
-                {
-                    std::string dirName =
-                        entry.substr(0, entry.size() - 1);
-                    try
-                    {
-                        state.annotationBrowseDir =
-                            fs::canonical(
-                                fs::path(state.annotationBrowseDir) /
-                                dirName)
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    state.annotationDirNeedsRefresh = true;
-                }
-                else { state.annotationFileName = entry; }
-            }
-        }
-        ImGui::EndChild();
-
-        char fnBuf[256];
-        snprintf(fnBuf, sizeof(fnBuf), "%s",
-                 state.annotationFileName.c_str());
-        if (ImGui::InputText("Filename", fnBuf, sizeof(fnBuf)))
-        {
-            state.annotationFileName = fnBuf;
-        }
-
-        if (ImGui::Button("OK"))
-        {
-            if (!state.annotationFileName.empty() &&
-                state.annotationFileTarget >= 0 &&
-                state.annotationFileTarget < (int)state.images.size())
-            {
-                std::string fullPath = state.annotationBrowseDir + "/" +
-                                       state.annotationFileName;
-                auto& img = state.images[state.annotationFileTarget];
-                if (state.annotationFileSave)
-                {
-                    if (saveAnnotationsToFile(fullPath,
-                                              img.annotations) != 0)
-                    {
-                        state.showAnnotationError = true;
-                        state.annotationErrorMsg =
-                            "Failed to save "
-                            "annotations to:\n" +
-                            fullPath;
-                    }
-                }
-                else
-                {
-                    if (loadAnnotationsFromFile(fullPath,
-                                                img.annotations) != 0)
-                    {
-                        state.showAnnotationError = true;
-                        state.annotationErrorMsg =
-                            "Failed to load "
-                            "annotations from:\n" +
-                            fullPath;
-                    }
-                }
-            }
-            ImGui::CloseCurrentPopup();
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
-
-        ImGui::EndPopup();
-    }
-
     static void renderGui(AppState& state)
     {
-        renderAnnotationErrorPopup(state);
-        renderAnnotationFileBrowser(state);
-        renderImageSaveErrorPopup(state);
-        renderImageSaveFileBrowser(state);
+        state.annotationError.render();
+        state.imageSaveError.render();
+        state.imageLoadBrowser.render();
+        state.imageSaveBrowser.render();
+        state.annotationFileBrowser.render();
         renderImageSaveProgressPopup(state);
-        renderImageLoadBrowser(state);
-        renderImageListDialog(state);
+        state.imageListDialog.render(
+            state.images, state.viewerLeftIdx,
+            state.viewerRightIdx,
+            state.activeGalleryImage);
 
         if (ImGui::BeginTabBar("MainTabs"))
         {
@@ -1813,9 +1174,138 @@ namespace shoecomp
 
     void submain(void)
     {
-        runSplash(2.0);
+        runSplash(1.0);
 
         AppState state;
+
+        // Configure error popup titles
+        state.imageSaveError.title = "Image Save Error";
+        state.annotationError.title = "Annotation Error";
+
+        // Configure image save browser
+        state.imageSaveBrowser.extension = ".png";
+        state.imageSaveBrowser.title = "Save Image";
+        state.imageSaveBrowser.onOk =
+            [&state](const std::string& fullPath)
+        {
+            if (state.imageSaveTarget >= 0 &&
+                state.imageSaveTarget <
+                    (int)state.images.size() &&
+                !state.imageSaveInProgress.load())
+            {
+                auto& img =
+                    state.images[state.imageSaveTarget];
+
+                // GL readback on UI thread
+                int w = img.width;
+                int h = img.height;
+                auto buffer =
+                    std::make_shared<
+                        std::vector<unsigned char>>(
+                        w * h * 4);
+                GLuint tex =
+                    (GLuint)(intptr_t)img.textureId;
+                glBindTexture(GL_TEXTURE_2D, tex);
+                glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA,
+                              GL_UNSIGNED_BYTE,
+                              buffer->data());
+
+                // Launch background thread
+                state.imageSaveInProgress = true;
+                state.imageSaveDone = false;
+                state.imageSaveProgressPath = fullPath;
+                if (state.imageSaveThread.joinable())
+                    state.imageSaveThread.join();
+                state.imageSaveThread = std::thread(
+                    [&state, fullPath, buffer, w, h]()
+                    {
+                        int res = savePngToDisk(
+                            fullPath, buffer->data(),
+                            w, h);
+                        state.imageSaveResult = res;
+                        state.imageSaveDone = true;
+                    });
+            }
+        };
+
+        // Configure annotation file browser
+        state.annotationFileBrowser.extension = ".json";
+        state.annotationFileBrowser.title =
+            "Annotation File";
+        state.annotationFileBrowser.onOk =
+            [&state](const std::string& fullPath)
+        {
+            if (state.annotationFileTarget >= 0 &&
+                state.annotationFileTarget <
+                    (int)state.images.size())
+            {
+                auto& img =
+                    state
+                        .images[state.annotationFileTarget];
+                if (state.annotationFileSave)
+                {
+                    if (saveAnnotationsToFile(
+                            fullPath,
+                            img.annotations) != 0)
+                    {
+                        state.annotationError.show = true;
+                        state.annotationError.message =
+                            "Failed to save "
+                            "annotations to:\n" +
+                            fullPath;
+                    }
+                }
+                else
+                {
+                    if (loadAnnotationsFromFile(
+                            fullPath,
+                            img.annotations) != 0)
+                    {
+                        state.annotationError.show = true;
+                        state.annotationError.message =
+                            "Failed to load "
+                            "annotations from:\n" +
+                            fullPath;
+                    }
+                }
+            }
+        };
+
+        // Configure image load browser
+        state.imageLoadBrowser.extension = ".png";
+        state.imageLoadBrowser.title = "Load Image";
+        state.imageLoadBrowser.onSelect =
+            [&state](const std::string& fullPath,
+                     const std::string& name)
+        {
+            bool alreadyLoaded = false;
+            for (auto& img : state.images)
+            {
+                if (img.path == fullPath)
+                {
+                    alreadyLoaded = true;
+                    break;
+                }
+            }
+            if (!alreadyLoaded)
+            {
+                LoadedImage img;
+                img.name = name;
+                img.path = fullPath;
+                if (loadPngFromDisk(fullPath,
+                                    img.textureId,
+                                    img.width,
+                                    img.height))
+                {
+                    img.annotations.setObject();
+                    img.annotations["bounds"]
+                        .setArray();
+                    img.annotations["points"]
+                        .setArray();
+                    state.images.push_back(img);
+                }
+            }
+        };
 
         HelloImGui::RunnerParams params;
         params.appWindowParams.windowTitle = "ShoeComp";
