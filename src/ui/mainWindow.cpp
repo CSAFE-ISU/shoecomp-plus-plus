@@ -328,17 +328,11 @@ namespace shoecomp
             snprintf(canvasId, sizeof(canvasId),
                      "##gcanvas_%d", i);
 
-            if (canvas.image->minimized)
-                ImGui::SetNextWindowCollapsed(
-                    true, ImGuiCond_Always);
-
             bool open = true;
             if (ImGui::Begin(
                     winId, &open,
                     ImGuiWindowFlags_NoSavedSettings))
             {
-                if (canvas.image->minimized)
-                    canvas.image->minimized = false;
                 if (ImGui::IsWindowFocused(
                         ImGuiFocusedFlags_ChildWindows))
                     state.activeGalleryImage = i;

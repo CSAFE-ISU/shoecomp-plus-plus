@@ -1,6 +1,8 @@
 #include "ui/imageListDialog.h"
 #include "ui/imageCanvas.h"
 #include "imgui.h"
+#include "imgui_internal.h"
+#include <cstdio>
 
 namespace shoecomp
 {
@@ -44,14 +46,30 @@ namespace shoecomp
             if (ImGui::Button("X"))
                 popRemoveIdx = i;
             ImGui::SameLine();
-            bool min = images[i].image->minimized;
-            if (ImGui::Checkbox("##min", &min))
-                images[i].image->minimized = min;
+
+            // Read collapsed state from the
+            // gallery window via ImGui
+            char winName[128];
+            snprintf(
+                winName, sizeof(winName),
+                "%s###gallery_%d",
+                images[i].image->name.c_str(),
+                i);
+            ImGuiWindow* win =
+                ImGui::FindWindowByName(winName);
+            bool collapsed =
+                win ? win->Collapsed : false;
+            if (ImGui::Checkbox(
+                    "##min", &collapsed))
+            {
+                ImGui::SetWindowCollapsed(
+                    winName, collapsed);
+            }
             ImGui::SameLine();
             ImGui::Text(
                 "%s%s",
                 images[i].image->name.c_str(),
-                min ? " (minimized)" : "");
+                collapsed ? " (minimized)" : "");
             ImGui::PopID();
         }
         if (popRemoveIdx >= 0)

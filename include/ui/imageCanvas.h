@@ -36,7 +36,6 @@ namespace shoecomp
         jt::Json annotations;
         AnnotationMode annotationMode =
             AnnotationMode::None;
-        bool minimized = false;
 
         ~ImageData();
     };
