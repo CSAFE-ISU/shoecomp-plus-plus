@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.28)
-project(helloworld_with_helloimgui)
+project(shoecomp)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -99,5 +99,5 @@ set(SC_SRCS
     src/formats/annotationIo.cpp
     src/main.cpp
 )
-hello_imgui_add_app(hello_world ${SC_SRCS})
-target_link_libraries(hello_world PRIVATE json png_static)
+hello_imgui_add_app(shoecomp ${SC_SRCS})
+target_link_libraries(shoecomp PRIVATE json png_static)
