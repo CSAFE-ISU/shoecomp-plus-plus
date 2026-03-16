@@ -2,7 +2,7 @@
 #include "ui/imageCanvas.h"
 #include "formats/png.h"
 #include "formats/annotationIo.h"
-#include "json.h"
+#include "jtjson/json.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
 #include <algorithm>
 #include <cmath>

@@ -8,7 +8,7 @@
 #include <thread>
 #include <atomic>
 #include <mutex>
-#include "json.h"
+#include "jtjson/json.h"
 #include "ui/errorPopup.h"
 #include "ui/loadBrowser.h"
 #include "ui/saveBrowser.h"

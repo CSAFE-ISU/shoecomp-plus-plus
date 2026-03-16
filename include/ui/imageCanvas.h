@@ -2,7 +2,7 @@
 #define SHOECOMP_IMAGE_CANVAS_H
 
 #include "imgui.h"
-#include "json.h"
+#include "jtjson/json.h"
 #include <memory>
 #include <string>
 #include <vector>

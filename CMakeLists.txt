@@ -83,7 +83,7 @@ endif()
 # =====================================================================
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
-    ${CMAKE_SOURCE_DIR}/third_party/jtjson
+    ${CMAKE_SOURCE_DIR}/third_party
 )
 
 set(SC_SRCS

@@ -1,7 +1,7 @@
 #ifndef SHOECOMP_FORMATS_ANNOTATION_IO
 #define SHOECOMP_FORMATS_ANNOTATION_IO
 
-#include "json.h"
+#include "jtjson/json.h"
 #include <string>
 
 namespace shoecomp
