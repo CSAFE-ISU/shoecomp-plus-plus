@@ -1,5 +1,5 @@
 #include "ui/imageCanvas.h"
-#include "formats.h"
+#include "formats/png.h"
 #include <algorithm>
 #include <cmath>
 

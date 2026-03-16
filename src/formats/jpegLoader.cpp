@@ -1,4 +1,4 @@
-#include "formats.h"
+#include "formats/jpeg.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
 #include "stb_image.h"
 
