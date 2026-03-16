@@ -88,6 +88,7 @@ include_directories(
 
 set(SC_SRCS
     src/ui/mainWindow.cpp
+    src/ui/imageCanvas.cpp
     src/ui/errorPopup.cpp
     src/ui/loadBrowser.cpp
     src/ui/saveBrowser.cpp

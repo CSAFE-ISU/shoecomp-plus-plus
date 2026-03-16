@@ -12,6 +12,7 @@
 #include "ui/errorPopup.h"
 #include "ui/loadBrowser.h"
 #include "ui/saveBrowser.h"
+#include "ui/imageCanvas.h"
 #include "ui/imageListDialog.h"
 
 namespace shoecomp
