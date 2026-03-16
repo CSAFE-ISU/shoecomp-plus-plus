@@ -3,18 +3,54 @@
 
 #include "imgui.h"
 #include "json.h"
+#include <memory>
+#include <string>
 #include <vector>
 
 namespace shoecomp
 {
-    // Forward declarations
-    struct LoadedImage;
-    struct ImageViewState;
-    enum class AnnotationMode;
+    enum class AnnotationMode
+    {
+        None,
+        AddPoint,
+        AddBounds
+    };
+
+    struct ImageViewState
+    {
+        float zoom = 1.0f;
+        float zoomTarget = 1.0f;
+        ImVec2 pan = ImVec2(0, 0);
+        ImVec2 panTarget = ImVec2(0, 0);
+        float rotation = 0.0f;
+        float rotationTarget = 0.0f;
+    };
+
+    struct ImageData
+    {
+        std::string name;
+        std::string path;
+        ImTextureID textureId = 0;
+        int width = 0;
+        int height = 0;
+        jt::Json annotations;
+        AnnotationMode annotationMode =
+            AnnotationMode::None;
+        bool minimized = false;
+
+        ~ImageData();
+    };
 
     struct ImageCanvas
     {
-        // Coordinate conversions
+        std::shared_ptr<ImageData> image;
+        ImageViewState viewState;
+
+        ImageCanvas();
+        explicit ImageCanvas(
+            std::shared_ptr<ImageData> img);
+
+        // Static math helpers (pure functions)
         static ImVec2 screenToImageCoord(
             ImVec2 sp, ImVec2 canvasPos, ImVec2 avail,
             ImVec2 pan, float zoom, float baseScale,
@@ -25,27 +61,19 @@ namespace shoecomp
             float scale, float cosR, float sinR,
             int imgW, int imgH);
 
-        // Geometry helpers
         static bool pointInPolygon(
             float px, float py,
             std::vector<jt::Json>& poly);
 
-        static void removePointsOutsideBounds(
-            LoadedImage& img);
+        // Instance methods
+        void removePointsOutsideBounds();
 
-        // Main canvas render (input + drawing)
-        static void renderCanvas(
-            LoadedImage& img, ImageViewState& vs,
+        void renderCanvas(
             const char* canvasId,
-            ImageViewState* linked = nullptr,
-            AnnotationMode* pMode = nullptr);
+            ImageViewState* linked = nullptr);
 
-        // Toolbar (zoom/pan/rotate controls +
-        // annotation buttons)
-        static void renderToolbar(
-            LoadedImage& img, ImageViewState& vs,
+        void renderToolbar(
             const char* toolbarId,
-            AnnotationMode* mode,
             ImageViewState* linked = nullptr);
     };
 }

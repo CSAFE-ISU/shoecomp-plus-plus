@@ -5,12 +5,12 @@
 
 namespace shoecomp
 {
-    struct LoadedImage;
+    struct ImageCanvas;
 
     struct ImageListDialog
     {
         bool show = false;
-        void render(std::vector<LoadedImage>& images,
+        void render(std::vector<ImageCanvas>& images,
                     int& viewerLeftIdx,
                     int& viewerRightIdx,
                     int& activeGalleryImage);

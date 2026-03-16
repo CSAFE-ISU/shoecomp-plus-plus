@@ -17,52 +17,24 @@
 
 namespace shoecomp
 {
-    enum class AnnotationMode
-    {
-        None,
-        AddPoint,
-        AddBounds
-    };
-
-    struct ImageViewState
-    {
-        float zoom = 1.0f;
-        float zoomTarget = 1.0f;
-        ImVec2 pan = ImVec2(0, 0);
-        ImVec2 panTarget = ImVec2(0, 0);
-        float rotation = 0.0f;
-        float rotationTarget = 0.0f;
-    };
-
-    struct LoadedImage
-    {
-        std::string name;
-        std::string path;
-        ImTextureID textureId = 0;
-        int width = 0;
-        int height = 0;
-        ImageViewState viewState;
-        jt::Json annotations;
-        AnnotationMode annotationMode = AnnotationMode::None;
-        bool minimized = false;
-    };
-
     struct AppState
     {
         // Loaded images
-        std::vector<LoadedImage> images;
+        std::vector<ImageCanvas> images;
 
         // Image viewer selections (-1 = none)
         int viewerLeftIdx = -1;
         int viewerRightIdx = -1;
         float viewerSplitRatio = 0.5f;
 
-        // Per-viewer zoom and pan state
-        ImageViewState viewerLeftState;
-        ImageViewState viewerRightState;
+        // Per-viewer canvas (own view state,
+        // shared image data)
+        ImageCanvas viewerLeft;
+        ImageCanvas viewerRight;
         bool viewerLocked = false;
 
-        // Active gallery image (last-focused window, -1 = none)
+        // Active gallery image (last-focused
+        // window, -1 = none)
         int activeGalleryImage = -1;
 
         // Dialogs

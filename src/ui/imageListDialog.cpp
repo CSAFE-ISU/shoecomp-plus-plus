@@ -1,12 +1,11 @@
 #include "ui/imageListDialog.h"
-#include "ui/mainWindow.h"
-#include "formats.h"
+#include "ui/imageCanvas.h"
 #include "imgui.h"
 
 namespace shoecomp
 {
     void ImageListDialog::render(
-        std::vector<LoadedImage>& images,
+        std::vector<ImageCanvas>& images,
         int& viewerLeftIdx,
         int& viewerRightIdx,
         int& activeGalleryImage)
@@ -45,20 +44,18 @@ namespace shoecomp
             if (ImGui::Button("X"))
                 popRemoveIdx = i;
             ImGui::SameLine();
-            bool min = images[i].minimized;
+            bool min = images[i].image->minimized;
             if (ImGui::Checkbox("##min", &min))
-                images[i].minimized = min;
+                images[i].image->minimized = min;
             ImGui::SameLine();
             ImGui::Text(
                 "%s%s",
-                images[i].name.c_str(),
+                images[i].image->name.c_str(),
                 min ? " (minimized)" : "");
             ImGui::PopID();
         }
         if (popRemoveIdx >= 0)
         {
-            freeTexture(
-                images[popRemoveIdx].textureId);
             images.erase(
                 images.begin() + popRemoveIdx);
             if (viewerLeftIdx >=

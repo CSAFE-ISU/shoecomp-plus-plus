@@ -73,17 +73,22 @@ namespace shoecomp
             ImGui::PushID(i);
             if (ImGui::Button("X")) removeIdx = i;
             ImGui::SameLine();
-            ImGui::Text("%s", state.images[i].name.c_str());
+            ImGui::Text("%s",
+                state.images[i].image->name.c_str());
             ImGui::PopID();
         }
         if (removeIdx >= 0)
         {
-            freeTexture(state.images[removeIdx].textureId);
-            state.images.erase(state.images.begin() + removeIdx);
-            if (state.viewerLeftIdx >= (int)state.images.size())
-                state.viewerLeftIdx = (int)state.images.size() - 1;
-            if (state.viewerRightIdx >= (int)state.images.size())
-                state.viewerRightIdx = (int)state.images.size() - 1;
+            state.images.erase(
+                state.images.begin() + removeIdx);
+            if (state.viewerLeftIdx >=
+                (int)state.images.size())
+                state.viewerLeftIdx =
+                    (int)state.images.size() - 1;
+            if (state.viewerRightIdx >=
+                (int)state.images.size())
+                state.viewerRightIdx =
+                    (int)state.images.size() - 1;
         }
     }
 
@@ -100,18 +105,19 @@ namespace shoecomp
         if (ImGui::Button(locked ? "Unlock" : "Lock")) locked = !locked;
     }
 
-    static void renderSingleViewer(AppState& state,
-                                   int& selectedIdx,
-                                   int otherIdx,
-                                   ImageViewState& vs,
-                                   const char* label,
-                                   ImageViewState* linked =
-                                       nullptr)
+    static void renderSingleViewer(
+        AppState& state,
+        int& selectedIdx,
+        int otherIdx,
+        ImageCanvas& viewer,
+        const char* label,
+        ImageViewState* linked = nullptr)
     {
         const char* preview =
             (selectedIdx >= 0 &&
              selectedIdx < (int)state.images.size())
-                ? state.images[selectedIdx].name.c_str()
+                ? state.images[selectedIdx]
+                      .image->name.c_str()
                 : "<none>";
 
         if (ImGui::BeginCombo(label, preview))
@@ -120,8 +126,12 @@ namespace shoecomp
                                   selectedIdx < 0))
             {
                 selectedIdx = -1;
-                vs.zoom = vs.zoomTarget = 1.0f;
-                vs.pan = vs.panTarget = ImVec2(0, 0);
+                viewer.viewState.zoom =
+                    viewer.viewState.zoomTarget =
+                        1.0f;
+                viewer.viewState.pan =
+                    viewer.viewState.panTarget =
+                        ImVec2(0, 0);
             }
             for (int i = 0;
                  i < (int)state.images.size(); ++i)
@@ -129,13 +139,17 @@ namespace shoecomp
                 if (i == otherIdx) continue;
                 bool selected = (i == selectedIdx);
                 if (ImGui::Selectable(
-                        state.images[i].name.c_str(),
+                        state.images[i]
+                            .image->name.c_str(),
                         selected))
                 {
                     selectedIdx = i;
-                    vs.zoom = vs.zoomTarget = 0.0f;
-                    vs.pan = vs.panTarget =
-                        ImVec2(0, 0);
+                    viewer.viewState.zoom =
+                        viewer.viewState.zoomTarget =
+                            0.0f;
+                    viewer.viewState.pan =
+                        viewer.viewState.panTarget =
+                            ImVec2(0, 0);
                 }
                 if (selected)
                     ImGui::SetItemDefaultFocus();
@@ -147,24 +161,24 @@ namespace shoecomp
             selectedIdx >= (int)state.images.size())
             return;
 
-        auto& img = state.images[selectedIdx];
+        viewer.image =
+            state.images[selectedIdx].image;
         float toolbarH =
-            ImGui::GetFrameHeightWithSpacing() * 3.0f;
-        ImVec2 region = ImGui::GetContentRegionAvail();
+            ImGui::GetFrameHeightWithSpacing() *
+            3.0f;
+        ImVec2 region =
+            ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
         if (canvasH > 0.0f)
         {
             ImGui::BeginChild("##cvs",
                               ImVec2(0, canvasH),
                               ImGuiChildFlags_None);
-            ImageCanvas::renderCanvas(img, vs, "##canvas",
-                              linked,
-                              &img.annotationMode);
+            viewer.renderCanvas("##canvas",
+                                linked);
             ImGui::EndChild();
         }
-        ImageCanvas::renderToolbar(img, vs, label,
-                           &img.annotationMode,
-                           linked);
+        viewer.renderToolbar(label, linked);
     }
 
     static void renderImageViewer(AppState& state)
@@ -187,18 +201,19 @@ namespace shoecomp
                 splitterW * 0.5f;
             float rightW =
                 totalW *
-                    (1.0f - state.viewerSplitRatio) -
+                    (1.0f -
+                     state.viewerSplitRatio) -
                 splitterW * 0.5f;
 
-            ImGui::BeginChild("LeftViewer",
-                              ImVec2(leftW, 0),
-                              ImGuiChildFlags_Borders);
+            ImGui::BeginChild(
+                "LeftViewer", ImVec2(leftW, 0),
+                ImGuiChildFlags_Borders);
             renderSingleViewer(
                 state, state.viewerLeftIdx,
                 state.viewerRightIdx,
-                state.viewerLeftState, "##Left",
+                state.viewerLeft, "##Left",
                 state.viewerLocked
-                    ? &state.viewerRightState
+                    ? &state.viewerRight.viewState
                     : nullptr);
             ImGui::EndChild();
 
@@ -226,15 +241,15 @@ namespace shoecomp
 
             ImGui::SameLine();
 
-            ImGui::BeginChild("RightViewer",
-                              ImVec2(rightW, 0),
-                              ImGuiChildFlags_Borders);
+            ImGui::BeginChild(
+                "RightViewer", ImVec2(rightW, 0),
+                ImGuiChildFlags_Borders);
             renderSingleViewer(
                 state, state.viewerRightIdx,
                 state.viewerLeftIdx,
-                state.viewerRightState, "##Right",
+                state.viewerRight, "##Right",
                 state.viewerLocked
-                    ? &state.viewerLeftState
+                    ? &state.viewerLeft.viewState
                     : nullptr);
             ImGui::EndChild();
         }
@@ -272,17 +287,21 @@ namespace shoecomp
         float maxH = galleryH * 0.5f;
 
         int removeIdx = -1;
-        for (int i = 0; i < (int)state.images.size(); ++i)
+        for (int i = 0;
+             i < (int)state.images.size(); ++i)
         {
-            auto& img = state.images[i];
+            auto& canvas = state.images[i];
 
             // Scale image to fit within max bounds
-            float scale =
-                std::min(maxW / (float)img.width,
-                         maxH / (float)img.height);
+            float scale = std::min(
+                maxW / (float)canvas.image->width,
+                maxH /
+                    (float)canvas.image->height);
             scale = std::min(scale, 1.0f);
-            float dispW = img.width * scale;
-            float dispH = img.height * scale;
+            float dispW =
+                canvas.image->width * scale;
+            float dispH =
+                canvas.image->height * scale;
 
             float tbRows =
                 ImGui::GetFrameHeightWithSpacing() *
@@ -303,13 +322,13 @@ namespace shoecomp
             char winId[128];
             snprintf(winId, sizeof(winId),
                      "%s###gallery_%d",
-                     img.name.c_str(), i);
+                     canvas.image->name.c_str(), i);
 
             char canvasId[64];
             snprintf(canvasId, sizeof(canvasId),
                      "##gcanvas_%d", i);
 
-            if (img.minimized)
+            if (canvas.image->minimized)
                 ImGui::SetNextWindowCollapsed(
                     true, ImGuiCond_Always);
 
@@ -318,8 +337,8 @@ namespace shoecomp
                     winId, &open,
                     ImGuiWindowFlags_NoSavedSettings))
             {
-                if (img.minimized)
-                    img.minimized = false;
+                if (canvas.image->minimized)
+                    canvas.image->minimized = false;
                 if (ImGui::IsWindowFocused(
                         ImGuiFocusedFlags_ChildWindows))
                     state.activeGalleryImage = i;
@@ -329,26 +348,24 @@ namespace shoecomp
                     3.0f;
                 ImVec2 region =
                     ImGui::GetContentRegionAvail();
-                float canvasH = region.y - toolbarH;
+                float canvasH =
+                    region.y - toolbarH;
                 if (canvasH > 0.0f)
                 {
                     ImGui::BeginChild(
-                        canvasId, ImVec2(0, canvasH),
+                        canvasId,
+                        ImVec2(0, canvasH),
                         ImGuiChildFlags_None);
                     char cid[64];
                     snprintf(cid, sizeof(cid),
                              "##gc_%d", i);
-                    ImageCanvas::renderCanvas(
-                        img, img.viewState, cid,
-                        nullptr, &img.annotationMode);
+                    canvas.renderCanvas(cid);
                     ImGui::EndChild();
                 }
                 char tbId[64];
                 snprintf(tbId, sizeof(tbId),
                          "##gtb_%d", i);
-                ImageCanvas::renderToolbar(img, img.viewState,
-                                   tbId,
-                                   &img.annotationMode);
+                canvas.renderToolbar(tbId);
             }
             ImGui::End();
 
@@ -357,10 +374,8 @@ namespace shoecomp
 
         if (removeIdx >= 0)
         {
-            freeTexture(
-                state.images[removeIdx].textureId);
-            state.images.erase(state.images.begin() +
-                               removeIdx);
+            state.images.erase(
+                state.images.begin() + removeIdx);
             if (state.viewerLeftIdx >=
                 (int)state.images.size())
                 state.viewerLeftIdx =
@@ -369,7 +384,8 @@ namespace shoecomp
                 (int)state.images.size())
                 state.viewerRightIdx =
                     (int)state.images.size() - 1;
-            if (state.activeGalleryImage == removeIdx)
+            if (state.activeGalleryImage ==
+                removeIdx)
                 state.activeGalleryImage = -1;
             else if (state.activeGalleryImage >
                      removeIdx)
@@ -485,14 +501,17 @@ namespace shoecomp
 
             // Animated spinner dots
             int dots =
-                (int)(ImGui::GetTime() / 0.4) % 3 + 1;
-            ImGui::Text("Please wait%.*s", dots, "...");
+                (int)(ImGui::GetTime() / 0.4) % 3 +
+                1;
+            ImGui::Text("Please wait%.*s", dots,
+                        "...");
 
             if (state.imageSaveDone.load())
             {
                 if (state.imageSaveThread.joinable())
                     state.imageSaveThread.join();
-                if (state.imageSaveResult.load() != 0)
+                if (state.imageSaveResult.load() !=
+                    0)
                 {
                     state.imageSaveError.show = true;
                     state.imageSaveError.message =
@@ -527,7 +546,8 @@ namespace shoecomp
                 renderImageGallery(state);
                 ImGui::EndTabItem();
             }
-            if (ImGui::BeginTabItem("Image Comparison"))
+            if (ImGui::BeginTabItem(
+                    "Image Comparison"))
             {
                 renderImageViewer(state);
                 ImGui::EndTabItem();
@@ -553,8 +573,10 @@ namespace shoecomp
         AppState state;
 
         // Configure error popup titles
-        state.imageSaveError.title = "Image Save Error";
-        state.annotationError.title = "Annotation Error";
+        state.imageSaveError.title =
+            "Image Save Error";
+        state.annotationError.title =
+            "Annotation Error";
 
         // Configure image save browser
         state.imageSaveBrowser.extension = ".png";
@@ -568,34 +590,38 @@ namespace shoecomp
                 !state.imageSaveInProgress.load())
             {
                 auto& img =
-                    state.images[state.imageSaveTarget];
+                    state.images[state.imageSaveTarget]
+                        .image;
 
                 // GL readback on UI thread
-                int w = img.width;
-                int h = img.height;
+                int w = img->width;
+                int h = img->height;
                 auto buffer =
                     std::make_shared<
                         std::vector<unsigned char>>(
                         w * h * 4);
-                GLuint tex =
-                    (GLuint)(intptr_t)img.textureId;
+                GLuint tex = (GLuint)(intptr_t)
+                    img->textureId;
                 glBindTexture(GL_TEXTURE_2D, tex);
-                glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA,
+                glGetTexImage(GL_TEXTURE_2D, 0,
+                              GL_RGBA,
                               GL_UNSIGNED_BYTE,
                               buffer->data());
 
                 // Launch background thread
                 state.imageSaveInProgress = true;
                 state.imageSaveDone = false;
-                state.imageSaveProgressPath = fullPath;
+                state.imageSaveProgressPath =
+                    fullPath;
                 if (state.imageSaveThread.joinable())
                     state.imageSaveThread.join();
                 state.imageSaveThread = std::thread(
-                    [&state, fullPath, buffer, w, h]()
+                    [&state, fullPath, buffer, w,
+                     h]()
                     {
                         int res = savePngToDisk(
-                            fullPath, buffer->data(),
-                            w, h);
+                            fullPath,
+                            buffer->data(), w, h);
                         state.imageSaveResult = res;
                         state.imageSaveDone = true;
                     });
@@ -603,7 +629,8 @@ namespace shoecomp
         };
 
         // Configure annotation file browser
-        state.annotationFileBrowser.extension = ".json";
+        state.annotationFileBrowser.extension =
+            ".json";
         state.annotationFileBrowser.title =
             "Annotation File";
         state.annotationFileBrowser.onOk =
@@ -615,15 +642,20 @@ namespace shoecomp
             {
                 auto& img =
                     state
-                        .images[state.annotationFileTarget];
+                        .images
+                            [state
+                                 .annotationFileTarget]
+                        .image;
                 if (state.annotationFileSave)
                 {
                     if (saveAnnotationsToFile(
                             fullPath,
-                            img.annotations) != 0)
+                            img->annotations) != 0)
                     {
-                        state.annotationError.show = true;
-                        state.annotationError.message =
+                        state.annotationError.show =
+                            true;
+                        state.annotationError
+                            .message =
                             "Failed to save "
                             "annotations to:\n" +
                             fullPath;
@@ -633,10 +665,12 @@ namespace shoecomp
                 {
                     if (loadAnnotationsFromFile(
                             fullPath,
-                            img.annotations) != 0)
+                            img->annotations) != 0)
                     {
-                        state.annotationError.show = true;
-                        state.annotationError.message =
+                        state.annotationError.show =
+                            true;
+                        state.annotationError
+                            .message =
                             "Failed to load "
                             "annotations from:\n" +
                             fullPath;
@@ -653,9 +687,9 @@ namespace shoecomp
                      const std::string& name)
         {
             bool alreadyLoaded = false;
-            for (auto& img : state.images)
+            for (auto& c : state.images)
             {
-                if (img.path == fullPath)
+                if (c.image->path == fullPath)
                 {
                     alreadyLoaded = true;
                     break;
@@ -663,38 +697,49 @@ namespace shoecomp
             }
             if (!alreadyLoaded)
             {
-                LoadedImage img;
-                img.name = name;
-                img.path = fullPath;
-                if (loadPngFromDisk(fullPath,
-                                    img.textureId,
-                                    img.width,
-                                    img.height))
+                ImageCanvas canvas;
+                canvas.image->name = name;
+                canvas.image->path = fullPath;
+                if (loadPngFromDisk(
+                        fullPath,
+                        canvas.image->textureId,
+                        canvas.image->width,
+                        canvas.image->height))
                 {
-                    img.annotations.setObject();
-                    img.annotations["bounds"]
+                    canvas.image->annotations
+                        .setObject();
+                    canvas.image
+                        ->annotations["bounds"]
                         .setArray();
-                    img.annotations["points"]
+                    canvas.image
+                        ->annotations["points"]
                         .setArray();
-                    state.images.push_back(img);
+                    state.images.push_back(
+                        std::move(canvas));
                 }
             }
         };
 
         HelloImGui::RunnerParams params;
-        params.appWindowParams.windowTitle = "ShoeComp";
-        params.appWindowParams.windowGeometry.fullScreenMode =
-            HelloImGui::FullScreenMode::FullMonitorWorkArea;
-        params.imGuiWindowParams.defaultImGuiWindowType =
-            HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
+        params.appWindowParams.windowTitle =
+            "ShoeComp";
+        params.appWindowParams.windowGeometry
+            .fullScreenMode = HelloImGui::
+                FullScreenMode::FullMonitorWorkArea;
+        params.imGuiWindowParams
+            .defaultImGuiWindowType =
+            HelloImGui::DefaultImGuiWindowType::
+                ProvideFullScreenWindow;
         params.callbacks.PostInit = []()
         { ImGui::GetIO().FontGlobalScale = 2.5f; };
-        params.callbacks.ShowGui = [&state]() { renderGui(state); };
+        params.callbacks.ShowGui = [&state]()
+        { renderGui(state); };
         params.callbacks.BeforeExit = [&state]()
         {
             if (state.imageSaveThread.joinable())
                 state.imageSaveThread.join();
-            for (auto& img : state.images) freeTexture(img.textureId);
+            state.viewerLeft.image.reset();
+            state.viewerRight.image.reset();
             state.images.clear();
         };
 
