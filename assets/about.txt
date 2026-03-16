@@ -1,21 +1,36 @@
 ShoeComp
 
-Third-party libraries:
+Third-party dependencies:
 
-  Dear ImGui (MIT)
+  Dear ImGui 1.92.6 (MIT)
   https://github.com/ocornut/imgui
 
-  Hello ImGui (MIT)
+  Hello ImGui 1.92.6 (MIT)
   https://github.com/pthom/hello_imgui
 
-  FreeType (FreeType License)
-  https://github.com/freetype/freetype
+  Eigen 5.0.1 (MPL-2.0)
+  https://gitlab.com/libeigen/eigen
 
-  zlib (zlib License)
-  https://github.com/madler/zlib
+  FreeType 2.14.2 (FreeType License or GPLv2+)
+  https://www.freetype.org/
 
-  JSON for Classic C++ (Apache 2.0)
+  jtjson 6ec4e44 (Apache-2.0)
   https://github.com/jart/json.cpp
 
-  stb_image (MIT / Public Domain)
+  libpng 1.6.55 (libpng/zlib License)
+  http://www.libpng.org/
+
+  zlib 1.3.2 (zlib License)
+  https://zlib.net/
+
+  libjpeg-turbo 3.1.2 (IJG License + BSD-3-Clause)
+  https://libjpeg-turbo.org/
+
+  double-conversion (BSD-3-Clause, bundled in jtjson)
+  https://github.com/google/double-conversion
+
+  stb_image v2.29 (MIT / Public Domain, bundled in Hello ImGui)
   https://github.com/nothings/stb
+
+  whereami (MIT, bundled in Hello ImGui)
+  https://github.com/gpakosz/whereami
