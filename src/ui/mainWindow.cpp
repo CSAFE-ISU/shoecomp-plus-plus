@@ -4,6 +4,7 @@
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
+#include "hello_imgui/imgui_theme.h"
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
@@ -95,8 +96,96 @@ namespace shoecomp
 
     static void renderFilesAndSettings(AppState& state)
     {
-        ImGui::BeginChild("SettingsPane", ImVec2(0, 0),
-                          ImGuiChildFlags_Borders);
+        struct SettingsState
+        {
+            int themeIdx = 1;
+            bool fullscreen = true;
+            float fontScale = 2.5f;
+        };
+        static SettingsState s;
+
+        ImVec2 avail =
+            ImGui::GetContentRegionAvail();
+        float settingsH = avail.y * (2.0f / 3.0f);
+        float imagesH = avail.y - settingsH;
+
+        ImGui::BeginChild(
+            "SettingsPane",
+            ImVec2(avail.x, settingsH),
+            ImGuiChildFlags_Borders);
+        if (ImGui::BeginTable("##settings", 3))
+        {
+            ImGui::TableSetupColumn(
+                "Label",
+                ImGuiTableColumnFlags_WidthFixed,
+                250.0f);
+            ImGui::TableSetupColumn(
+                "Spacer",
+                ImGuiTableColumnFlags_WidthFixed,
+                20.0f);
+            ImGui::TableSetupColumn(
+                "Widget",
+                ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Theme");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::Combo("##Theme", &s.themeIdx,
+                         "Light\0Dark\0");
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Fullscreen");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::Checkbox("##Fullscreen",
+                            &s.fullscreen);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Font Scale");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderFloat("##FontScale",
+                               &s.fontScale,
+                               0.5f, 4.0f,
+                               "%.2f");
+            s.fontScale =
+                std::round(s.fontScale / 0.05f)
+                * 0.05f;
+
+            ImGui::EndTable();
+        }
+        if (ImGui::Button("Update Settings"))
+        {
+            auto theme = s.themeIdx == 0
+                ? ImGuiTheme::ImGuiTheme_ImGuiColorsLight
+                : ImGuiTheme::ImGuiTheme_ImGuiColorsDark;
+            ImGuiTheme::ApplyTheme(theme);
+            HelloImGui::GetRunnerParams()
+                ->appWindowParams.windowGeometry
+                .fullScreenMode =
+                s.fullscreen
+                    ? HelloImGui::FullScreenMode::
+                          FullMonitorWorkArea
+                    : HelloImGui::FullScreenMode::
+                          NoFullScreen;
+            ImGui::GetIO().FontGlobalScale =
+                s.fontScale;
+        }
+        ImGui::EndChild();
+
+        ImGui::BeginChild(
+            "LoadedImagesPane",
+            ImVec2(avail.x, imagesH),
+            ImGuiChildFlags_Borders);
         renderSettings(state);
         ImGui::EndChild();
     }
