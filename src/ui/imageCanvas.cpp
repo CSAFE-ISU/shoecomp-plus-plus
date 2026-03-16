@@ -596,16 +596,15 @@ namespace shoecomp
                                 t = t1 + gapLen;
                             }
                         };
-                        if (hovered)
+                        bool shift =
+                            io.KeyShift;
+                        if (hovered && !shift)
                         {
                             drawDashed(
                                 last,
                                 io.MousePos);
-                            drawDashed(
-                                io.MousePos,
-                                first);
                         }
-                        else
+                        else if (!shift)
                         {
                             drawDashed(
                                 last, first);
