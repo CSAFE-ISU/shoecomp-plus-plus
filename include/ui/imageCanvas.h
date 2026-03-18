@@ -3,6 +3,7 @@
 
 #include "imgui.h"
 #include "jtjson/json.h"
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -15,6 +16,16 @@ namespace shoecomp
         AddPoint,
         AddBounds
     };
+
+    enum class PointType : uint8_t
+    {
+        Corner = 0,
+        Center = 1
+    };
+
+    const char* pointTypeToString(PointType t);
+    PointType stringToPointType(
+        const std::string& s);
 
     struct ImageViewState
     {
@@ -36,6 +47,8 @@ namespace shoecomp
         jt::Json annotations;
         AnnotationMode annotationMode =
             AnnotationMode::None;
+        PointType selectedPointType =
+            PointType::Corner;
 
         ~ImageData();
     };

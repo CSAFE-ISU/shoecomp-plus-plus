@@ -49,6 +49,13 @@ namespace shoecomp
             if (!el.isObject()) return -1;
             if (!el.contains("x") || !el["x"].isNumber()) return -1;
             if (!el.contains("y") || !el["y"].isNumber()) return -1;
+            if (el.contains("type"))
+            {
+                if (!el["type"].isString()) return -1;
+                auto& t = el["type"].getString();
+                if (t != "Corner" && t != "Center")
+                    return -1;
+            }
         }
 
         annotations = std::move(parsed);

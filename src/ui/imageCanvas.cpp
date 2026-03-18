@@ -5,6 +5,25 @@
 
 namespace shoecomp
 {
+    const char* pointTypeToString(PointType t)
+    {
+        switch (t)
+        {
+        case PointType::Center:
+            return "Center";
+        case PointType::Corner:
+        default:
+            return "Corner";
+        }
+    }
+
+    PointType stringToPointType(
+        const std::string& s)
+    {
+        if (s == "Center") return PointType::Center;
+        return PointType::Corner;
+    }
+
     ImageData::~ImageData()
     {
         if (textureId) freeTexture(textureId);
@@ -299,6 +318,14 @@ namespace shoecomp
                     pt.setObject();
                     pt["x"] = ic.x;
                     pt["y"] = ic.y;
+                    if (mode ==
+                        AnnotationMode::AddPoint)
+                    {
+                        pt["type"] =
+                            pointTypeToString(
+                                image
+                                    ->selectedPointType);
+                    }
                     image->annotations[key]
                         .getArray()
                         .push_back(std::move(pt));
@@ -458,15 +485,48 @@ namespace shoecomp
                         annScale, cosR, sinR,
                         image->width,
                         image->height);
-                    dl->AddCircleFilled(
-                        sp, 5.0f,
-                        IM_COL32(
-                            255, 50, 50, 220));
-                    dl->AddCircle(
-                        sp, 5.0f,
-                        IM_COL32(
-                            255, 255, 255, 200),
-                        12, 1.5f);
+                    PointType pType =
+                        PointType::Corner;
+                    if (p.contains("type") &&
+                        p["type"].isString())
+                    {
+                        pType = stringToPointType(
+                            p["type"].getString());
+                    }
+                    if (pType == PointType::Center)
+                    {
+                        dl->AddCircleFilled(
+                            sp, 5.0f,
+                            IM_COL32(
+                                50, 100, 255, 220));
+                        dl->AddCircle(
+                            sp, 5.0f,
+                            IM_COL32(
+                                255, 255, 255, 200),
+                            12, 1.5f);
+                    }
+                    else
+                    {
+                        float d = 5.0f;
+                        ImVec2 top(sp.x, sp.y - d);
+                        ImVec2 right(
+                            sp.x + d, sp.y);
+                        ImVec2 bot(sp.x, sp.y + d);
+                        ImVec2 left(
+                            sp.x - d, sp.y);
+                        ImVec2 diamond[4] = {
+                            top, right, bot, left};
+                        dl->AddConvexPolyFilled(
+                            diamond, 4,
+                            IM_COL32(
+                                255, 50, 50, 220));
+                        dl->AddPolyline(
+                            diamond, 4,
+                            IM_COL32(
+                                255, 255, 255, 200),
+                            ImDrawFlags_Closed,
+                            1.5f);
+                    }
                 }
             }
             if (image->annotations.contains(
@@ -853,6 +913,24 @@ namespace shoecomp
                        ? AnnotationMode::None
                        : AnnotationMode::AddPoint;
         if (pointActive) ImGui::PopStyleColor();
+
+        if (pointActive)
+        {
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(
+                ImGui::CalcTextSize("Corner__")
+                    .x);
+            int cur = static_cast<int>(
+                image->selectedPointType);
+            const char* items[] = {
+                "Corner", "Center"};
+            if (ImGui::Combo(
+                    "##ptType", &cur, items, 2))
+            {
+                image->selectedPointType =
+                    static_cast<PointType>(cur);
+            }
+        }
 
         ImGui::SameLine();
 
