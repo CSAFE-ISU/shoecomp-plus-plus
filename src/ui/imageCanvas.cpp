@@ -5,6 +5,8 @@
 
 namespace shoecomp
 {
+    AnnotationStyle g_annotationStyle;
+
     const char* pointTypeToString(PointType t)
     {
         switch (t)
@@ -495,19 +497,46 @@ namespace shoecomp
                     }
                     if (pType == PointType::Center)
                     {
+                        ImU32 cCol =
+                            ImGui::ColorConvertFloat4ToU32(
+                                ImVec4(
+                                    g_annotationStyle
+                                        .centerColor[0],
+                                    g_annotationStyle
+                                        .centerColor[1],
+                                    g_annotationStyle
+                                        .centerColor[2],
+                                    g_annotationStyle
+                                        .centerColor[3]));
                         dl->AddCircleFilled(
-                            sp, 5.0f,
-                            IM_COL32(
-                                50, 100, 255, 220));
+                            sp,
+                            g_annotationStyle
+                                .pointRadius,
+                            cCol);
                         dl->AddCircle(
-                            sp, 5.0f,
+                            sp,
+                            g_annotationStyle
+                                .pointRadius,
                             IM_COL32(
                                 255, 255, 255, 200),
                             12, 1.5f);
                     }
                     else
                     {
-                        float d = 5.0f;
+                        ImU32 cCol =
+                            ImGui::ColorConvertFloat4ToU32(
+                                ImVec4(
+                                    g_annotationStyle
+                                        .cornerColor[0],
+                                    g_annotationStyle
+                                        .cornerColor[1],
+                                    g_annotationStyle
+                                        .cornerColor[2],
+                                    g_annotationStyle
+                                        .cornerColor[3]));
+                        float d =
+                            g_annotationStyle
+                                .pointRadius;
                         ImVec2 top(sp.x, sp.y - d);
                         ImVec2 right(
                             sp.x + d, sp.y);
@@ -517,9 +546,7 @@ namespace shoecomp
                         ImVec2 diamond[4] = {
                             top, right, bot, left};
                         dl->AddConvexPolyFilled(
-                            diamond, 4,
-                            IM_COL32(
-                                255, 50, 50, 220));
+                            diamond, 4, cCol);
                         dl->AddPolyline(
                             diamond, 4,
                             IM_COL32(
@@ -542,6 +569,17 @@ namespace shoecomp
                      AnnotationMode::AddBounds);
                 // Solid edges between consecutive
                 // vertices
+                ImU32 bndCol =
+                    ImGui::ColorConvertFloat4ToU32(
+                        ImVec4(
+                            g_annotationStyle
+                                .boundsColor[0],
+                            g_annotationStyle
+                                .boundsColor[1],
+                            g_annotationStyle
+                                .boundsColor[2],
+                            g_annotationStyle
+                                .boundsColor[3]));
                 if (bnd.size() >= 2)
                 {
                     for (size_t i = 0;
@@ -568,10 +606,9 @@ namespace shoecomp
                                 image->width,
                                 image->height);
                         dl->AddLine(
-                            a, b,
-                            IM_COL32(
-                                50, 255, 50, 220),
-                            2.0f);
+                            a, b, bndCol,
+                            g_annotationStyle
+                                .boundsLineThickness);
                     }
                 }
                 // Closing segment: solid when not
@@ -601,10 +638,9 @@ namespace shoecomp
                     if (!editing)
                     {
                         dl->AddLine(
-                            last, first,
-                            IM_COL32(
-                                50, 255, 50, 220),
-                            2.0f);
+                            last, first, bndCol,
+                            g_annotationStyle
+                                .boundsLineThickness);
                     }
                     else
                     {
@@ -682,9 +718,11 @@ namespace shoecomp
                             image->width,
                             image->height);
                     dl->AddCircleFilled(
-                        sp, 4.0f,
-                        IM_COL32(
-                            50, 255, 50, 220));
+                        sp,
+                        g_annotationStyle
+                                .pointRadius -
+                            1.0f,
+                        bndCol);
                 }
             }
         }

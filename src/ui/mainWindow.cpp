@@ -163,6 +163,84 @@ namespace shoecomp
 
             ImGui::EndTable();
         }
+        ImGui::Spacing();
+        ImGui::SeparatorText("Annotations");
+        if (ImGui::BeginTable("##annSettings", 3))
+        {
+            ImGui::TableSetupColumn(
+                "Label",
+                ImGuiTableColumnFlags_WidthFixed,
+                250.0f);
+            ImGui::TableSetupColumn(
+                "Spacer",
+                ImGuiTableColumnFlags_WidthFixed,
+                20.0f);
+            ImGui::TableSetupColumn(
+                "Widget",
+                ImGuiTableColumnFlags_WidthStretch);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Point Radius");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderFloat(
+                "##PointRadius",
+                &g_annotationStyle.pointRadius,
+                2.0f, 15.0f, "%.1f");
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Corner Color");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::ColorEdit4(
+                "##CornerColor",
+                g_annotationStyle.cornerColor);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Center Color");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::ColorEdit4(
+                "##CenterColor",
+                g_annotationStyle.centerColor);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Bounds Thickness");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::SliderFloat(
+                "##BoundsThickness",
+                &g_annotationStyle
+                     .boundsLineThickness,
+                1.0f, 8.0f, "%.1f");
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::AlignTextToFramePadding();
+            ImGui::Text("Bounds Color");
+            ImGui::TableNextColumn();
+            ImGui::TableNextColumn();
+            ImGui::SetNextItemWidth(-FLT_MIN);
+            ImGui::ColorEdit4(
+                "##BoundsColor",
+                g_annotationStyle.boundsColor);
+
+            ImGui::EndTable();
+        }
+
+        ImGui::Spacing();
         if (ImGui::Button("Update Settings"))
         {
             auto theme = s.themeIdx == 0

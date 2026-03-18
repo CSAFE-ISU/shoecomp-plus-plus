@@ -27,6 +27,20 @@ namespace shoecomp
     PointType stringToPointType(
         const std::string& s);
 
+    struct AnnotationStyle
+    {
+        float pointRadius = 5.0f;
+        float cornerColor[4] = {
+            1.0f, 0.2f, 0.2f, 0.86f};
+        float centerColor[4] = {
+            0.2f, 0.39f, 1.0f, 0.86f};
+        float boundsLineThickness = 2.0f;
+        float boundsColor[4] = {
+            0.2f, 1.0f, 0.2f, 0.86f};
+    };
+
+    extern AnnotationStyle g_annotationStyle;
+
     struct ImageViewState
     {
         float zoom = 1.0f;
