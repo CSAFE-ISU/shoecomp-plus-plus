@@ -1,5 +1,6 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas.h"
+#include "ui/alignDialog.h"
 #include "formats/png.h"
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
@@ -373,16 +374,28 @@ namespace shoecomp
                      state.viewerSplitRatio) -
                 splitterW * 0.5f;
 
+            // Snapshot targets before rendering so
+            // we can detect which viewer changed.
+            auto& lv = state.viewerLeft.viewState;
+            auto& rv = state.viewerRight.viewState;
+            auto& a = state.viewerAlignment;
+            float pi = 3.14159265358979f;
+            float aRad = a.rotation * (pi / 180.0f);
+
+            float lZoom0 = lv.zoomTarget;
+            ImVec2 lPan0 = lv.panTarget;
+            float lRot0 = lv.rotationTarget;
+            float rZoom0 = rv.zoomTarget;
+            ImVec2 rPan0 = rv.panTarget;
+            float rRot0 = rv.rotationTarget;
+
             ImGui::BeginChild(
                 "LeftViewer", ImVec2(leftW, 0),
                 ImGuiChildFlags_Borders);
             renderSingleViewer(
                 state, state.viewerLeftIdx,
                 state.viewerRightIdx,
-                state.viewerLeft, "##Left",
-                state.viewerLocked
-                    ? &state.viewerRight.viewState
-                    : nullptr);
+                state.viewerLeft, "##Left");
             ImGui::EndChild();
 
             ImGui::SameLine();
@@ -415,11 +428,85 @@ namespace shoecomp
             renderSingleViewer(
                 state, state.viewerRightIdx,
                 state.viewerLeftIdx,
-                state.viewerRight, "##Right",
-                state.viewerLocked
-                    ? &state.viewerLeft.viewState
-                    : nullptr);
+                state.viewerRight, "##Right");
             ImGui::EndChild();
+
+            // Apply locked sync with alignment
+            // offset after both viewers render.
+            if (state.viewerLocked)
+            {
+                bool lChanged =
+                    lv.zoomTarget != lZoom0 ||
+                    lv.panTarget.x != lPan0.x ||
+                    lv.panTarget.y != lPan0.y ||
+                    lv.rotationTarget != lRot0;
+                bool rChanged =
+                    rv.zoomTarget != rZoom0 ||
+                    rv.panTarget.x != rPan0.x ||
+                    rv.panTarget.y != rPan0.y ||
+                    rv.rotationTarget != rRot0;
+
+                if (lChanged && !rChanged)
+                {
+                    rv.zoomTarget =
+                        lv.zoomTarget * a.scale;
+                    rv.zoom = lv.zoom * a.scale;
+                    rv.panTarget.x =
+                        lv.panTarget.x +
+                        a.translationX;
+                    rv.panTarget.y =
+                        lv.panTarget.y +
+                        a.translationY;
+                    rv.pan.x =
+                        lv.pan.x + a.translationX;
+                    rv.pan.y =
+                        lv.pan.y + a.translationY;
+                    rv.rotationTarget =
+                        lv.rotationTarget + aRad;
+                    rv.rotation =
+                        lv.rotation + aRad;
+                }
+                else if (rChanged && !lChanged)
+                {
+                    lv.zoomTarget =
+                        rv.zoomTarget / a.scale;
+                    lv.zoom = rv.zoom / a.scale;
+                    lv.panTarget.x =
+                        rv.panTarget.x -
+                        a.translationX;
+                    lv.panTarget.y =
+                        rv.panTarget.y -
+                        a.translationY;
+                    lv.pan.x =
+                        rv.pan.x - a.translationX;
+                    lv.pan.y =
+                        rv.pan.y - a.translationY;
+                    lv.rotationTarget =
+                        rv.rotationTarget - aRad;
+                    lv.rotation =
+                        rv.rotation - aRad;
+                }
+                else if (lChanged && rChanged)
+                {
+                    rv.zoomTarget =
+                        lv.zoomTarget * a.scale;
+                    rv.zoom = lv.zoom * a.scale;
+                    rv.panTarget.x =
+                        lv.panTarget.x +
+                        a.translationX;
+                    rv.panTarget.y =
+                        lv.panTarget.y +
+                        a.translationY;
+                    rv.pan.x =
+                        lv.pan.x + a.translationX;
+                    rv.pan.y =
+                        lv.pan.y + a.translationY;
+                    rv.rotationTarget =
+                        lv.rotationTarget + aRad;
+                    rv.rotation =
+                        lv.rotation + aRad;
+                }
+            }
         }
         ImGui::EndChild();
 
@@ -429,6 +516,62 @@ namespace shoecomp
                               ? "Unlock"
                               : "Lock"))
             state.viewerLocked = !state.viewerLocked;
+
+        ImGui::SameLine();
+        bool hasLeft =
+            state.viewerLeftIdx >= 0 &&
+            state.viewerLeftIdx <
+                (int)state.images.size();
+        bool hasRight =
+            state.viewerRightIdx >= 0 &&
+            state.viewerRightIdx <
+                (int)state.images.size();
+        ImGui::BeginDisabled(!hasLeft || !hasRight);
+        if (ImGui::Button("Align"))
+        {
+            state.alignDialog.show = true;
+            state.alignDialog.leftName =
+                state.images[state.viewerLeftIdx]
+                    .image->name;
+            state.alignDialog.rightName =
+                state.images[state.viewerRightIdx]
+                    .image->name;
+            state.alignDialog.leftImage =
+                state.images[state.viewerLeftIdx]
+                    .image;
+            state.alignDialog.rightImage =
+                state.images[state.viewerRightIdx]
+                    .image;
+            state.alignDialog.mode =
+                AlignMode::Manual;
+            state.alignDialog.result = AlignResult{};
+            state.alignDialog.workerFinished = false;
+
+            auto& lv =
+                state.viewerLeft.viewState;
+            lv.zoom = lv.zoomTarget = 1.0f;
+            lv.pan = lv.panTarget = ImVec2(0, 0);
+            lv.rotation = lv.rotationTarget = 0.0f;
+            auto& rv =
+                state.viewerRight.viewState;
+            rv.zoom = rv.zoomTarget = 1.0f;
+            rv.pan = rv.panTarget = ImVec2(0, 0);
+            rv.rotation = rv.rotationTarget = 0.0f;
+        }
+        ImGui::EndDisabled();
+
+        if (state.viewerLocked)
+        {
+            auto& a = state.viewerAlignment;
+            ImGui::SameLine();
+            ImGui::Text(
+                "[%s] R:%.1f T:(%.0f,%.0f) S:%.2f",
+                a.mode == AlignMode::Manual
+                    ? "Manual"
+                    : "Auto",
+                a.rotation, a.translationX,
+                a.translationY, a.scale);
+        }
     }
 
     static void renderImageGallery(AppState& state)
@@ -701,6 +844,31 @@ namespace shoecomp
             state.viewerRightIdx,
             state.activeGalleryImage);
 
+        if (state.alignDialog.render())
+        {
+            auto& r = state.alignDialog.result;
+            auto& vs =
+                state.viewerRight.viewState;
+            float rad =
+                r.rotation *
+                (3.14159265358979f / 180.0f);
+            vs.rotation = vs.rotationTarget = rad;
+            vs.pan = vs.panTarget =
+                ImVec2(r.translationX,
+                       r.translationY);
+            vs.zoom = vs.zoomTarget = r.scale;
+            state.viewerLocked = true;
+            state.viewerAlignment.mode =
+                state.alignDialog.mode;
+            state.viewerAlignment.rotation =
+                r.rotation;
+            state.viewerAlignment.translationX =
+                r.translationX;
+            state.viewerAlignment.translationY =
+                r.translationY;
+            state.viewerAlignment.scale = r.scale;
+        }
+
         if (ImGui::BeginTabBar("MainTabs"))
         {
             if (ImGui::BeginTabItem("Image Viewer"))
@@ -900,6 +1068,10 @@ namespace shoecomp
         {
             if (state.imageSaveThread.joinable())
                 state.imageSaveThread.join();
+            state.alignDialog.cancelWorker();
+            state.alignDialog.cleanup();
+            state.alignDialog.leftImage.reset();
+            state.alignDialog.rightImage.reset();
             state.viewerLeft.image.reset();
             state.viewerRight.image.reset();
             state.images.clear();

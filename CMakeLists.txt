@@ -93,6 +93,8 @@ set(SC_SRCS
     src/ui/loadBrowser.cpp
     src/ui/saveBrowser.cpp
     src/ui/imageListDialog.cpp
+    src/ui/alignDialog.cpp
+    src/calc/align.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp

@@ -14,6 +14,7 @@
 #include "ui/saveBrowser.h"
 #include "ui/imageCanvas.h"
 #include "ui/imageListDialog.h"
+#include "ui/alignDialog.h"
 
 namespace shoecomp
 {
@@ -32,6 +33,7 @@ namespace shoecomp
         ImageCanvas viewerLeft;
         ImageCanvas viewerRight;
         bool viewerLocked = false;
+        AlignState viewerAlignment;
 
         // Active gallery image (last-focused
         // window, -1 = none)
@@ -42,6 +44,7 @@ namespace shoecomp
         SaveBrowser imageSaveBrowser;
         SaveBrowser annotationFileBrowser;
         ImageListDialog imageListDialog;
+        AlignDialog alignDialog;
 
         // Error popups
         ErrorPopup imageSaveError;
