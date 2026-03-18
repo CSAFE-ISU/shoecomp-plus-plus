@@ -430,7 +430,8 @@ namespace shoecomp
                         image->height));
             }
             // Outer rect large enough to cover all
-            // bounds vertices and the canvas
+            // bounds vertices, image corners, and
+            // the canvas
             float oMinX = canvasPos.x;
             float oMinY = canvasPos.y;
             float oMaxX = canvasPos.x + avail.x;
@@ -442,6 +443,15 @@ namespace shoecomp
                 oMaxX = std::max(oMaxX, sp.x);
                 oMaxY = std::max(oMaxY, sp.y);
             }
+            ImVec2 imgCorners[4] = {
+                tl, tr, br, bl};
+            for (auto& ic : imgCorners)
+            {
+                oMinX = std::min(oMinX, ic.x);
+                oMinY = std::min(oMinY, ic.y);
+                oMaxX = std::max(oMaxX, ic.x);
+                oMaxY = std::max(oMaxY, ic.y);
+            }
             float pad = 10.0f;
             oMinX -= pad;
             oMinY -= pad;
@@ -451,17 +461,34 @@ namespace shoecomp
             ImVec2 cTR(oMaxX, oMinY);
             ImVec2 cBR(oMaxX, oMaxY);
             ImVec2 cBL(oMinX, oMaxY);
+            // Find rightmost inner vertex for a
+            // safe horizontal bridge to the right
+            // edge of the outer rect
+            int maxXIdx = 0;
+            for (int si = 1;
+                 si < (int)screenBnd.size(); ++si)
+            {
+                if (screenBnd[si].x >
+                    screenBnd[maxXIdx].x)
+                    maxXIdx = si;
+            }
+            ImVec2 bridge(
+                oMaxX, screenBnd[maxXIdx].y);
+            int n = (int)screenBnd.size();
             std::vector<ImVec2> frame;
-            frame.reserve(screenBnd.size() + 6);
+            frame.reserve(n + 8);
             frame.push_back(cTL);
             frame.push_back(cTR);
+            frame.push_back(bridge);
+            // Inner polygon CCW from maxXIdx
+            for (int si = 0; si <= n; ++si)
+            {
+                frame.push_back(
+                    screenBnd[(maxXIdx - si + n) %
+                              n]);
+            }
+            frame.push_back(bridge);
             frame.push_back(cBR);
-            frame.push_back(cBL);
-            frame.push_back(screenBnd[0]);
-            for (int si =
-                     (int)screenBnd.size() - 1;
-                 si >= 0; --si)
-                frame.push_back(screenBnd[si]);
             frame.push_back(cBL);
             dl->AddConcavePolyFilled(
                 frame.data(), (int)frame.size(),
