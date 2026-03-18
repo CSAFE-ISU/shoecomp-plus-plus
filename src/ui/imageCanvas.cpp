@@ -475,17 +475,34 @@ namespace shoecomp
             ImVec2 bridge(
                 oMaxX, screenBnd[maxXIdx].y);
             int n = (int)screenBnd.size();
+            // Signed area to determine winding
+            float signedArea = 0.0f;
+            for (int si = 0; si < n; ++si)
+            {
+                auto& a2 = screenBnd[si];
+                auto& b2 = screenBnd[(si + 1) % n];
+                signedArea +=
+                    (b2.x - a2.x) *
+                    (b2.y + a2.y);
+            }
+            // In screen coords (Y-down) the
+            // trapezoid formula gives positive for
+            // CCW. Inner hole must be CCW, so keep
+            // CCW as-is, reverse CW.
+            bool isCW = signedArea < 0.0f;
             std::vector<ImVec2> frame;
             frame.reserve(n + 8);
             frame.push_back(cTL);
             frame.push_back(cTR);
             frame.push_back(bridge);
-            // Inner polygon CCW from maxXIdx
+            // Traverse inner polygon CCW from
+            // maxXIdx
             for (int si = 0; si <= n; ++si)
             {
-                frame.push_back(
-                    screenBnd[(maxXIdx - si + n) %
-                              n]);
+                int idx = isCW
+                    ? (maxXIdx - si + n) % n
+                    : (maxXIdx + si) % n;
+                frame.push_back(screenBnd[idx]);
             }
             frame.push_back(bridge);
             frame.push_back(cBR);
