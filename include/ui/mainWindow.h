@@ -51,6 +51,10 @@ namespace shoecomp
         // Error popups
         ErrorPopup imageSaveError;
         ErrorPopup annotationError;
+        ErrorPopup alignmentSaveError;
+
+        // Alignment save
+        SaveBrowser alignmentSaveBrowser;
 
         // Annotation file browser mode
         bool annotationFileSave = false;

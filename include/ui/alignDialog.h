@@ -7,6 +7,7 @@
 #include <vector>
 #include "calc/workerChannel.h"
 #include "calc/align.h"
+#include "jtjson/json.h"
 
 namespace shoecomp
 {
@@ -32,6 +33,7 @@ namespace shoecomp
         float translationX = 0.0f;
         float translationY = 0.0f;
         float scale = 1.0f;
+        jt::Json info;
     };
 
     enum class AlignDialogResult

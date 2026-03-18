@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <filesystem>
+#include <fstream>
 
 namespace shoecomp
 {
@@ -513,12 +514,6 @@ namespace shoecomp
 
         // --- Dock bar ---
         ImGui::Separator();
-        if (ImGui::Button(state.viewerLocked
-                              ? "Unlock"
-                              : "Lock"))
-            state.viewerLocked = !state.viewerLocked;
-
-        ImGui::SameLine();
         bool hasLeft =
             state.viewerLeftIdx >= 0 &&
             state.viewerLeftIdx <
@@ -527,7 +522,16 @@ namespace shoecomp
             state.viewerRightIdx >= 0 &&
             state.viewerRightIdx <
                 (int)state.images.size();
-        ImGui::BeginDisabled(!hasLeft || !hasRight);
+        bool hasBoth = hasLeft && hasRight;
+        ImGui::BeginDisabled(!hasBoth);
+        if (ImGui::Button(state.viewerLocked
+                              ? "Unlock"
+                              : "Lock"))
+            state.viewerLocked = !state.viewerLocked;
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!hasBoth);
         if (ImGui::Button("Align"))
         {
             state.alignDialog.show = true;
@@ -562,6 +566,18 @@ namespace shoecomp
             rv.zoom = rv.zoomTarget = 1.0f;
             rv.pan = rv.panTarget = ImVec2(0, 0);
             rv.rotation = rv.rotationTarget = 0.0f;
+        }
+        ImGui::EndDisabled();
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!state.viewerLocked);
+        if (ImGui::Button("Save JSON"))
+        {
+            state.alignmentSaveBrowser.show = true;
+            state.alignmentSaveBrowser
+                .dirNeedsRefresh = true;
+            state.alignmentSaveBrowser.fileName
+                .clear();
         }
         ImGui::EndDisabled();
 
@@ -954,6 +970,8 @@ namespace shoecomp
     {
         state.annotationError.render();
         state.imageSaveError.render();
+        state.alignmentSaveError.render();
+        state.alignmentSaveBrowser.render();
         state.imageLoadBrowser.render();
         state.imageSaveBrowser.render();
         state.annotationFileBrowser.render();
@@ -1145,6 +1163,55 @@ namespace shoecomp
                             fullPath;
                     }
                 }
+            }
+        };
+
+        // Configure alignment save browser
+        state.alignmentSaveBrowser.extension =
+            ".json";
+        state.alignmentSaveBrowser.title =
+            "Save Alignment";
+        state.alignmentSaveError.title =
+            "Alignment Save Error";
+        state.alignmentSaveBrowser.onOk =
+            [&state](const std::string& fullPath)
+        {
+            auto& a = state.viewerAlignments
+                [state.viewerAlignmentIdx];
+            jt::Json obj;
+            obj.setObject();
+            obj["mode"] = jt::Json(
+                a.mode == AlignMode::Manual
+                    ? "Manual"
+                    : "Automatic");
+            obj["rotation"] =
+                jt::Json((double)a.rotation);
+            obj["translationX"] =
+                jt::Json((double)a.translationX);
+            obj["translationY"] =
+                jt::Json((double)a.translationY);
+            obj["scale"] =
+                jt::Json((double)a.scale);
+            obj["info"] = a.info;
+
+            std::ofstream ofs(fullPath);
+            if (!ofs)
+            {
+                state.alignmentSaveError.show = true;
+                state.alignmentSaveError.message =
+                    "Failed to save alignment "
+                    "to:\n" +
+                    fullPath;
+                return;
+            }
+            ofs << obj.toStringPretty();
+            if (!ofs)
+            {
+                state.alignmentSaveError.show = true;
+                state.alignmentSaveError.message =
+                    "Failed to write alignment "
+                    "to:\n" +
+                    fullPath;
             }
         };
 
