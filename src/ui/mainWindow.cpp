@@ -378,7 +378,8 @@ namespace shoecomp
             // we can detect which viewer changed.
             auto& lv = state.viewerLeft.viewState;
             auto& rv = state.viewerRight.viewState;
-            auto& a = state.viewerAlignment;
+            auto& a = state.viewerAlignments
+                [state.viewerAlignmentIdx];
             float pi = 3.14159265358979f;
             float aRad = a.rotation * (pi / 180.0f);
 
@@ -546,6 +547,10 @@ namespace shoecomp
                 AlignMode::Manual;
             state.alignDialog.result = AlignResult{};
             state.alignDialog.workerFinished = false;
+            state.alignDialog.alignments =
+                &state.viewerAlignments;
+            state.alignDialog.alignmentIdx =
+                &state.viewerAlignmentIdx;
 
             auto& lv =
                 state.viewerLeft.viewState;
@@ -562,15 +567,129 @@ namespace shoecomp
 
         if (state.viewerLocked)
         {
-            auto& a = state.viewerAlignment;
+            ImGui::SameLine();
+            bool navDisabled =
+                (int)state.viewerAlignments.size()
+                <= 1;
+            if (navDisabled)
+                ImGui::BeginDisabled();
+            if (ImGui::Button("<"))
+            {
+                if (state.viewerAlignmentIdx > 0)
+                {
+                    state.viewerAlignmentIdx--;
+                    auto& na = state.viewerAlignments
+                        [state.viewerAlignmentIdx];
+                    auto& lv =
+                        state.viewerLeft.viewState;
+                    auto& rv =
+                        state.viewerRight.viewState;
+                    float rad =
+                        na.rotation *
+                        (3.14159265358979f / 180.0f);
+                    rv.rotation =
+                        rv.rotationTarget =
+                            lv.rotationTarget + rad;
+                    rv.pan = rv.panTarget = ImVec2(
+                        lv.panTarget.x +
+                            na.translationX,
+                        lv.panTarget.y +
+                            na.translationY);
+                    rv.zoom = rv.zoomTarget =
+                        lv.zoomTarget * na.scale;
+                }
+            }
+            ImGui::SameLine();
+            if (ImGui::Button(">"))
+            {
+                int maxIdx =
+                    (int)state.viewerAlignments
+                        .size() -
+                    1;
+                if (state.viewerAlignmentIdx <
+                    maxIdx)
+                {
+                    state.viewerAlignmentIdx++;
+                    auto& na = state.viewerAlignments
+                        [state.viewerAlignmentIdx];
+                    auto& lv =
+                        state.viewerLeft.viewState;
+                    auto& rv =
+                        state.viewerRight.viewState;
+                    float rad =
+                        na.rotation *
+                        (3.14159265358979f / 180.0f);
+                    rv.rotation =
+                        rv.rotationTarget =
+                            lv.rotationTarget + rad;
+                    rv.pan = rv.panTarget = ImVec2(
+                        lv.panTarget.x +
+                            na.translationX,
+                        lv.panTarget.y +
+                            na.translationY);
+                    rv.zoom = rv.zoomTarget =
+                        lv.zoomTarget * na.scale;
+                }
+            }
+            if (navDisabled)
+                ImGui::EndDisabled();
+
+            auto& a = state.viewerAlignments
+                [state.viewerAlignmentIdx];
             ImGui::SameLine();
             ImGui::Text(
-                "[%s] R:%.1f T:(%.0f,%.0f) S:%.2f",
+                "[%d/%d] [%s] R:%.1f"
+                " T:(%.0f,%.0f) S:%.2f",
+                state.viewerAlignmentIdx + 1,
+                (int)state.viewerAlignments.size(),
                 a.mode == AlignMode::Manual
                     ? "Manual"
                     : "Auto",
                 a.rotation, a.translationX,
                 a.translationY, a.scale);
+
+            ImGui::SameLine();
+            bool delDisabled =
+                (int)state.viewerAlignments.size()
+                <= 1;
+            if (delDisabled)
+                ImGui::BeginDisabled();
+            if (ImGui::Button("Delete"))
+            {
+                int idx = state.viewerAlignmentIdx;
+                state.viewerAlignments.erase(
+                    state.viewerAlignments.begin() +
+                    idx);
+                if (idx >=
+                    (int)state.viewerAlignments
+                        .size())
+                    idx =
+                        (int)state.viewerAlignments
+                            .size() -
+                        1;
+                state.viewerAlignmentIdx = idx;
+                auto& na = state.viewerAlignments
+                    [idx];
+                auto& lv2 =
+                    state.viewerLeft.viewState;
+                auto& rv2 =
+                    state.viewerRight.viewState;
+                float rad2 =
+                    na.rotation *
+                    (3.14159265358979f / 180.0f);
+                rv2.rotation =
+                    rv2.rotationTarget =
+                        lv2.rotationTarget + rad2;
+                rv2.pan = rv2.panTarget = ImVec2(
+                    lv2.panTarget.x +
+                        na.translationX,
+                    lv2.panTarget.y +
+                        na.translationY);
+                rv2.zoom = rv2.zoomTarget =
+                    lv2.zoomTarget * na.scale;
+            }
+            if (delDisabled)
+                ImGui::EndDisabled();
         }
     }
 
@@ -844,29 +963,49 @@ namespace shoecomp
             state.viewerRightIdx,
             state.activeGalleryImage);
 
-        if (state.alignDialog.render())
+        auto alignResult = state.alignDialog.render();
+        if (alignResult != AlignDialogResult::None)
         {
             auto& r = state.alignDialog.result;
+            auto& lv =
+                state.viewerLeft.viewState;
             auto& vs =
                 state.viewerRight.viewState;
             float rad =
                 r.rotation *
                 (3.14159265358979f / 180.0f);
-            vs.rotation = vs.rotationTarget = rad;
-            vs.pan = vs.panTarget =
-                ImVec2(r.translationX,
-                       r.translationY);
-            vs.zoom = vs.zoomTarget = r.scale;
+            vs.rotation = vs.rotationTarget =
+                lv.rotationTarget + rad;
+            vs.pan = vs.panTarget = ImVec2(
+                lv.panTarget.x + r.translationX,
+                lv.panTarget.y + r.translationY);
+            vs.zoom = vs.zoomTarget =
+                lv.zoomTarget * r.scale;
             state.viewerLocked = true;
-            state.viewerAlignment.mode =
-                state.alignDialog.mode;
-            state.viewerAlignment.rotation =
-                r.rotation;
-            state.viewerAlignment.translationX =
-                r.translationX;
-            state.viewerAlignment.translationY =
-                r.translationY;
-            state.viewerAlignment.scale = r.scale;
+
+            AlignState newAlign;
+            newAlign.mode = state.alignDialog.mode;
+            newAlign.rotation = r.rotation;
+            newAlign.translationX = r.translationX;
+            newAlign.translationY = r.translationY;
+            newAlign.scale = r.scale;
+
+            if (alignResult ==
+                AlignDialogResult::Add)
+            {
+                state.viewerAlignments.push_back(
+                    newAlign);
+                state.viewerAlignmentIdx =
+                    (int)state.viewerAlignments
+                        .size() -
+                    1;
+            }
+            else
+            {
+                state.viewerAlignments
+                    [state.viewerAlignmentIdx] =
+                    newAlign;
+            }
         }
 
         if (ImGui::BeginTabBar("MainTabs"))

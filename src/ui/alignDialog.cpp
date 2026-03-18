@@ -1,10 +1,11 @@
 #include "ui/alignDialog.h"
 #include "calc/align.h"
 #include "imgui.h"
+#include <cstdio>
 
 namespace shoecomp
 {
-    bool AlignDialog::render()
+    AlignDialogResult AlignDialog::render()
     {
         if (show)
         {
@@ -13,7 +14,7 @@ namespace shoecomp
             ImGui::OpenPopup("Align Images");
         }
 
-        if (!open) return false;
+        if (!open) return AlignDialogResult::None;
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
         ImGui::SetNextWindowSize(
@@ -23,7 +24,8 @@ namespace shoecomp
             ImVec2(ds.x * 0.3f, ds.y * 0.25f),
             ImGuiCond_Appearing);
 
-        bool accepted = false;
+        AlignDialogResult dialogResult =
+            AlignDialogResult::None;
 
         if (ImGui::BeginPopupModal(
                 "Align Images", nullptr,
@@ -87,6 +89,72 @@ namespace shoecomp
                     mode == AlignMode::Manual);
             if (ImGui::CollapsingHeader("Transform"))
             {
+                // Alignment picker + delete
+                if (alignments && alignmentIdx &&
+                    !alignments->empty())
+                {
+                    int idx = *alignmentIdx;
+                    auto& vec = *alignments;
+                    char preview[128];
+                    snprintf(
+                        preview, sizeof(preview),
+                        "%d: R:%.1f T:(%.0f,%.0f)"
+                        " S:%.2f",
+                        idx + 1,
+                        vec[idx].rotation,
+                        vec[idx].translationX,
+                        vec[idx].translationY,
+                        vec[idx].scale);
+                    ImGui::SetNextItemWidth(
+                        ImGui::GetContentRegionAvail()
+                            .x -
+                        80.0f);
+                    if (ImGui::BeginCombo(
+                            "##AlignPicker",
+                            preview))
+                    {
+                        for (int i = 0;
+                             i < (int)vec.size();
+                             ++i)
+                        {
+                            char label[128];
+                            snprintf(
+                                label,
+                                sizeof(label),
+                                "%d: R:%.1f"
+                                " T:(%.0f,%.0f)"
+                                " S:%.2f",
+                                i + 1,
+                                vec[i].rotation,
+                                vec[i].translationX,
+                                vec[i].translationY,
+                                vec[i].scale);
+                            bool selected =
+                                (i == idx);
+                            if (ImGui::Selectable(
+                                    label, selected))
+                            {
+                                *alignmentIdx = i;
+                                result.rotation =
+                                    vec[i].rotation;
+                                result.translationX =
+                                    vec[i]
+                                        .translationX;
+                                result.translationY =
+                                    vec[i]
+                                        .translationY;
+                                result.scale =
+                                    vec[i].scale;
+                            }
+                            if (selected)
+                                ImGui::
+                                    SetItemDefaultFocus();
+                        }
+                        ImGui::EndCombo();
+                    }
+                    ImGui::Spacing();
+                }
+
                 bool disabled =
                     mode == AlignMode::Automatic;
                 if (disabled) ImGui::BeginDisabled();
@@ -112,11 +180,21 @@ namespace shoecomp
 
             ImGui::Separator();
 
-            if (ImGui::Button("OK"))
+            if (ImGui::Button("Add"))
             {
                 cancelWorker();
                 cleanup();
-                accepted = true;
+                dialogResult = AlignDialogResult::Add;
+                open = false;
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Replace"))
+            {
+                cancelWorker();
+                cleanup();
+                dialogResult =
+                    AlignDialogResult::Replace;
                 open = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -132,7 +210,7 @@ namespace shoecomp
             ImGui::EndPopup();
         }
 
-        return accepted;
+        return dialogResult;
     }
 
     void AlignDialog::startWorker()

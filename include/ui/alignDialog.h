@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <vector>
 #include "calc/workerChannel.h"
 #include "calc/align.h"
 
@@ -33,6 +34,13 @@ namespace shoecomp
         float scale = 1.0f;
     };
 
+    enum class AlignDialogResult
+    {
+        None,
+        Add,
+        Replace
+    };
+
     struct AlignDialog
     {
         bool show = false;
@@ -47,7 +55,10 @@ namespace shoecomp
         std::thread workerThread;
         bool workerFinished = false;
 
-        bool render();
+        std::vector<AlignState>* alignments = nullptr;
+        int* alignmentIdx = nullptr;
+
+        AlignDialogResult render();
         void startWorker();
         void cancelWorker();
         void cleanup();
