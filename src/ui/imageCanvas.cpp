@@ -865,7 +865,7 @@ namespace shoecomp
         ImGui::SameLine();
 
         // Zoom in
-        if (ImGui::Button("+"))
+        if (ImGui::Button("Zoom+"))
         {
             viewState.zoomTarget = std::clamp(
                 viewState.zoomTarget * 1.25f,
@@ -877,7 +877,7 @@ namespace shoecomp
         ImGui::SameLine();
 
         // Zoom out
-        if (ImGui::Button("-"))
+        if (ImGui::Button("Zoom-"))
         {
             viewState.zoomTarget = std::clamp(
                 viewState.zoomTarget * 0.8f,
@@ -952,23 +952,21 @@ namespace shoecomp
                        : AnnotationMode::AddPoint;
         if (pointActive) ImGui::PopStyleColor();
 
-        if (pointActive)
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!pointActive);
+        ImGui::SetNextItemWidth(
+            ImGui::CalcTextSize("Corner__").x);
+        int cur = static_cast<int>(
+            image->selectedPointType);
+        const char* items[] = {
+            "Corner", "Center"};
+        if (ImGui::Combo(
+                "##ptType", &cur, items, 2))
         {
-            ImGui::SameLine();
-            ImGui::SetNextItemWidth(
-                ImGui::CalcTextSize("Corner__")
-                    .x);
-            int cur = static_cast<int>(
-                image->selectedPointType);
-            const char* items[] = {
-                "Corner", "Center"};
-            if (ImGui::Combo(
-                    "##ptType", &cur, items, 2))
-            {
-                image->selectedPointType =
-                    static_cast<PointType>(cur);
-            }
+            image->selectedPointType =
+                static_cast<PointType>(cur);
         }
+        ImGui::EndDisabled();
 
         ImGui::SameLine();
 
@@ -988,8 +986,6 @@ namespace shoecomp
                 removePointsOutsideBounds();
         }
         if (boundsActive) ImGui::PopStyleColor();
-
-        ImGui::SameLine();
 
         if (ImGui::Button("Undo"))
         {
