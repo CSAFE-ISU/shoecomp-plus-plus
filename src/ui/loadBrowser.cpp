@@ -135,6 +135,9 @@ namespace shoecomp
         }
         ImGui::EndChild();
 
+        ImGui::Checkbox("Load Corresponding JSON",
+                        &loadCorrespondingJson);
+        ImGui::SameLine();
         if (ImGui::Button("Cancel"))
         {
             ImGui::CloseCurrentPopup();

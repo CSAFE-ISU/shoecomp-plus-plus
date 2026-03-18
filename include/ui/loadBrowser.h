@@ -15,6 +15,7 @@ namespace shoecomp
         bool dirNeedsRefresh = true;
         std::string extension = ".png";
         std::string title = "Load Image";
+        bool loadCorrespondingJson = true;
         std::function<void(const std::string& path,
                            const std::string& name)>
             onSelect;

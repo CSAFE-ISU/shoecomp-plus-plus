@@ -1044,6 +1044,45 @@ namespace shoecomp
                     canvas.image
                         ->annotations["points"]
                         .setArray();
+
+                    if (state.imageLoadBrowser
+                            .loadCorrespondingJson)
+                    {
+                        fs::path jsonPath =
+                            fs::path(fullPath)
+                                .replace_extension(
+                                    ".json");
+                        if (fs::exists(jsonPath))
+                        {
+                            if (loadAnnotationsFromFile(
+                                    jsonPath.string(),
+                                    canvas.image
+                                        ->annotations) !=
+                                0)
+                            {
+                                canvas.image
+                                    ->annotations
+                                    .setObject();
+                                canvas.image
+                                    ->annotations
+                                        ["bounds"]
+                                    .setArray();
+                                canvas.image
+                                    ->annotations
+                                        ["points"]
+                                    .setArray();
+                                state.annotationError
+                                    .show = true;
+                                state.annotationError
+                                    .message =
+                                    "Failed to load "
+                                    "annotations "
+                                    "from:\n" +
+                                    jsonPath.string();
+                            }
+                        }
+                    }
+
                     state.images.push_back(
                         std::move(canvas));
                 }
