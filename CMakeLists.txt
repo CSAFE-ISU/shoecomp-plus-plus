@@ -95,6 +95,10 @@ set(SC_SRCS
     src/ui/imageListDialog.cpp
     src/ui/alignDialog.cpp
     src/calc/align.cpp
+    src/calc/graphInfo.cpp
+    src/calc/rts_align.cpp
+    src/calc/rts_utils.cpp
+    src/calc/triangle2d.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp

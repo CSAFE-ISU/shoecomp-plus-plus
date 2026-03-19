@@ -180,7 +180,7 @@ namespace shoecomp
                     return false;
                 }
 
-                Slot& slot = buffer[pos & (Cap - 1)];
+                auto& slot = buffer[pos & (Cap - 1)];
                 size_t seq =
                     slot.sequence.load(std::memory_order_acquire);
 
@@ -218,17 +218,17 @@ namespace shoecomp
         template <typename U>
         bool try_push_impl(U&& val)
         {
-            if (!running_.load(std::memory_order_acquire)) return false;
+            if (!running.load(std::memory_order_acquire)) return false;
 
-            size_t pos = write_pos_.load(std::memory_order_relaxed);
-            Slot& slot = buffer_[pos & (Cap - 1)];
+            size_t pos = write_pos.load(std::memory_order_relaxed);
+            auto& slot = buffer[pos & (Cap - 1)];
 
             if (slot.sequence.load(std::memory_order_acquire) != pos)
                 return false;  // full
 
             slot.data = std::forward<U>(val);
             slot.sequence.store(pos + 1, std::memory_order_release);
-            write_pos_.store(pos + 1, std::memory_order_relaxed);
+            write_pos.store(pos + 1, std::memory_order_relaxed);
             return true;
         }
 
@@ -243,7 +243,7 @@ namespace shoecomp
                     return false;
 
                 size_t pos = write_pos.load(std::memory_order_relaxed);
-                Slot& slot = buffer[pos & (Cap - 1)];
+                auto& slot = buffer[pos & (Cap - 1)];
                 size_t seq =
                     slot.sequence.load(std::memory_order_acquire);
 
@@ -387,7 +387,7 @@ namespace shoecomp
         // ------------------------------------------------------------------
         bool pop(T& out)
         {
-            Slot& slot = buffer[read_pos & (Cap - 1)];
+            auto& slot = buffer[read_pos & (Cap - 1)];
             size_t seq = slot.sequence.load(std::memory_order_acquire);
 
             if (seq != read_pos + 1)
@@ -460,7 +460,7 @@ namespace shoecomp
                     return false;
 
                 size_t pos = write_pos.load(std::memory_order_relaxed);
-                Slot& slot = buffer[pos & (Cap - 1)];
+                auto& slot = buffer[pos & (Cap - 1)];
                 size_t seq =
                     slot.sequence.load(std::memory_order_acquire);
 

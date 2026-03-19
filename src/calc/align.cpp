@@ -6,10 +6,9 @@
 
 namespace shoecomp
 {
-    void runAutoAlign(const ImageData& left,
-                      const ImageData& right,
-                      WorkerChannel& channel,
-                      AlignResult& result)
+
+    static void dummyAlign(ImageData& left, ImageData& right,
+                           WorkerChannel& channel, AlignResult& result)
     {
         (void)left;
         (void)right;
@@ -24,10 +23,8 @@ namespace shoecomp
                 channel.cancelled();
                 return;
             }
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(500));
-            channel.report((i + 1) * 0.1f,
-                           "Processing...");
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            channel.report((i + 1) * 0.1f, "Processing...");
         }
 
         result.rotation = 0.0f;
@@ -35,5 +32,12 @@ namespace shoecomp
         result.translationY = 0.0f;
         result.scale = 1.0f;
         channel.done();
+    }
+
+    void runAutoAlign(ImageData& left, ImageData& right,
+                      WorkerChannel& channel, AlignResult& result)
+    {
+        // dummyAlign(left, right, channel, result);
+        runRTSAlign(left, right, channel, result);
     }
 }  // namespace shoecomp

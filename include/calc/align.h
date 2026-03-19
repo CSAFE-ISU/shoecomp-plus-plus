@@ -12,10 +12,10 @@ namespace shoecomp
     // Compares |left| and |right| images, communicates
     // progress via |channel|, and writes the estimated
     // transform into |result|.
-    void runAutoAlign(const ImageData& left,
-                      const ImageData& right,
-                      WorkerChannel& channel,
-                      AlignResult& result);
+    void runAutoAlign(ImageData& left, ImageData& right,
+                      WorkerChannel& channel, AlignResult& result);
+    void runRTSAlign(ImageData& left, ImageData& right,
+                     WorkerChannel& channel, AlignResult& result);
 }  // namespace shoecomp
 
 #endif
