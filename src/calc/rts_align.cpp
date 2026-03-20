@@ -1,6 +1,7 @@
 #include "ui/alignDialog.h"
 #include "ui/imageCanvas.h"
 #include "calc/rts_align.h"
+#include "calc/clqmtch.h"
 #include <chrono>
 #include <thread>
 #include <iostream>
@@ -81,7 +82,8 @@ namespace shoecomp
             {
                 while (i2 < N2)
                 {
-                    loadTaskInfo(i1, left_count, i2, right_count, query);
+                    loadTaskInfo(i1, left_count, i2, right_count,
+                                 query);
                     if (!work_q.try_push(query))
                     {
                         queue_full = true;
@@ -90,9 +92,10 @@ namespace shoecomp
                     else { ++i2; }
                 }
                 if (queue_full) { break; }
-                else if (i2 >= N2) { 
+                else if (i2 >= N2)
+                {
                     i2 = 0;
-                    ++i1; 
+                    ++i1;
                 }
             }
 
@@ -149,7 +152,12 @@ namespace shoecomp
     {
         DoubleMatrixR left_pts;
         DoubleMatrixR right_pts;
-        GraphInfo g;
+        GraphInfo g_info;
+        g_info.reset();
+        size_t numWorkers = 1;
+        size_t numResults = 32;
+        i32 lowerBound = 3;
+        i32 upperBound = 500;
 
         channel.report(0.0f, "loading points...");
         if (!extractAnnotatedPoints(left, left_pts))
@@ -167,7 +175,8 @@ namespace shoecomp
             return;
         }
 
-        if (!RTSFillGraph(left_pts, right_pts, channel, g, 2))
+        if (!RTSFillGraph(left_pts, right_pts, channel, g_info,
+                          numWorkers))
         {
             channel.error("could not fill graph");
             channel.cancelled();
@@ -178,17 +187,46 @@ namespace shoecomp
         std::cout << "right\n" << right_pts << "\n";
 
         // for now we just print the nodes and edges
-        std::cout << g.nodemap.size() << " nodes\n";
-        for (const auto& p : g.nodemap)
+        std::cout << g_info.nodemap.size() << " nodes\n";
+        /* for (const auto& p : g_info.nodemap)
         {
-            printf("%d: (%d, %d)\n", p.second, p.first.ind1, p.first.ind2);
-        }
-        std::cout << g.edges.size() << " edges\n";
-        for (const auto& edge : g.edges)
+            printf("%d: (%d, %d)\n", p.second, p.first.ind1,
+                   p.first.ind2);
+        } */
+        std::cout << g_info.edges.size() << " edges\n";
+        /* for (const auto& edge : g_info.edges)
         {
             printf("(%d, %d) -> (%d, %d)\n", edge.v1.ind1, edge.v1.ind2,
                    edge.v2.ind1, edge.v2.ind2);
+        } */
+
+        clqmtch::StackDFS S(numWorkers, numResults, lowerBound,
+                            upperBound);
+        clqmtch::Graph G;
+        std::vector<std::unordered_set<i32>> results;
+        G.init(channel, g_info);
+        std::cout << "graph inited" << G.el_size << " " << G.num_vertices << "\n";
+        if (!S.processGraph(channel, G, results))
+        {
+            channel.error("clique search failed");
+            channel.cancelled();
+            return;
         }
+        if (results.empty())
+        {
+            channel.error("no cliques found");
+            channel.cancelled();
+            return;
+        }
+        std::cout << "search complete.\n";
+
+        for (const auto& clq : results)
+        {
+            for (const int32_t& v : clq) { printf("(%d, %d) ", G.vertices[v].ind1, G.vertices[v].ind2); }
+            printf("\n");
+        }
+
+        //
         channel.done();
     }
 }  // namespace shoecomp

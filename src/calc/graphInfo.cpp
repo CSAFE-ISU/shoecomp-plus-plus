@@ -4,6 +4,12 @@
 namespace shoecomp
 {
 
+    void GraphInfo::reset() {
+        N = 0;
+        nodemap.clear();
+        edges.clear();
+    }
+
     void GraphInfo::insert(Node& v)
     {
         if (nodemap.find(v) == nodemap.end())
@@ -20,7 +26,10 @@ namespace shoecomp
         insert(v2);             \
         insert(v3);             \
         edges.insert({v1, v2}); \
+        edges.insert({v1, v3}); \
+        edges.insert({v2, v1}); \
         edges.insert({v2, v3}); \
+        edges.insert({v3, v2}); \
         edges.insert({v3, v1}); \
     }
 

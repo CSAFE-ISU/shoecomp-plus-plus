@@ -115,6 +115,7 @@ namespace shoecomp
         std::unordered_set<Edge, EdgeHash> edges;
 
         void updateAll(const TaskInfo &);
+        void reset();
     };
 
     void loadTaskInfo(int32_t, int32_t, int32_t, int32_t, TaskInfo &);

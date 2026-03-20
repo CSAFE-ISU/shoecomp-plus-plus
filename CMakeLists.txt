@@ -95,6 +95,7 @@ set(SC_SRCS
     src/ui/imageListDialog.cpp
     src/ui/alignDialog.cpp
     src/calc/align.cpp
+    src/calc/clqmtch.cpp
     src/calc/graphInfo.cpp
     src/calc/rts_align.cpp
     src/calc/rts_utils.cpp
