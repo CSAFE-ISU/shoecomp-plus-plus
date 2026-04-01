@@ -107,9 +107,9 @@ namespace AlignCalc
 
     void loadTaskInfo(int32_t, int32_t, int32_t, int32_t, TaskInfo &);
     bool processTaskInfo(const DoubleMatrixR &, const DoubleMatrixR &,
-                         TaskInfo &);
+                         TaskInfo &, double, double);
     bool RTSFillGraph(const DoubleMatrixR &, const DoubleMatrixR &,
-                      WorkerChannel &, GraphInfo &, size_t);
+                      const RTSParams &, WorkerChannel &, GraphInfo &);
 } /* namespace AlignCalc */
 
 #endif

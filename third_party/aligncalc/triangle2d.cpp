@@ -177,8 +177,9 @@ namespace AlignCalc
     }
     //
     //
-    void Triangle2D::construct(const DoubleMatrixR &pts, const int32_t ii,
-                             const int32_t jj, const int32_t kk)
+    void Triangle2D::construct(const DoubleMatrixR &pts,
+                               const int32_t ii, const int32_t jj,
+                               const int32_t kk)
     {
         this->as = std::hypot(pts(kk, 0) - pts(jj, 0),
                               pts(kk, 1) - pts(jj, 1));
@@ -209,7 +210,7 @@ namespace AlignCalc
      (side_ratio##n(*this, (other)) >= MIN_RATIO))
 
     bool Triangle2D::compare(const Triangle2D &other, TaskInfo &task,
-                           double delta, double epsilon) const
+                             double delta, double epsilon) const
     {
         for (int i = 0; i < 8; ++i) task.check[i] = 0;
         task.check[0] = BINARY_CMP(0, other, delta, epsilon);

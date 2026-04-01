@@ -2,8 +2,8 @@
 
 namespace AlignCalc
 {
-    static void invertCombi(int32_t ii, int32_t n, int32_t& x, int32_t& y,
-                     int32_t& z)
+    static void invertCombi(int32_t ii, int32_t n, int32_t& x,
+                            int32_t& y, int32_t& z)
     {
         x = 0;
         y = 0;
@@ -39,7 +39,8 @@ namespace AlignCalc
     }
 
     bool processTaskInfo(const DoubleMatrixR& left_pts,
-                         const DoubleMatrixR& right_pts, TaskInfo& task)
+                         const DoubleMatrixR& right_pts, TaskInfo& task,
+                         double delta, double epsilon)
     {
         Triangle2D tl;
         Triangle2D tr;
@@ -47,8 +48,7 @@ namespace AlignCalc
         if (!tl.valid()) return false;
         tr.construct(right_pts, task.i2, task.j2, task.k2);
         if (!tr.valid()) return false;
-        // TODO: obtain delta, epsilon from GUI, and point typings
-        return tl.compare(tr, task, /*delta*/ 1.0, /*epsilon*/ 0.5);
+        return tl.compare(tr, task, delta, epsilon);
     }
 
 } /* namespace AlignCalc */

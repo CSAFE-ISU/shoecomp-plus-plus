@@ -10,8 +10,8 @@ namespace AlignCalc
 
     bool RTSFillGraph(const DoubleMatrixR& left,
                       const DoubleMatrixR& right,
-                      WorkerChannel& channel, GraphInfo& graph,
-                      size_t totalWorkers)
+                      const RTSParams& params, WorkerChannel& channel,
+                      GraphInfo& graph)
     {
         SPMCQueue<TaskInfo, 128> work_q;
         MPSCQueue<TaskInfo, 128> result_q;
@@ -68,16 +68,19 @@ namespace AlignCalc
             {
                 others_inited = true;
                 // initialize other threads
-                workers.reserve(totalWorkers);
-                for (size_t tid = 0; tid < totalWorkers; ++tid)
+                workers.reserve(params.numWorkers);
+                for (size_t tid = 0; tid < params.numWorkers; ++tid)
                 {
                     workers.emplace_back(
-                        [&work_q, &result_q, &left, &right]
+                        [&work_q, &result_q, &left, &right, &params]
                         {
                             TaskInfo w;
+                            double delta = params.delta;
+                            double epsilon = params.epsilon;
                             while (work_q.pop(w))
                             {
-                                if (processTaskInfo(left, right, w))
+                                if (processTaskInfo(left, right, w,
+                                                    delta, epsilon))
                                 {
                                     result_q.push(w);
                                 }
@@ -88,7 +91,6 @@ namespace AlignCalc
 
             // consume results, and update graph
             while (result_q.pop(answer)) { graph.updateAll(answer); }
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
             channel.report((i1 * 1.0f) / N1, "Processing...");
         }
         work_q.stop();
@@ -122,8 +124,7 @@ namespace AlignCalc
         clqmtch::Graph G;
         g_info.reset();
         //
-        if (!RTSFillGraph(left_pts, right_pts, channel, g_info,
-                          params.numWorkers))
+        if (!RTSFillGraph(left_pts, right_pts, params, channel, g_info))
         {
             channel.error("could not fill graph");
             return false;
