@@ -56,10 +56,7 @@ namespace shoecomp
                 ++ctr;
             }
             std::sort(mapped_edges.begin(), mapped_edges.end());
-            for (const auto& e : mapped_edges)
-            {
-                printf("%d %d\n", e.ind1, e.ind2);
-            }
+            //
             if (channel.should_cancel()) { return false; }
             for (const auto& nn : info.nodemap)
             {
@@ -81,7 +78,6 @@ namespace shoecomp
                         mapped_edges[offset + j].ind2;
                 }
                 this->vertices[i].init(offset, j, spos);
-                printf("vertexID=%d N=%d offset=%d\n", i, j, offset);
                 offset += j;
                 if (this->vertices[i].N > this->maxDegree)
                 {
@@ -145,7 +141,6 @@ namespace shoecomp
             WorkerChannel& channel, const Graph& graph,
             std::vector<std::unordered_set<i32>>& results)
         {
-            std::cout << "entering processGraph\n";
             CliqueResult answer;
             this->max_clique_size.store(lowerBound,
                                         std::memory_order_relaxed);
@@ -163,10 +158,8 @@ namespace shoecomp
             }
             workers.reserve(this->numWorkers);
             //
-            std::cout << "entering loop\n";
             while (i1 < N1 && results.size() < numResults)
             {
-                std::cout << "i1: " << i1 << "\n";
                 if (channel.should_cancel())
                 {
                     i1 = 0;
@@ -223,7 +216,6 @@ namespace shoecomp
                 }
             }
 
-            std::cout << "waiting for other threads\n";
             if (others_inited)
             {
                 // wait for other threads to join
@@ -274,7 +266,6 @@ namespace shoecomp
             cand.clear();
             clique_size = 1;
             clique_potential = 1;
-            printf("starting at root=%d, degree=%d\n", vertexID, cur.N);
             for (j = 0; j < cur.N; j++)
             {
                 if (channel.should_cancel()) { return; }
@@ -287,41 +278,19 @@ namespace shoecomp
             if (clique_potential <
                 this->max_clique_size.load(std::memory_order_relaxed))
             {
-                printf("skipping vertex %d (potential=%d)\n", vertexID);
                 return;
             }
             //
-            printf("searching at vertex %d\n", vertexID);
             while (depth > 0)
             {
                 if (channel.should_cancel()) { return; }
                 blob.loadBitset(cand, depth, cur.N);
-                printf("(tid: %ld, root=%d, depth=%d)\nclq: %d ", tid,
-                       vertexID, depth, vertexID);
-                for (i32 i = 0; i < cur.N; ++i)
-                {
-                    if (res[i])
-                    {
-                        printf("%d ", G.edge_list[cur.elo + i]);
-                    }
-                }
-                printf("\ncandidates: ");
-                for (i32 i = 0; i < cur.N; ++i)
-                {
-                    if (cand[i])
-                    {
-                        printf("%d ", G.edge_list[cur.elo + i]);
-                    }
-                }
-                printf("\n");
-
                 blob.loadBitset(next_cand, depth + 1, cur.N);
                 //
                 for (j = cand.next(0); j < cur.N; j = cand.next(j + 1))
                 {
                     cand.reset(j);
                     v1 = G.edge_list[cur.elo + j];
-                    printf("picking %d @j=%d\n", v1, j);
                     const Vertex& vert = G.vertices[v1];
 
                     next_cand.clear();
@@ -348,9 +317,6 @@ namespace shoecomp
                             clique_size + 1 >= upperBound)
                         {
                             local_max = 1 + clique_size;
-                            printf(
-                                "submitting clq of size %d (ub=%d)\n",
-                                clique_size + 1, upperBound);
                             res.set(j);
                             message.construct(vertexID, res);
                             result_q.push(std::move(message));
@@ -358,7 +324,6 @@ namespace shoecomp
                         }
                         else if (candidates_left > 0)
                         {
-                            printf("extending search\n");
                             blob.vstack[depth] = j;
                             res.set(blob.vstack[depth]);
                             clique_size += 1;
@@ -371,8 +336,6 @@ namespace shoecomp
                 if (j >= cur.N)
                 {
                     depth -= 1;
-                    printf("resetting @depth=%d, @j=%d\n", depth,
-                           blob.vstack[depth]);
                     res.reset(blob.vstack[depth]);
                     clique_size -= 1;
                 }
@@ -384,7 +347,6 @@ namespace shoecomp
             std::vector<std::unordered_set<i32>>& results,
             CliqueResult&& answer)
         {
-            printf("attempting update\n");
             std::unordered_set<i32> clique;
             const Vertex& cur = graph.vertices[answer.vertexID];
             GraphBits bits(answer.neighbors.get(), cur.N, false);
@@ -399,7 +361,6 @@ namespace shoecomp
                 this->max_clique_size.store(clq_size,
                                             std::memory_order_relaxed);
             }
-            printf("cur_max is now %d\n", cur_max);
             //
             for (u64 i = 0; i < cur.N; ++i)
             {
@@ -417,8 +378,6 @@ namespace shoecomp
                     [&clq_size](std::unordered_set<i32>& other)
                     { return other.size() < clq_size; }),
                 results.end());
-            printf("global currently has %ld cliques of size %d\n",
-                   results.size(), clq_size);
         }
 
     } /* namespace clqmtch */

@@ -65,7 +65,6 @@ namespace shoecomp
 
         while (i1 < N1)
         {
-            std::cout << "i1: " << i1 << "\n";
             if (channel.should_cancel())
             {
                 i1 = 0;
@@ -128,7 +127,6 @@ namespace shoecomp
         }
         work_q.stop();
 
-        std::cout << "waiting for other threads\n";
         if (others_inited)
         {
             // wait for other threads to join
@@ -150,14 +148,18 @@ namespace shoecomp
     void runRTSAlign(ImageData& left, ImageData& right,
                      WorkerChannel& channel, AlignResult& result)
     {
-        DoubleMatrixR left_pts;
-        DoubleMatrixR right_pts;
-        GraphInfo g_info;
-        g_info.reset();
         size_t numWorkers = 1;
         size_t numResults = 32;
         i32 lowerBound = 3;
         i32 upperBound = 500;
+        DoubleMatrixR left_pts;
+        DoubleMatrixR right_pts;
+        GraphInfo g_info;
+        clqmtch::StackDFS S(numWorkers, numResults, lowerBound,
+                            upperBound);
+        clqmtch::Graph G;
+        std::vector<std::unordered_set<i32>> results;
+        g_info.reset();
 
         channel.report(0.0f, "loading points...");
         if (!extractAnnotatedPoints(left, left_pts))
@@ -183,30 +185,7 @@ namespace shoecomp
             return;
         }
 
-        std::cout << "left\n" << left_pts << "\n";
-        std::cout << "right\n" << right_pts << "\n";
-
-        // for now we just print the nodes and edges
-        std::cout << g_info.nodemap.size() << " nodes\n";
-        /* for (const auto& p : g_info.nodemap)
-        {
-            printf("%d: (%d, %d)\n", p.second, p.first.ind1,
-                   p.first.ind2);
-        } */
-        std::cout << g_info.edges.size() << " edges\n";
-        /* for (const auto& edge : g_info.edges)
-        {
-            printf("(%d, %d) -> (%d, %d)\n", edge.v1.ind1, edge.v1.ind2,
-                   edge.v2.ind1, edge.v2.ind2);
-        } */
-
-        clqmtch::StackDFS S(numWorkers, numResults, lowerBound,
-                            upperBound);
-        clqmtch::Graph G;
-        std::vector<std::unordered_set<i32>> results;
-        G.init(channel, g_info);
-        std::cout << "graph inited" << G.el_size << " " << G.num_vertices << "\n";
-        if (!S.processGraph(channel, G, results))
+        if (!G.init(channel, g_info) || !S.processGraph(channel, G, results))
         {
             channel.error("clique search failed");
             channel.cancelled();
@@ -218,7 +197,6 @@ namespace shoecomp
             channel.cancelled();
             return;
         }
-        std::cout << "search complete.\n";
 
         for (const auto& clq : results)
         {

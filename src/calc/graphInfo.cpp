@@ -35,10 +35,6 @@ namespace shoecomp
 
     void GraphInfo::updateAll(const TaskInfo& t)
     {
-        printf("updating with task: (%d, %d, %d) <-> (%d, %d, %d): ",
-               t.i1, t.j1, t.k1, t.i2, t.j2, t.k2);
-        for (int z = 0; z < 6; ++z) printf("%d ", t.check[z]);
-        printf("\n");
         if (t.check[0]) UPDATE_ADJMAT(t, 0);
         if (t.check[1]) UPDATE_ADJMAT(t, 1);
         if (t.check[2]) UPDATE_ADJMAT(t, 2);
