@@ -1,7 +1,8 @@
 #ifndef SHOECOMP_CALC_ALIGN
 #define SHOECOMP_CALC_ALIGN
 
-#include "calc/workerChannel.h"
+#include "aligncalc/workerChannel.h"
+#include "aligncalc/aligncalc.h"
 
 namespace shoecomp
 {

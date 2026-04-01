@@ -79,7 +79,13 @@ if (NOT TARGET hello_imgui)
 endif()
 
 # =====================================================================
-# 5. App target
+# 5. AlignCalc (alignment calculations)
+# =====================================================================
+add_subdirectory(third_party/eigen EXCLUDE_FROM_ALL)
+add_subdirectory(third_party/aligncalc EXCLUDE_FROM_ALL)
+
+# =====================================================================
+# 6. App target
 # =====================================================================
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
@@ -95,11 +101,7 @@ set(SC_SRCS
     src/ui/imageListDialog.cpp
     src/ui/alignDialog.cpp
     src/calc/align.cpp
-    src/calc/clqmtch.cpp
-    src/calc/graphInfo.cpp
     src/calc/rts_align.cpp
-    src/calc/rts_utils.cpp
-    src/calc/triangle2d.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
@@ -107,4 +109,4 @@ set(SC_SRCS
     src/main.cpp
 )
 hello_imgui_add_app(shoecomp ${SC_SRCS})
-target_link_libraries(shoecomp PRIVATE json png_static)
+target_link_libraries(shoecomp PRIVATE json aligncalc png_static)

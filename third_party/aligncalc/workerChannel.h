@@ -2,8 +2,8 @@
 // Thread-safe channel between a worker thread and an ImGui render loop.
 // Worker writes. Render loop reads. No blocking on either side.
 
-#ifndef SHOECOMP_CALC_WORKERCHANNEL
-#define SHOECOMP_CALC_WORKERCHANNEL
+#ifndef ALIGNCALC_WORKERCHANNEL_H
+#define ALIGNCALC_WORKERCHANNEL_H
 #include <atomic>
 #include <array>
 #include <string>

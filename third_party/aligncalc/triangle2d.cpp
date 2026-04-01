@@ -1,7 +1,7 @@
-#include "calc/rts_align.h"
+#include "aligncalc.internal.h"
 #include <cmath>
 
-namespace shoecomp
+namespace AlignCalc
 {
     static constexpr double MIN_RATIO = 0.10f;
     static constexpr double MAX_RATIO = 10.0f;
@@ -225,4 +225,4 @@ namespace shoecomp
         return false;
     };
 
-} /* namespace shoecomp */
+} /* namespace AlignCalc */

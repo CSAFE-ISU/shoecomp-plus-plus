@@ -5,7 +5,6 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include "calc/workerChannel.h"
 #include "calc/align.h"
 #include "jtjson/json.h"
 

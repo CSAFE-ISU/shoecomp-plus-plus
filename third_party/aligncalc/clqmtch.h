@@ -1,8 +1,6 @@
-#ifndef SHOECOMP_CALC_CLQMTCH
-#define SHOECOMP_CALC_CLQMTCH
-#include "calc/workerChannel.h"
-#include "calc/multiQueue.h"
-#include "calc/rts_align.h"
+#ifndef ALIGNCALC_CLQMTCH_H
+#define ALIGNCALC_CLQMTCH_H
+#include "aligncalc.internal.h"
 #include <vector>
 #include <memory>
 #include <cstdint>
@@ -14,7 +12,7 @@
 #pragma intrinsic(_lzcnt_u64)
 #endif
 
-namespace shoecomp
+namespace AlignCalc
 {
 
     typedef uint64_t u64;
@@ -224,6 +222,6 @@ namespace shoecomp
 
     } /* namespace clqmtch */
 
-} /* namespace shoecomp */
+} /* namespace AlignCalc */
 
 #endif

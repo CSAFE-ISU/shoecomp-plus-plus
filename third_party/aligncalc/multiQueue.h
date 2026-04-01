@@ -1,12 +1,12 @@
-#ifndef SHOECOMP_CALC_MULTIQUEUE
-#define SHOECOMP_CALC_MULTIQUEUE
+#ifndef ALIGNCALC_MULTIQUEUE_H
+#define ALIGNCALC_MULTIQUEUE_H
 
 #include <atomic>
 #include <chrono>
 #include <cstddef>
 #include <thread>
 
-namespace shoecomp
+namespace AlignCalc
 {
     static constexpr size_t kCacheLine = 64;
 
@@ -491,6 +491,6 @@ namespace shoecomp
         }
     };
 
-}  // namespace shoecomp
+}  // namespace AlignCalc
 
 #endif

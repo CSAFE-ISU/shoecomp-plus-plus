@@ -1,22 +1,9 @@
-#ifndef SHOECOMP_CALC_RTS_ALIGN
-#define SHOECOMP_CALC_RTS_ALIGN
+#ifndef ALIGNCALC_INTERNAL_H
+#define ALIGNCALC_INTERNAL_H
+#include "aligncalc.h"
 
-#include "eigen/Eigen/Dense"
-#include "calc/align.h"
-#include "calc/workerChannel.h"
-#include "calc/multiQueue.h"
-#include <cstdint>
-#include <unordered_set>
-
-namespace shoecomp
+namespace AlignCalc
 {
-
-    static constexpr size_t MAX_POINTS = 256;
-
-    using DoubleMatrixR =
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
-                      Eigen::RowMajor>;
-
     struct TaskInfo
     {
         int32_t i1, j1, k1;
@@ -123,6 +110,6 @@ namespace shoecomp
                          TaskInfo &);
     bool RTSFillGraph(const DoubleMatrixR &, const DoubleMatrixR &,
                       WorkerChannel &, GraphInfo &, size_t);
-}  // namespace shoecomp
+} /* namespace AlignCalc */
 
 #endif

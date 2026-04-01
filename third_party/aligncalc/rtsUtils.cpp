@@ -1,8 +1,6 @@
-#include "ui/alignDialog.h"
-#include "ui/imageCanvas.h"
-#include "calc/rts_align.h"
+#include "aligncalc.internal.h"
 
-namespace shoecomp
+namespace AlignCalc
 {
     static void invertCombi(int32_t ii, int32_t n, int32_t& x, int32_t& y,
                      int32_t& z)
@@ -53,4 +51,4 @@ namespace shoecomp
         return tl.compare(tr, task, /*delta*/ 1.0, /*epsilon*/ 0.5);
     }
 
-} /* namespace shoecomp */
+} /* namespace AlignCalc */

@@ -1,8 +1,9 @@
-#include "calc/clqmtch.h"
+#include "aligncalc.internal.h"
+#include "clqmtch.h"
 #include <iostream>
 #include <algorithm>
 
-namespace shoecomp
+namespace AlignCalc
 {
     namespace clqmtch
     {
@@ -381,4 +382,4 @@ namespace shoecomp
         }
 
     } /* namespace clqmtch */
-} /* namespace shoecomp */
+} /* namespace AlignCalc */

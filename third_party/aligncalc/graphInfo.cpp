@@ -1,7 +1,7 @@
-#include "calc/rts_align.h"
+#include "aligncalc.internal.h"
 #include <iostream>
 
-namespace shoecomp
+namespace AlignCalc
 {
 
     void GraphInfo::reset() {
@@ -115,4 +115,4 @@ namespace shoecomp
         v3.ind2 = t.j2;
     };
 
-} /* namespace shoecomp */
+} /* namespace AlignCalc */
