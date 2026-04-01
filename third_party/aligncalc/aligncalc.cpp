@@ -1,5 +1,6 @@
 #include "aligncalc.internal.h"
 #include "clqmtch.h"
+#include <iostream>
 
 namespace AlignCalc
 {
@@ -116,12 +117,13 @@ namespace AlignCalc
     bool RTSAlignment(const DoubleMatrixR& left_pts,
                       const DoubleMatrixR& right_pts,
                       const RTSParams& params, WorkerChannel& channel,
-                      std::vector<std::unordered_set<int32_t>>& results)
+                      std::vector<MatchedPoints>& results)
     {
         GraphInfo g_info;
         clqmtch::StackDFS S(params.numWorkers, params.numResults,
                             params.lowerBound, params.upperBound);
         clqmtch::Graph G;
+        std::vector<std::unordered_set<int32_t>> cliques;
         g_info.reset();
         //
         if (!RTSFillGraph(left_pts, right_pts, params, channel, g_info))
@@ -131,27 +133,39 @@ namespace AlignCalc
         }
 
         if (!G.init(channel, g_info) ||
-            !S.processGraph(channel, G, results))
+            !S.processGraph(channel, G, cliques))
         {
             channel.error("clique search failed");
             return false;
         }
-        if (results.empty())
+        if (cliques.empty())
         {
             channel.error("no cliques found");
             return false;
         }
 
-        for (const auto& clq : results)
+        for (const auto& clq : cliques)
         {
-            for (const int32_t& v : clq)
+            if (clq.size() < params.lowerBound) continue;
+            results.push_back(MatchedPoints{});
+            MatchedPoints& match = results.back();
+            match.N = clq.size();
+            match.left_pts.resize(match.N, 3);
+            match.right_pts.resize(match.N, 3);
+            //
+            int i = 0;
+            for (const i32& c : clq)
             {
-                printf("(%d, %d) ", G.vertices[v].ind1,
-                       G.vertices[v].ind2);
+                const clqmtch::Vertex& v = G.vertices[c];
+                match.left_pts.row(i) = left_pts.row(v.ind1);
+                match.right_pts.row(i) = right_pts.row(v.ind2);
+                ++i;
             }
-            printf("\n");
+            std::cout << "left:\n" << match.left_pts << "\n";
+            std::cout << "right:\n" << match.right_pts << "\n";
         }
-        return true;
+        channel.error("incomplete"); /* TODO: estimate matrices */
+        return false;
     }
 
 } /* namespace AlignCalc */

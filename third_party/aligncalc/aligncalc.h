@@ -12,6 +12,9 @@ namespace AlignCalc
 {
 
     static constexpr size_t MAX_POINTS = 256;
+    using DoubleMatrixR =
+        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
+                      Eigen::RowMajor>;
 
     struct RTSParams
     {
@@ -23,13 +26,16 @@ namespace AlignCalc
         int32_t upperBound;
     };
 
-    using DoubleMatrixR =
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
-                      Eigen::RowMajor>;
+    struct MatchedPoints
+    {
+        int32_t N;
+        DoubleMatrixR left_pts;
+        DoubleMatrixR right_pts;
+    };
 
     bool RTSAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
                       const RTSParams &, WorkerChannel &,
-                      std::vector<std::unordered_set<int32_t>> &);
+                      std::vector<MatchedPoints> &);
 
 }  // namespace AlignCalc
 

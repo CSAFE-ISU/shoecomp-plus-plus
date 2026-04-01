@@ -49,7 +49,7 @@ namespace shoecomp
         //
         AlignCalc::DoubleMatrixR left_pts;
         AlignCalc::DoubleMatrixR right_pts;
-        std::vector<std::unordered_set<int32_t>> results;
+        std::vector<AlignCalc::MatchedPoints> results;
 
         channel.report(0.0f, "loading points...");
         if (!extractAnnotatedPoints(left, left_pts))
