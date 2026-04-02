@@ -9,10 +9,11 @@ list(APPEND CMAKE_PREFIX_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../eigen")
 find_package (Eigen3 REQUIRED NO_MODULE)
 
 add_library(aligncalc
+    aligncalc.cpp
     clqmtch.cpp
     graphInfo.cpp
-    aligncalc.cpp
     rtsUtils.cpp
+    transform.cpp
     triangle2d.cpp
 )
 target_include_directories(aligncalc PUBLIC ${Eigen3_SOURCE_DIR})

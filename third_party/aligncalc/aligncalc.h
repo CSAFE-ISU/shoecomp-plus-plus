@@ -33,6 +33,18 @@ namespace AlignCalc
         DoubleMatrixR right_pts;
     };
 
+    struct RTSTransform
+    {
+        double scale;
+        double rotation;
+        double dx;
+        double dy;
+
+        void fromMatrix(const DoubleMatrixR &);
+        void toMatrix(DoubleMatrixR &) const;
+        void estimate(const MatchedPoints &, bool);
+    };
+
     bool RTSAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
                       const RTSParams &, WorkerChannel &,
                       std::vector<MatchedPoints> &);
