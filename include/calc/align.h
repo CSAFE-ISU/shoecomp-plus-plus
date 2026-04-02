@@ -1,23 +1,26 @@
 #ifndef SHOECOMP_CALC_ALIGN
 #define SHOECOMP_CALC_ALIGN
 
+#include <vector>
 #include "aligncalc/workerChannel.h"
 #include "aligncalc/aligncalc.h"
 
 namespace shoecomp
 {
-    struct AlignResult;
+    struct AlignState;
     struct ImageData;
 
     // Run automatic alignment on a background thread.
     // Compares |left| and |right| images, communicates
     // progress via |channel|, and writes the estimated
-    // transform into |result|.
+    // transforms into |results|.
     void runAutoAlign(ImageData& left, ImageData& right,
-                      WorkerChannel& channel, AlignResult& result,
+                      WorkerChannel& channel,
+                      std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params);
     void runRTSAlign(ImageData& left, ImageData& right,
-                     WorkerChannel& channel, AlignResult& result,
+                     WorkerChannel& channel,
+                     std::vector<AlignState>& results,
                      const AlignCalc::RTSParams& params);
 }  // namespace shoecomp
 

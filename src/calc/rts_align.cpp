@@ -2,6 +2,7 @@
 #include "ui/imageCanvas.h"
 #include "calc/align.h"
 #include <chrono>
+#include <cstdio>
 #include <thread>
 #include <iostream>
 
@@ -37,7 +38,8 @@ namespace shoecomp
     }
 
     void runRTSAlign(ImageData& left, ImageData& right,
-                     WorkerChannel& channel, AlignResult& result,
+                     WorkerChannel& channel,
+                     std::vector<AlignState>& aligns,
                      const AlignCalc::RTSParams& params)
     {
         AlignCalc::DoubleMatrixR left_pts;
@@ -63,12 +65,26 @@ namespace shoecomp
         if (!AlignCalc::RTSAlignment(left_pts, right_pts, params,
                                      channel, results))
         {
-            channel.error("alignment failed");
             channel.cancelled();
             return;
         }
 
-        //
+        AlignCalc::RTSTransform tform;
+        for (const auto& match : results)
+        {
+            tform.estimate(match, true);
+            aligns.push_back(AlignState{});
+            aligns.back().rotation = tform.rotation;
+            aligns.back().translationX = tform.dx;
+            aligns.back().translationY = tform.dy;
+            aligns.back().scale = tform.scale;
+            aligns.back().mode = AlignMode::Automatic;
+        }
+
+        char buf[64];
+        snprintf(buf, sizeof(buf), "%zu alignment(s) added",
+                 aligns.size());
+        channel.post(MsgKind::Done, buf);
         channel.done();
     }
 }  // namespace shoecomp

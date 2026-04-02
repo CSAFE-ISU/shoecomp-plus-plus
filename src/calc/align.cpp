@@ -8,14 +8,12 @@ namespace shoecomp
 {
 
     static void dummyAlign(ImageData& left, ImageData& right,
-                           WorkerChannel& channel, AlignResult& result)
+                           WorkerChannel& channel,
+                           std::vector<AlignState>& results)
     {
         (void)left;
         (void)right;
         // Dummy implementation: 10 steps, 500 ms each.
-        // A real implementation would compute feature
-        // correspondences and estimate the rigid
-        // transform between the two images.
         for (int i = 0; i < 10; ++i)
         {
             if (channel.should_cancel())
@@ -27,18 +25,16 @@ namespace shoecomp
             channel.report((i + 1) * 0.1f, "Processing...");
         }
 
-        result.rotation = 0.0f;
-        result.translationX = 0.0f;
-        result.translationY = 0.0f;
-        result.scale = 1.0f;
+        results.push_back(AlignState{});
         channel.done();
     }
 
     void runAutoAlign(ImageData& left, ImageData& right,
-                      WorkerChannel& channel, AlignResult& result,
+                      WorkerChannel& channel,
+                      std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params)
     {
-        // dummyAlign(left, right, channel, result);
-        runRTSAlign(left, right, channel, result, params);
+        // dummyAlign(left, right, channel, results);
+        runRTSAlign(left, right, channel, results, params);
     }
 }  // namespace shoecomp

@@ -17,14 +17,6 @@ namespace shoecomp
         Automatic = 1
     };
 
-    struct AlignResult
-    {
-        float rotation = 0.0f;
-        float translationX = 0.0f;
-        float translationY = 0.0f;
-        float scale = 1.0f;
-    };
-
     struct AlignState
     {
         AlignMode mode = AlignMode::Manual;
@@ -51,7 +43,8 @@ namespace shoecomp
         std::shared_ptr<ImageData> leftImage;
         std::shared_ptr<ImageData> rightImage;
         AlignMode mode = AlignMode::Manual;
-        AlignResult result;
+        AlignState current;
+        std::vector<AlignState> workerResults;
         WorkerChannel channel;
         std::thread workerThread;
         bool workerFinished = false;

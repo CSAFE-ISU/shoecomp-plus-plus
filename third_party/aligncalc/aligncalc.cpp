@@ -140,11 +140,10 @@ namespace AlignCalc
         }
         if (cliques.empty())
         {
-            channel.error("no cliques found");
+            channel.error("no alignments found");
             return false;
         }
 
-        RTSTransform tform;
         for (const auto& clq : cliques)
         {
             if (clq.size() < params.lowerBound) continue;
@@ -162,14 +161,8 @@ namespace AlignCalc
                 match.right_pts.row(i) = right_pts.row(v.ind2);
                 ++i;
             }
-            std::cout << "left:\n" << match.left_pts << "\n";
-            std::cout << "right:\n" << match.right_pts << "\n";
-            tform.estimate(match, true);
-            printf("scale=%.4lf, theta=%4lf, dx=%.4lf, dx=%.4lf\n",
-                   tform.scale, tform.rotation, tform.dx, tform.dy);
         }
-        channel.error("incomplete"); /* TODO: estimate matrices */
-        return false;
+        return true;
     }
 
 } /* namespace AlignCalc */
