@@ -152,6 +152,8 @@ namespace AlignCalc
             bool others_inited = false;
             size_t tid = 0;
             bool queue_full = false;
+            printf("\n\nstarting lb=%d, ub=%d\n\n", lowerBound,
+                   upperBound);
             //
             for (tid = 0; tid < numWorkers; ++tid)
             {
@@ -159,13 +161,14 @@ namespace AlignCalc
             }
             workers.reserve(this->numWorkers);
             //
-            while (i1 < N1 && results.size() < numResults)
+            while (i1 < N1)
             {
                 if (channel.should_cancel())
                 {
                     i1 = 0;
                     break;
                 }
+                cleanPartials(results);
 
                 queue_full = false;
                 // produce task
@@ -191,6 +194,8 @@ namespace AlignCalc
                                 i32 vertexID;
                                 while (this->work_q.pop(vertexID))
                                 {
+                                    printf("tid=%ld vertex=%d\n", tid,
+                                           vertexID);
                                     this->processVertex(
                                         channel, tid, vertexID, graph);
                                 }
@@ -202,9 +207,7 @@ namespace AlignCalc
                 {
                     this->update(graph, results, std::move(answer));
                 }
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(100));
-                channel.report((i1 * 1.0f) / N1, "Processing...");
+                channel.report((i1 * 1.0f) / N1, "searching cliques...");
             }
             work_q.stop();
 
@@ -235,7 +238,9 @@ namespace AlignCalc
             {
                 this->update(graph, results, std::move(answer));
             }
-            return true;
+            printf("max is %d\n", this->max_clique_size.load(
+                                      std::memory_order_relaxed));
+            return !results.empty();
         }
 
         void StackDFS::processVertex(WorkerChannel& channel, size_t tid,
@@ -354,6 +359,8 @@ namespace AlignCalc
             i32 clq_size = 1 + bits.count();
             i32 cur_max =
                 this->max_clique_size.load(std::memory_order_relaxed);
+            printf("update vertex=%d, local=%d, global=%d\n",
+                   answer.vertexID, clq_size, cur_max);
             //
             if (cur_max > clq_size) { return; }
             if (cur_max < clq_size)
@@ -362,6 +369,7 @@ namespace AlignCalc
                 this->max_clique_size.store(clq_size,
                                             std::memory_order_relaxed);
             }
+            cleanPartials(results);
             //
             for (u64 i = 0; i < cur.N; ++i)
             {
@@ -372,13 +380,25 @@ namespace AlignCalc
             }
             clique.insert(answer.vertexID);
             results.push_back(clique);
-            //
+        }
+
+        void StackDFS::cleanPartials(
+            std::vector<std::unordered_set<i32>>& results)
+        {
+            if (results.empty()) return;
+            i32 clq_size =
+                this->max_clique_size.load(std::memory_order_relaxed);
+            size_t before = results.size();
             results.erase(
                 std::remove_if(
                     results.begin(), results.end(),
                     [&clq_size](std::unordered_set<i32>& other)
                     { return other.size() < clq_size; }),
                 results.end());
+            if (results.size() < before)
+            {
+                printf("%ld after cleanup\n", results.size());
+            }
         }
 
     } /* namespace clqmtch */

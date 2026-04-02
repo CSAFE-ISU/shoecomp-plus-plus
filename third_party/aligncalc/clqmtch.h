@@ -218,6 +218,7 @@ namespace AlignCalc
             void update(const Graph&,
                         std::vector<std::unordered_set<i32>>&,
                         CliqueResult&&);
+            void cleanPartials(std::vector<std::unordered_set<i32>>&);
         };
 
     } /* namespace clqmtch */

@@ -92,7 +92,7 @@ namespace AlignCalc
 
             // consume results, and update graph
             while (result_q.pop(answer)) { graph.updateAll(answer); }
-            channel.report((i1 * 1.0f) / N1, "Processing...");
+            channel.report((i1 * 1.0f) / N1, "matching points...");
         }
         work_q.stop();
 
@@ -138,12 +138,8 @@ namespace AlignCalc
             channel.error("clique search failed");
             return false;
         }
-        if (cliques.empty())
-        {
-            channel.error("no alignments found");
-            return false;
-        }
 
+        channel.report(0.95f, "matching points...");
         for (const auto& clq : cliques)
         {
             if (clq.size() < params.lowerBound) continue;
@@ -162,6 +158,7 @@ namespace AlignCalc
                 ++i;
             }
         }
+        printf("%ld matched results\n", results.size());
         return true;
     }
 
