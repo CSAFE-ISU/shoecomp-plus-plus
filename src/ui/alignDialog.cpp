@@ -173,14 +173,14 @@ namespace shoecomp
                         rtsParams.upperBound = rtsParams.lowerBound;
 
                     float delta = static_cast<float>(rtsParams.delta);
-                    if (ImGui::SliderFloat("Delta", &delta, 0.01f, 1.0f,
+                    if (ImGui::SliderFloat("Delta", &delta, 0.01f, 0.25f,
                                            "%.2f"))
                         rtsParams.delta = delta;
 
                     float epsilon =
                         static_cast<float>(rtsParams.epsilon);
                     if (ImGui::SliderFloat("Epsilon", &epsilon, 0.01f,
-                                           1.0f, "%.2f"))
+                                           0.25f, "%.2f"))
                         rtsParams.epsilon = epsilon;
 
                     ImGui::Spacing();

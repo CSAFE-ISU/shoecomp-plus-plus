@@ -474,14 +474,17 @@ namespace shoecomp
                             .viewerAlignments[state.viewerAlignmentIdx];
                     auto& lv = state.viewerLeft.viewState;
                     auto& rv = state.viewerRight.viewState;
+                    state.viewerLocked = false;
                     float rad =
                         na.rotation * (3.14159265358979f / 180.0f);
+                    rv.zoom = rv.zoomTarget =
+                        lv.zoomTarget * na.scale;
                     rv.rotation = rv.rotationTarget =
                         lv.rotationTarget + rad;
                     rv.pan = rv.panTarget =
                         ImVec2(lv.panTarget.x + na.translationX,
                                lv.panTarget.y + na.translationY);
-                    rv.zoom = rv.zoomTarget = lv.zoomTarget * na.scale;
+                    state.viewerLocked = true;
                 }
             }
             ImGui::SameLine();
@@ -496,14 +499,17 @@ namespace shoecomp
                             .viewerAlignments[state.viewerAlignmentIdx];
                     auto& lv = state.viewerLeft.viewState;
                     auto& rv = state.viewerRight.viewState;
+                    state.viewerLocked = false;
                     float rad =
                         na.rotation * (3.14159265358979f / 180.0f);
+                    rv.zoom = rv.zoomTarget =
+                        lv.zoomTarget * na.scale;
                     rv.rotation = rv.rotationTarget =
                         lv.rotationTarget + rad;
                     rv.pan = rv.panTarget =
                         ImVec2(lv.panTarget.x + na.translationX,
                                lv.panTarget.y + na.translationY);
-                    rv.zoom = rv.zoomTarget = lv.zoomTarget * na.scale;
+                    state.viewerLocked = true;
                 }
             }
             if (navDisabled) ImGui::EndDisabled();
@@ -532,13 +538,16 @@ namespace shoecomp
                 auto& na = state.viewerAlignments[idx];
                 auto& lv2 = state.viewerLeft.viewState;
                 auto& rv2 = state.viewerRight.viewState;
+                state.viewerLocked = false;
                 float rad2 = na.rotation * (3.14159265358979f / 180.0f);
+                rv2.zoom = rv2.zoomTarget =
+                    lv2.zoomTarget * na.scale;
                 rv2.rotation = rv2.rotationTarget =
                     lv2.rotationTarget + rad2;
                 rv2.pan = rv2.panTarget =
                     ImVec2(lv2.panTarget.x + na.translationX,
                            lv2.panTarget.y + na.translationY);
-                rv2.zoom = rv2.zoomTarget = lv2.zoomTarget * na.scale;
+                state.viewerLocked = true;
             }
             if (delDisabled) ImGui::EndDisabled();
         }
@@ -768,12 +777,14 @@ namespace shoecomp
             auto& r = state.alignDialog.current;
             auto& lv = state.viewerLeft.viewState;
             auto& vs = state.viewerRight.viewState;
+            state.viewerLocked = false;
             float rad = r.rotation * (3.14159265358979f / 180.0f);
-            vs.rotation = vs.rotationTarget = lv.rotationTarget + rad;
+            vs.zoom = vs.zoomTarget = lv.zoomTarget * r.scale;
+            vs.rotation = vs.rotationTarget =
+                lv.rotationTarget + rad;
             vs.pan = vs.panTarget =
                 ImVec2(lv.panTarget.x + r.translationX,
                        lv.panTarget.y + r.translationY);
-            vs.zoom = vs.zoomTarget = lv.zoomTarget * r.scale;
             state.viewerLocked = true;
 
             AlignState newAlign;
