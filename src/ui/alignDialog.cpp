@@ -159,6 +159,7 @@ namespace shoecomp
                     int lp = countPts(leftImage);
                     int rp = countPts(rightImage);
                     maxPts = std::max({lp, rp, 3});
+                    rtsParams.upperBound = maxPts;
 
                     ImGui::SliderInt("Lower Bound",
                                      &rtsParams.lowerBound, 3, maxPts);
