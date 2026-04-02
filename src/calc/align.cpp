@@ -35,9 +35,10 @@ namespace shoecomp
     }
 
     void runAutoAlign(ImageData& left, ImageData& right,
-                      WorkerChannel& channel, AlignResult& result)
+                      WorkerChannel& channel, AlignResult& result,
+                      const AlignCalc::RTSParams& params)
     {
         // dummyAlign(left, right, channel, result);
-        runRTSAlign(left, right, channel, result);
+        runRTSAlign(left, right, channel, result, params);
     }
 }  // namespace shoecomp

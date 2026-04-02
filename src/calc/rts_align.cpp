@@ -37,16 +37,9 @@ namespace shoecomp
     }
 
     void runRTSAlign(ImageData& left, ImageData& right,
-                     WorkerChannel& channel, AlignResult& result)
+                     WorkerChannel& channel, AlignResult& result,
+                     const AlignCalc::RTSParams& params)
     {
-        AlignCalc::RTSParams params;
-        params.numWorkers = 1;
-        params.numResults = 32;
-        params.lowerBound = 3;
-        params.upperBound = 500;
-        params.delta = 1.0;
-        params.epsilon = 0.5;
-        //
         AlignCalc::DoubleMatrixR left_pts;
         AlignCalc::DoubleMatrixR right_pts;
         std::vector<AlignCalc::MatchedPoints> results;

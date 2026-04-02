@@ -14,9 +14,11 @@ namespace shoecomp
     // progress via |channel|, and writes the estimated
     // transform into |result|.
     void runAutoAlign(ImageData& left, ImageData& right,
-                      WorkerChannel& channel, AlignResult& result);
+                      WorkerChannel& channel, AlignResult& result,
+                      const AlignCalc::RTSParams& params);
     void runRTSAlign(ImageData& left, ImageData& right,
-                     WorkerChannel& channel, AlignResult& result);
+                     WorkerChannel& channel, AlignResult& result,
+                     const AlignCalc::RTSParams& params);
 }  // namespace shoecomp
 
 #endif

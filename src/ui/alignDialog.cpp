@@ -1,7 +1,10 @@
 #include "ui/alignDialog.h"
+#include "ui/imageCanvas.h"
 #include "calc/align.h"
 #include "imgui.h"
+#include <algorithm>
 #include <cstdio>
+#include <cstring>
 
 namespace shoecomp
 {
@@ -18,10 +21,10 @@ namespace shoecomp
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
         ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.4f, ds.y * 0.5f),
+            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
             ImGuiCond_Appearing);
         ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.3f, ds.y * 0.25f),
+            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
             ImGuiCond_Appearing);
 
         AlignDialogResult dialogResult =
@@ -37,169 +40,302 @@ namespace shoecomp
                         leftName.c_str());
             ImGui::Separator();
 
-            int modeInt = (int)mode;
-            AlignMode prevMode = mode;
-            ImGui::RadioButton("Manual", &modeInt, 0);
-            ImGui::SameLine();
-            ImGui::RadioButton(
-                "Automatic", &modeInt, 1);
-            mode = (AlignMode)modeInt;
-
-            if (mode == AlignMode::Automatic)
+            if (ImGui::BeginTabBar("##AlignTabs"))
             {
-                // Drain messages
-                while (auto msg =
-                           channel.messages.pop())
+                if (ImGui::BeginTabItem("Manual"))
                 {
-                    if (msg->kind ==
-                        MsgKind::Done)
-                        workerFinished = true;
-                    if (msg->kind ==
-                        MsgKind::Cancelled)
-                        workerFinished = false;
-                }
+                    mode = AlignMode::Manual;
 
-                bool running =
-                    channel.is_running.load();
-
-                ImGui::Spacing();
-                if (!running && !workerFinished)
-                {
-                    if (ImGui::Button("Run"))
-                        startWorker();
-                }
-                else if (running)
-                {
-                    float p =
-                        channel.progress.load();
-                    ImGui::ProgressBar(p);
-                    if (ImGui::Button(
-                            "Cancel##worker"))
-                        cancelWorker();
-                }
-                else
-                {
-                    ImGui::Text(
-                        "Alignment complete.");
-                }
-            }
-
-            if (mode != prevMode)
-                ImGui::SetNextItemOpen(
-                    mode == AlignMode::Manual);
-            if (ImGui::CollapsingHeader("Transform"))
-            {
-                // Alignment picker + delete
-                if (alignments && alignmentIdx &&
-                    !alignments->empty())
-                {
-                    int idx = *alignmentIdx;
-                    auto& vec = *alignments;
-                    char preview[128];
-                    snprintf(
-                        preview, sizeof(preview),
-                        "%d: R:%.1f T:(%.0f,%.0f)"
-                        " S:%.2f",
-                        idx + 1,
-                        vec[idx].rotation,
-                        vec[idx].translationX,
-                        vec[idx].translationY,
-                        vec[idx].scale);
-                    ImGui::SetNextItemWidth(
-                        ImGui::GetContentRegionAvail()
-                            .x -
-                        80.0f);
-                    if (ImGui::BeginCombo(
-                            "##AlignPicker",
-                            preview))
+                    // Alignment picker
+                    if (alignments && alignmentIdx &&
+                        !alignments->empty())
                     {
-                        for (int i = 0;
-                             i < (int)vec.size();
-                             ++i)
+                        int idx = *alignmentIdx;
+                        auto& vec = *alignments;
+                        char preview[128];
+                        snprintf(
+                            preview,
+                            sizeof(preview),
+                            "%d: R:%.1f"
+                            " T:(%.0f,%.0f)"
+                            " S:%.2f",
+                            idx + 1,
+                            vec[idx].rotation,
+                            vec[idx].translationX,
+                            vec[idx].translationY,
+                            vec[idx].scale);
+                        ImGui::SetNextItemWidth(
+                            ImGui::
+                                GetContentRegionAvail()
+                                    .x -
+                            80.0f);
+                        if (ImGui::BeginCombo(
+                                "##AlignPicker",
+                                preview))
                         {
-                            char label[128];
-                            snprintf(
-                                label,
-                                sizeof(label),
-                                "%d: R:%.1f"
-                                " T:(%.0f,%.0f)"
-                                " S:%.2f",
-                                i + 1,
-                                vec[i].rotation,
-                                vec[i].translationX,
-                                vec[i].translationY,
-                                vec[i].scale);
-                            bool selected =
-                                (i == idx);
-                            if (ImGui::Selectable(
-                                    label, selected))
+                            for (int i = 0;
+                                 i <
+                                 (int)vec.size();
+                                 ++i)
                             {
-                                *alignmentIdx = i;
-                                result.rotation =
-                                    vec[i].rotation;
-                                result.translationX =
+                                char label[128];
+                                snprintf(
+                                    label,
+                                    sizeof(label),
+                                    "%d: R:%.1f"
+                                    " T:(%.0f,"
+                                    "%.0f)"
+                                    " S:%.2f",
+                                    i + 1,
+                                    vec[i].rotation,
                                     vec[i]
-                                        .translationX;
-                                result.translationY =
+                                        .translationX,
                                     vec[i]
-                                        .translationY;
-                                result.scale =
-                                    vec[i].scale;
+                                        .translationY,
+                                    vec[i].scale);
+                                bool selected =
+                                    (i == idx);
+                                if (ImGui::Selectable(
+                                        label,
+                                        selected))
+                                {
+                                    *alignmentIdx =
+                                        i;
+                                    result.rotation =
+                                        vec[i]
+                                            .rotation;
+                                    result
+                                        .translationX =
+                                        vec[i]
+                                            .translationX;
+                                    result
+                                        .translationY =
+                                        vec[i]
+                                            .translationY;
+                                    result.scale =
+                                        vec[i].scale;
+                                }
+                                if (selected)
+                                    ImGui::
+                                        SetItemDefaultFocus();
                             }
-                            if (selected)
-                                ImGui::
-                                    SetItemDefaultFocus();
+                            ImGui::EndCombo();
                         }
-                        ImGui::EndCombo();
+                        ImGui::Spacing();
                     }
+
+                    ImGui::SliderFloat(
+                        "Rotation (deg)",
+                        &result.rotation,
+                        -180.0f, 180.0f, "%.1f");
+                    ImGui::SliderFloat(
+                        "Translation X",
+                        &result.translationX,
+                        -2000.0f, 2000.0f, "%.1f");
+                    ImGui::SliderFloat(
+                        "Translation Y",
+                        &result.translationY,
+                        -2000.0f, 2000.0f, "%.1f");
+                    ImGui::SliderFloat(
+                        "Scale", &result.scale,
+                        0.1f, 10.0f, "%.2f");
+
                     ImGui::Spacing();
+                    ImGui::Separator();
+                    if (ImGui::Button("Add"))
+                    {
+                        cancelWorker();
+                        cleanup();
+                        dialogResult =
+                            AlignDialogResult::Add;
+                        open = false;
+                        ImGui::CloseCurrentPopup();
+                    }
+                    ImGui::SameLine();
+                    if (ImGui::Button("Replace"))
+                    {
+                        cancelWorker();
+                        cleanup();
+                        dialogResult =
+                            AlignDialogResult::Replace;
+                        open = false;
+                        ImGui::CloseCurrentPopup();
+                    }
+
+                    ImGui::EndTabItem();
                 }
 
-                bool disabled =
-                    mode == AlignMode::Automatic;
-                if (disabled) ImGui::BeginDisabled();
+                if (ImGui::BeginTabItem("Automatic"))
+                {
+                    mode = AlignMode::Automatic;
 
-                ImGui::SliderFloat(
-                    "Rotation (deg)",
-                    &result.rotation,
-                    -180.0f, 180.0f, "%.1f");
-                ImGui::SliderFloat(
-                    "Translation X",
-                    &result.translationX,
-                    -2000.0f, 2000.0f, "%.1f");
-                ImGui::SliderFloat(
-                    "Translation Y",
-                    &result.translationY,
-                    -2000.0f, 2000.0f, "%.1f");
-                ImGui::SliderFloat(
-                    "Scale", &result.scale,
-                    0.1f, 10.0f, "%.2f");
+                    int nw =
+                        static_cast<int>(
+                            rtsParams.numWorkers);
+                    if (ImGui::SliderInt(
+                            "Workers", &nw, 1, 8))
+                    {
+                        rtsParams.numWorkers =
+                            static_cast<size_t>(nw);
+                    }
 
-                if (disabled) ImGui::EndDisabled();
+                    int nr =
+                        static_cast<int>(
+                            rtsParams.numResults);
+                    if (ImGui::InputInt(
+                            "Results", &nr))
+                    {
+                        if (nr < 1) nr = 1;
+                        rtsParams.numResults =
+                            static_cast<size_t>(nr);
+                    }
+
+                    // Compute max points from
+                    // either image
+                    int maxPts = 256;
+                    auto countPts =
+                        [](const std::shared_ptr<
+                            ImageData>& img) -> int
+                    {
+                        if (!img) return 0;
+                        auto& a = img->annotations;
+                        if (!a.isObject() ||
+                            !a.contains("points") ||
+                            !a["points"].isArray())
+                            return 0;
+                        return static_cast<int>(
+                            a["points"]
+                                .getArray()
+                                .size());
+                    };
+                    int lp = countPts(leftImage);
+                    int rp = countPts(rightImage);
+                    maxPts = std::max(
+                        {lp, rp, 3});
+
+                    ImGui::SliderInt(
+                        "Lower Bound",
+                        &rtsParams.lowerBound,
+                        3, maxPts);
+                    if (rtsParams.lowerBound < 3)
+                        rtsParams.lowerBound = 3;
+
+                    ImGui::SliderInt(
+                        "Upper Bound",
+                        &rtsParams.upperBound,
+                        rtsParams.lowerBound,
+                        maxPts);
+                    if (rtsParams.upperBound <
+                        rtsParams.lowerBound)
+                        rtsParams.upperBound =
+                            rtsParams.lowerBound;
+
+                    float delta =
+                        static_cast<float>(
+                            rtsParams.delta);
+                    if (ImGui::SliderFloat(
+                            "Delta", &delta,
+                            0.01f, 1.0f, "%.2f"))
+                        rtsParams.delta = delta;
+
+                    float epsilon =
+                        static_cast<float>(
+                            rtsParams.epsilon);
+                    if (ImGui::SliderFloat(
+                            "Epsilon", &epsilon,
+                            0.01f, 1.0f, "%.2f"))
+                        rtsParams.epsilon = epsilon;
+
+                    ImGui::Spacing();
+                    ImGui::Spacing();
+
+                    // Drain messages
+                    while (auto msg =
+                               channel.messages.pop())
+                    {
+                        if (msg->kind ==
+                            MsgKind::Done)
+                            workerFinished = true;
+                        else if (msg->kind ==
+                                 MsgKind::Cancelled)
+                            workerFinished = false;
+                        if (msg->kind ==
+                                MsgKind::Error ||
+                            msg->kind ==
+                                MsgKind::Progress)
+                        {
+                            std::strncpy(
+                                statusText,
+                                msg->text,
+                                sizeof(statusText) -
+                                    1);
+                            statusText
+                                [sizeof(statusText) -
+                                 1] = '\0';
+                            statusIsError =
+                                (msg->kind ==
+                                 MsgKind::Error);
+                        }
+                    }
+
+                    bool running =
+                        channel.is_running.load();
+
+                    if (!running && !workerFinished)
+                    {
+                        if (ImGui::Button("Run"))
+                            startWorker();
+                    }
+                    else if (running)
+                    {
+                        if (ImGui::Button(
+                                "Cancel##worker"))
+                            cancelWorker();
+                        ImGui::SameLine();
+                        float p =
+                            channel.progress.load();
+                        ImGui::ProgressBar(
+                            p,
+                            ImVec2(
+                                ImGui::
+                                    GetContentRegionAvail()
+                                        .x,
+                                0.0f));
+                    }
+                    else
+                    {
+                        ImGui::Text(
+                            "Alignment complete.");
+                    }
+
+                    if (statusText[0] != '\0')
+                    {
+                        if (statusIsError)
+                        {
+                            ImGui::PushStyleColor(
+                                ImGuiCol_Text,
+                                ImVec4(1, 0.2f,
+                                       0.2f, 1));
+                            ImGui::TextWrapped(
+                                "%s", statusText);
+                            ImGui::PopStyleColor();
+                        }
+                        else
+                        {
+                            ImGui::TextWrapped(
+                                "%s", statusText);
+                        }
+                    }
+
+                    ImGui::EndTabItem();
+                }
+
+                ImGui::EndTabBar();
             }
 
             ImGui::Separator();
 
-            if (ImGui::Button("Add"))
-            {
-                cancelWorker();
-                cleanup();
-                dialogResult = AlignDialogResult::Add;
-                open = false;
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Replace"))
-            {
-                cancelWorker();
-                cleanup();
-                dialogResult =
-                    AlignDialogResult::Replace;
-                open = false;
-                ImGui::CloseCurrentPopup();
-            }
-            ImGui::SameLine();
-            if (ImGui::Button("Cancel"))
+            if (ImGui::Button("Exit"))
             {
                 cancelWorker();
                 cleanup();
@@ -220,15 +356,18 @@ namespace shoecomp
         channel.is_running.store(true);
         channel.progress.store(0.0f);
         workerFinished = false;
+        statusText[0] = '\0';
+        statusIsError = false;
 
         auto left = leftImage;
         auto right = rightImage;
+        auto params = rtsParams;
         workerThread = std::thread(
-            [this, left, right]()
+            [this, left, right, params]()
             {
                 runAutoAlign(
                     *left, *right,
-                    channel, result);
+                    channel, result, params);
             });
     }
 
