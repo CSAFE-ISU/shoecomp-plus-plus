@@ -52,10 +52,8 @@ namespace shoecomp
         char statusText[120]{};
         bool statusIsError = false;
 
-        std::vector<AlignState>* alignments = nullptr;
-        int* alignmentIdx = nullptr;
-
-        AlignDialogResult render();
+        AlignDialogResult render(const std::vector<AlignState>& aligns,
+                                  int alignIdx);
         void startWorker();
         void cancelWorker();
         void cleanup();

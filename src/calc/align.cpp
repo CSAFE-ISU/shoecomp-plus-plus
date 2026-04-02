@@ -34,6 +34,7 @@ namespace shoecomp
                       std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params)
     {
+        results.clear();
         // dummyAlign(left, right, channel, results);
         runRTSAlign(left, right, channel, results, params);
     }

@@ -434,10 +434,8 @@ namespace shoecomp
                 state.images[state.viewerRightIdx].image;
             state.alignDialog.mode = AlignMode::Manual;
             state.alignDialog.current = AlignState{};
-            state.alignDialog.workerFinished = false;
-            state.alignDialog.alignments = &state.viewerAlignments;
-            state.alignDialog.alignmentIdx = &state.viewerAlignmentIdx;
 
+            state.viewerLocked = false;
             auto& lv = state.viewerLeft.viewState;
             lv.zoom = lv.zoomTarget = 1.0f;
             lv.pan = lv.panTarget = ImVec2(0, 0);
@@ -446,6 +444,7 @@ namespace shoecomp
             rv.zoom = rv.zoomTarget = 1.0f;
             rv.pan = rv.panTarget = ImVec2(0, 0);
             rv.rotation = rv.rotationTarget = 0.0f;
+            state.viewerLocked = true;
         }
         ImGui::EndDisabled();
 
@@ -771,7 +770,28 @@ namespace shoecomp
                                      state.viewerRightIdx,
                                      state.activeGalleryImage);
 
-        auto alignResult = state.alignDialog.render();
+        auto alignResult = state.alignDialog.render(
+            state.viewerAlignments, state.viewerAlignmentIdx);
+
+        // Consume worker results from the dialog
+        if (state.alignDialog.workerFinished &&
+            !state.alignDialog.workerResults.empty())
+        {
+            size_t count =
+                state.alignDialog.workerResults.size();
+            for (auto& a : state.alignDialog.workerResults)
+                state.viewerAlignments.push_back(
+                    std::move(a));
+            state.viewerAlignmentIdx =
+                (int)state.viewerAlignments.size() - 1;
+            state.alignDialog.workerResults.clear();
+            snprintf(state.alignDialog.statusText,
+                     sizeof(state.alignDialog.statusText),
+                     "%zu alignment(s) added", count);
+            printf("mainWindow: %zu alignment(s) added\n", count);
+            state.alignDialog.statusIsError = false;
+        }
+
         if (alignResult != AlignDialogResult::None)
         {
             auto& r = state.alignDialog.current;

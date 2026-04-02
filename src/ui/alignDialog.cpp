@@ -8,7 +8,8 @@
 
 namespace shoecomp
 {
-    AlignDialogResult AlignDialog::render()
+    AlignDialogResult AlignDialog::render(
+        const std::vector<AlignState>& aligns, int alignIdx)
     {
         if (show)
         {
@@ -42,24 +43,23 @@ namespace shoecomp
                     mode = AlignMode::Manual;
 
                     // Alignment picker
-                    if (alignments && alignmentIdx &&
-                        !alignments->empty())
+                    if (!aligns.empty())
                     {
-                        int idx = *alignmentIdx;
-                        auto& vec = *alignments;
+                        int idx = alignIdx;
                         char preview[128];
                         snprintf(preview, sizeof(preview),
                                  "%d: R:%.1f"
                                  " T:(%.0f,%.0f)"
                                  " S:%.2f",
-                                 idx + 1, vec[idx].rotation,
-                                 vec[idx].translationX,
-                                 vec[idx].translationY, vec[idx].scale);
+                                 idx + 1, aligns[idx].rotation,
+                                 aligns[idx].translationX,
+                                 aligns[idx].translationY,
+                                 aligns[idx].scale);
                         ImGui::SetNextItemWidth(
                             ImGui::GetContentRegionAvail().x - 80.0f);
                         if (ImGui::BeginCombo("##AlignPicker", preview))
                         {
-                            for (int i = 0; i < (int)vec.size(); ++i)
+                            for (int i = 0; i < (int)aligns.size(); ++i)
                             {
                                 char label[128];
                                 snprintf(label, sizeof(label),
@@ -67,20 +67,20 @@ namespace shoecomp
                                          " T:(%.0f,"
                                          "%.0f)"
                                          " S:%.2f",
-                                         i + 1, vec[i].rotation,
-                                         vec[i].translationX,
-                                         vec[i].translationY,
-                                         vec[i].scale);
+                                         i + 1, aligns[i].rotation,
+                                         aligns[i].translationX,
+                                         aligns[i].translationY,
+                                         aligns[i].scale);
                                 bool selected = (i == idx);
                                 if (ImGui::Selectable(label, selected))
                                 {
-                                    *alignmentIdx = i;
-                                    current.rotation = vec[i].rotation;
+                                    current.rotation =
+                                        aligns[i].rotation;
                                     current.translationX =
-                                        vec[i].translationX;
+                                        aligns[i].translationX;
                                     current.translationY =
-                                        vec[i].translationY;
-                                    current.scale = vec[i].scale;
+                                        aligns[i].translationY;
+                                    current.scale = aligns[i].scale;
                                 }
                                 if (selected)
                                     ImGui::SetItemDefaultFocus();
@@ -107,7 +107,6 @@ namespace shoecomp
                     if (ImGui::Button("Add"))
                     {
                         cancelWorker();
-                        cleanup();
                         dialogResult = AlignDialogResult::Add;
                         open = false;
                         ImGui::CloseCurrentPopup();
@@ -116,7 +115,6 @@ namespace shoecomp
                     if (ImGui::Button("Replace"))
                     {
                         cancelWorker();
-                        cleanup();
                         dialogResult = AlignDialogResult::Replace;
                         open = false;
                         ImGui::CloseCurrentPopup();
@@ -173,8 +171,8 @@ namespace shoecomp
                         rtsParams.upperBound = rtsParams.lowerBound;
 
                     float delta = static_cast<float>(rtsParams.delta);
-                    if (ImGui::SliderFloat("Delta", &delta, 0.01f, 0.25f,
-                                           "%.2f"))
+                    if (ImGui::SliderFloat("Delta", &delta, 0.01f,
+                                           0.25f, "%.2f"))
                         rtsParams.delta = delta;
 
                     float epsilon =
@@ -185,36 +183,6 @@ namespace shoecomp
 
                     ImGui::Spacing();
                     ImGui::Spacing();
-
-                    // Drain messages
-                    while (auto msg = channel.messages.pop())
-                    {
-                        if (msg->kind == MsgKind::Done)
-                        {
-                            workerFinished = true;
-                            if (alignments)
-                            {
-                                for (auto& a : workerResults)
-                                    alignments->push_back(a);
-                                if (alignmentIdx &&
-                                    !alignments->empty())
-                                    *alignmentIdx =
-                                        (int)alignments->size() - 1;
-                            }
-                        }
-                        else if (msg->kind == MsgKind::Cancelled)
-                            workerFinished = false;
-                        if (msg->kind == MsgKind::Error ||
-                            msg->kind == MsgKind::Progress ||
-                            msg->kind == MsgKind::Done)
-                        {
-                            std::strncpy(statusText, msg->text,
-                                         sizeof(statusText) - 1);
-                            statusText[sizeof(statusText) - 1] = '\0';
-                            statusIsError =
-                                (msg->kind == MsgKind::Error);
-                        }
-                    }
 
                     bool running = channel.is_running.load();
 
@@ -252,12 +220,37 @@ namespace shoecomp
                 ImGui::EndTabBar();
             }
 
+            // Drain messages outside of tabs so
+            // they are processed regardless of
+            // which tab is active.
+            while (auto msg = channel.messages.pop())
+            {
+                if (msg->kind == MsgKind::Done)
+                {
+                    workerFinished = true;
+                    cleanup();
+                }
+                else if (msg->kind == MsgKind::Cancelled)
+                {
+                    workerFinished = false;
+                    cleanup();
+                }
+                if (msg->kind == MsgKind::Error ||
+                    msg->kind == MsgKind::Progress ||
+                    msg->kind == MsgKind::Done)
+                {
+                    std::strncpy(statusText, msg->text,
+                                 sizeof(statusText) - 1);
+                    statusText[sizeof(statusText) - 1] = '\0';
+                    statusIsError = (msg->kind == MsgKind::Error);
+                }
+            }
+
             ImGui::Separator();
 
             if (ImGui::Button("Exit"))
             {
                 cancelWorker();
-                cleanup();
                 open = false;
                 ImGui::CloseCurrentPopup();
             }
@@ -277,7 +270,6 @@ namespace shoecomp
         workerFinished = false;
         statusText[0] = '\0';
         statusIsError = false;
-        workerResults.clear();
 
         auto left = leftImage;
         auto right = rightImage;
@@ -297,7 +289,10 @@ namespace shoecomp
 
     void AlignDialog::cleanup()
     {
-        if (workerThread.joinable()) workerThread.join();
+        if (workerThread.joinable())
+        {
+            workerThread.join();
+        }
     }
 
 }  // namespace shoecomp

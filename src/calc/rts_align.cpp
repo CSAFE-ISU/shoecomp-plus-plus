@@ -69,6 +69,7 @@ namespace shoecomp
             return;
         }
 
+        printf("fitting tforms...\n");
         AlignCalc::RTSTransform tform;
         for (const auto& match : results)
         {
@@ -80,11 +81,12 @@ namespace shoecomp
             aligns.back().scale = tform.scale;
             aligns.back().mode = AlignMode::Automatic;
         }
+        printf("fitted %ld tforms...\n", aligns.size());
 
         char buf[64];
         snprintf(buf, sizeof(buf), "%zu alignment(s) added",
                  aligns.size());
-        channel.post(MsgKind::Done, buf);
+        channel.post(MsgKind::Done, buf, 1.0f);
         channel.done();
     }
 }  // namespace shoecomp
