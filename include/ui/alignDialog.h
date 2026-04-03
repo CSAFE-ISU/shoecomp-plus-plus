@@ -27,13 +27,6 @@ namespace shoecomp
         jt::Json info;
     };
 
-    enum class AlignDialogResult
-    {
-        None,
-        Add,
-        Replace
-    };
-
     struct AlignDialog
     {
         bool show = false;
@@ -42,18 +35,17 @@ namespace shoecomp
         std::string rightName;
         std::shared_ptr<ImageData> leftImage;
         std::shared_ptr<ImageData> rightImage;
-        AlignMode mode = AlignMode::Manual;
-        AlignState current;
         std::vector<AlignState> workerResults;
         WorkerChannel channel;
         std::thread workerThread;
         bool workerFinished = false;
-        AlignCalc::RTSParams rtsParams{0.05, 0.05, 2, 4, 3, 500};
+        AlignCalc::RTSParams rtsParams{
+            0.05, 0.05, 2, 4, 3, 500};
         char statusText[120]{};
         bool statusIsError = false;
 
-        AlignDialogResult render(const std::vector<AlignState>& aligns,
-                                  int alignIdx);
+        void render();
+        void drainMessages();
         void startWorker();
         void cancelWorker();
         void cleanup();

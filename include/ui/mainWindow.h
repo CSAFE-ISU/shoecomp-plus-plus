@@ -41,6 +41,11 @@ namespace shoecomp
         // window, -1 = none)
         int activeGalleryImage = -1;
 
+        // Alignment edit popup
+        bool alignEditOpen = false;
+        AlignState alignEditState;
+        AlignState alignEditOriginal;
+
         // Dialogs
         LoadBrowser imageLoadBrowser;
         SaveBrowser imageSaveBrowser;
