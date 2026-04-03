@@ -36,6 +36,17 @@ namespace shoecomp
                     (msg->kind == MsgKind::Error);
             }
         }
+
+        // The SPSC ring buffer silently drops
+        // messages when full. If the worker
+        // stopped but we never saw Done or
+        // Cancelled, recover here.
+        if (!channel.is_running.load() &&
+            workerThread.joinable())
+        {
+            cleanup();
+            workerFinished = !workerResults.empty();
+        }
     }
 
     void AlignDialog::render()
