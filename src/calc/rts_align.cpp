@@ -81,6 +81,27 @@ namespace shoecomp
             aligns.back().translationY = tform.dy;
             aligns.back().scale = tform.scale;
             aligns.back().mode = AlignMode::Automatic;
+
+            // Store matched points in info
+            aligns.back().info.setObject();
+            aligns.back().info["leftPoints"].setArray();
+            aligns.back().info["rightPoints"].setArray();
+            for (int32_t i = 0; i < match.N; ++i)
+            {
+                jt::Json lpt;
+                lpt.setObject();
+                lpt["x"] = match.left_pts(i, 0);
+                lpt["y"] = match.left_pts(i, 1);
+                aligns.back().info["leftPoints"].getArray().push_back(
+                    std::move(lpt));
+
+                jt::Json rpt;
+                rpt.setObject();
+                rpt["x"] = match.right_pts(i, 0);
+                rpt["y"] = match.right_pts(i, 1);
+                aligns.back().info["rightPoints"].getArray().push_back(
+                    std::move(rpt));
+            }
         }
         printf("fitted %ld tforms...\n", aligns.size());
 

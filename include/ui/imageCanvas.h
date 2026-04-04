@@ -45,6 +45,15 @@ namespace shoecomp
         ImVec2 panTarget = ImVec2(0, 0);
         float rotation = 0.0f;
         float rotationTarget = 0.0f;
+
+        // Locked indicator state
+        bool isHovered = false;
+        ImVec2 canvasPos = ImVec2(0, 0);
+        ImVec2 canvasSize = ImVec2(0, 0);
+        float baseScale = 1.0f;
+        float centerX = 0.0f;
+        float centerY = 0.0f;
+        float renderScale = 1.0f;
     };
 
     struct ImageData

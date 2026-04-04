@@ -256,6 +256,166 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    static void renderLockedCursorIndicators(AppState& state)
+    {
+        // Debug: check each condition
+        if (!state.viewerLocked)
+        {
+            // Not locked - this is expected, no debug needed
+            return;
+        }
+
+        if (state.viewerLeftIdx < 0 || state.viewerRightIdx < 0)
+        {
+            // Debug: uncomment to see if indices are invalid
+            // printf("DEBUG: Invalid indices - left: %d, right: %d\n",
+            //        state.viewerLeftIdx, state.viewerRightIdx);
+            return;
+        }
+
+        auto& leftView = state.viewerLeft.viewState;
+        auto& rightView = state.viewerRight.viewState;
+
+        if (!leftView.isHovered && !rightView.isHovered)
+        {
+            // Debug: uncomment to see hover state
+            // printf("DEBUG: Neither hovered - left: %d, right: %d\n",
+            //        leftView.isHovered, rightView.isHovered);
+            return;
+        }
+
+        auto& leftImg = state.viewerLeft.image;
+        auto& rightImg = state.viewerRight.image;
+        if (!leftImg || !rightImg)
+        {
+            // Debug: uncomment to see if images are missing
+            // printf("DEBUG: Missing images - left: %p, right: %p\n",
+            //        (void*)leftImg.get(), (void*)rightImg.get());
+            return;
+        }
+
+        // Debug: uncomment to confirm we're reaching the drawing code
+        // printf("DEBUG: Drawing circles! Left hovered: %d, Right hovered: %d\n",
+        //        leftView.isHovered, rightView.isHovered);
+
+        auto& align = state.viewerAlignments[state.viewerAlignmentIdx];
+
+        // Check if we have matched points stored
+        if (!align.info.isObject() ||
+            !align.info.contains("leftPoints") ||
+            !align.info.contains("rightPoints"))
+        {
+            return;  // No matched points available
+        }
+
+        auto& leftPoints = align.info["leftPoints"].getArray();
+        auto& rightPoints = align.info["rightPoints"].getArray();
+        if (leftPoints.size() == 0 || leftPoints.size() != rightPoints.size())
+        {
+            return;
+        }
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+
+        // Visual constants
+        const float primaryRadius = 8.0f;
+        const ImU32 primaryFill = IM_COL32(0, 220, 255, 200);
+        const ImU32 primaryOutline = IM_COL32(255, 255, 255, 255);
+        const float secondaryRadius = 8.0f;
+        const ImU32 correspondingColor = IM_COL32(0, 255, 100, 180);  // Green: corresponding point
+        const float hoverThreshold = 15.0f;  // pixels
+
+        if (leftView.isHovered)
+        {
+            // Always draw cyan circle at cursor
+            dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
+            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12, 1.5f);
+
+            // Find if cursor is near any matched point
+            for (size_t i = 0; i < leftPoints.size(); ++i)
+            {
+                float lx = leftPoints[i]["x"].getFloat();
+                float ly = leftPoints[i]["y"].getFloat();
+
+                // Convert left point to screen coordinates
+                ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
+                    lx, ly, leftView.centerX, leftView.centerY,
+                    leftView.renderScale,
+                    cosf(leftView.rotation), sinf(leftView.rotation),
+                    leftImg->width, leftImg->height);
+
+                // Check if cursor is near this point
+                float dx = io.MousePos.x - leftScreenPos.x;
+                float dy = io.MousePos.y - leftScreenPos.y;
+                float dist = sqrtf(dx * dx + dy * dy);
+
+                if (dist < hoverThreshold)
+                {
+                    // Draw corresponding circle on right
+                    float rx = rightPoints[i]["x"].getFloat();
+                    float ry = rightPoints[i]["y"].getFloat();
+
+                    ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
+                        rx, ry, rightView.centerX, rightView.centerY,
+                        rightView.renderScale,
+                        cosf(rightView.rotation), sinf(rightView.rotation),
+                        rightImg->width, rightImg->height);
+
+                    dl->AddCircleFilled(rightScreenPos, secondaryRadius,
+                                      correspondingColor);
+                    dl->AddCircle(rightScreenPos, secondaryRadius,
+                                primaryOutline, 12, 2.5f);
+                    break;  // Only show first matching point
+                }
+            }
+        }
+        else if (rightView.isHovered)
+        {
+            // Always draw cyan circle at cursor
+            dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
+            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12, 1.5f);
+
+            // Find if cursor is near any matched point
+            for (size_t i = 0; i < rightPoints.size(); ++i)
+            {
+                float rx = rightPoints[i]["x"].getFloat();
+                float ry = rightPoints[i]["y"].getFloat();
+
+                // Convert right point to screen coordinates
+                ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
+                    rx, ry, rightView.centerX, rightView.centerY,
+                    rightView.renderScale,
+                    cosf(rightView.rotation), sinf(rightView.rotation),
+                    rightImg->width, rightImg->height);
+
+                // Check if cursor is near this point
+                float dx = io.MousePos.x - rightScreenPos.x;
+                float dy = io.MousePos.y - rightScreenPos.y;
+                float dist = sqrtf(dx * dx + dy * dy);
+
+                if (dist < hoverThreshold)
+                {
+                    // Draw corresponding circle on left
+                    float lx = leftPoints[i]["x"].getFloat();
+                    float ly = leftPoints[i]["y"].getFloat();
+
+                    ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
+                        lx, ly, leftView.centerX, leftView.centerY,
+                        leftView.renderScale,
+                        cosf(leftView.rotation), sinf(leftView.rotation),
+                        leftImg->width, leftImg->height);
+
+                    dl->AddCircleFilled(leftScreenPos, secondaryRadius,
+                                      correspondingColor);
+                    dl->AddCircle(leftScreenPos, secondaryRadius,
+                                primaryOutline, 12, 2.5f);
+                    break;  // Only show first matching point
+                }
+            }
+        }
+    }
+
     static void renderLockToggle(bool& locked)
     {
         if (ImGui::Button(locked ? "Unlock" : "Lock")) locked = !locked;
@@ -376,6 +536,9 @@ namespace shoecomp
                                state.viewerLeftIdx, state.viewerRight,
                                "##Right");
             ImGui::EndChild();
+
+            // Draw locked cursor indicators
+            renderLockedCursorIndicators(state);
 
             // Apply locked sync with alignment
             // offset after both viewers render.

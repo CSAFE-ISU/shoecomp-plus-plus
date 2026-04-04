@@ -402,9 +402,16 @@ namespace shoecomp
             viewState.zoom = viewState.zoomTarget;
 
         ImVec2 canvasPos = ImGui::GetCursorScreenPos();
+
+        // Store for locked indicators
+        viewState.canvasPos = canvasPos;
+        viewState.canvasSize = avail;
+        viewState.baseScale = baseScale;
+
         ImGui::InvisibleButton(canvasId, avail,
                                ImGuiButtonFlags_MouseButtonLeft);
         bool hovered = ImGui::IsItemHovered();
+        viewState.isHovered = hovered;  // Store hover state
         bool active = ImGui::IsItemActive();
         ImGuiIO& io = ImGui::GetIO();
 
@@ -563,6 +570,9 @@ namespace shoecomp
             ImVec2(canvasPos.x + avail.x, canvasPos.y + avail.y), true);
         float cx = canvasPos.x + avail.x * 0.5f + viewState.pan.x;
         float cy = canvasPos.y + avail.y * 0.5f + viewState.pan.y;
+
+        viewState.centerX = cx;
+        viewState.centerY = cy;
         float hw = dispW * 0.5f;
         float hh = dispH * 0.5f;
         float cosR = cosf(viewState.rotation);
@@ -582,6 +592,8 @@ namespace shoecomp
 
         // Dim area outside bounds when not editing
         float annScale = baseScale * viewState.zoom;
+        viewState.renderScale = annScale;
+
         if (mode != AnnotationMode::AddBounds &&
             hasAnnotationArray(image->annotations, "bounds") &&
             image->annotations["bounds"].getArray().size() >= 3)
