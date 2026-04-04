@@ -328,9 +328,23 @@ namespace shoecomp
 
         if (leftView.isHovered)
         {
+            // Get cursor position in image coordinates
+            ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
+                io.MousePos, leftView.canvasPos, leftView.canvasSize,
+                leftView.pan, leftView.zoom, leftView.baseScale,
+                leftView.rotation, leftImg->width, leftImg->height);
+
             // Always draw cyan circle at cursor
             dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
             dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12, 1.5f);
+
+            // Draw pixel coordinates
+            char coordText[64];
+            snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
+                     imgCoord.x, imgCoord.y);
+            ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
+                          io.MousePos.y - primaryRadius);
+            dl->AddText(textPos, primaryFill, coordText);
 
             // Find if cursor is near any matched point
             for (size_t i = 0; i < leftPoints.size(); ++i)
@@ -372,9 +386,23 @@ namespace shoecomp
         }
         else if (rightView.isHovered)
         {
+            // Get cursor position in image coordinates
+            ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
+                io.MousePos, rightView.canvasPos, rightView.canvasSize,
+                rightView.pan, rightView.zoom, rightView.baseScale,
+                rightView.rotation, rightImg->width, rightImg->height);
+
             // Always draw cyan circle at cursor
             dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
             dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12, 1.5f);
+
+            // Draw pixel coordinates
+            char coordText[64];
+            snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
+                     imgCoord.x, imgCoord.y);
+            ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
+                          io.MousePos.y - primaryRadius);
+            dl->AddText(textPos, primaryFill, coordText);
 
             // Find if cursor is near any matched point
             for (size_t i = 0; i < rightPoints.size(); ++i)
