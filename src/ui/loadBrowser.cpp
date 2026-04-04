@@ -16,17 +16,14 @@ namespace shoecomp
         }
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-            ImGuiCond_Always);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-            ImGuiCond_Always);
+        ImGui::SetNextWindowSize(ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+                                 ImGuiCond_Always);
+        ImGui::SetNextWindowPos(ImVec2(ds.x * 0.25f, ds.y * 0.2f),
+                                ImGuiCond_Always);
 
         bool browserOpen = true;
-        if (!ImGui::BeginPopupModal(
-                title.c_str(), &browserOpen,
-                ImGuiWindowFlags_NoResize))
+        if (!ImGui::BeginPopupModal(title.c_str(), &browserOpen,
+                                    ImGuiWindowFlags_NoResize))
             return;
         if (!browserOpen)
         {
@@ -37,8 +34,7 @@ namespace shoecomp
 
         ImGui::Text("Directory: %s", currentDir.c_str());
         ImGui::SameLine();
-        if (ImGui::Button("Refresh"))
-            dirNeedsRefresh = true;
+        if (ImGui::Button("Refresh")) dirNeedsRefresh = true;
 
         if (dirNeedsRefresh)
         {
@@ -46,55 +42,42 @@ namespace shoecomp
             dirEntries.push_back("..");
             try
             {
-                for (auto& entry :
-                     fs::directory_iterator(currentDir))
+                for (auto& entry : fs::directory_iterator(currentDir))
                 {
-                    std::string name =
-                        entry.path().filename().string();
+                    std::string name = entry.path().filename().string();
                     if (entry.is_directory())
                         dirEntries.push_back(name + "/");
-                    else if (entry.path().extension() ==
-                             extension)
+                    else if (entry.path().extension() == extension)
                         dirEntries.push_back(name);
                 }
             }
             catch (...)
             {
             }
-            std::sort(dirEntries.begin() + 1,
-                      dirEntries.end());
+            std::sort(dirEntries.begin() + 1, dirEntries.end());
             dirNeedsRefresh = false;
         }
 
-        ImVec2 listAvail =
-            ImGui::GetContentRegionAvail();
-        float bottomH =
-            ImGui::GetFrameHeightWithSpacing();
-        ImGui::BeginChild(
-            "FileList",
-            ImVec2(listAvail.x,
-                   listAvail.y - bottomH),
-            ImGuiChildFlags_Borders);
+        ImVec2 listAvail = ImGui::GetContentRegionAvail();
+        float bottomH = ImGui::GetFrameHeightWithSpacing();
+        ImGui::BeginChild("FileList",
+                          ImVec2(listAvail.x, listAvail.y - bottomH),
+                          ImGuiChildFlags_Borders);
         for (auto& entry : dirEntries)
         {
-            bool isDir =
-                entry == ".." || entry.back() == '/';
+            bool isDir = entry == ".." || entry.back() == '/';
             ImGuiSelectableFlags flags =
-                isDir
-                    ? ImGuiSelectableFlags_None
-                    : ImGuiSelectableFlags_AllowDoubleClick;
+                isDir ? ImGuiSelectableFlags_None
+                      : ImGuiSelectableFlags_AllowDoubleClick;
 
-            if (ImGui::Selectable(entry.c_str(), false,
-                                  flags))
+            if (ImGui::Selectable(entry.c_str(), false, flags))
             {
                 if (entry == "..")
                 {
                     try
                     {
                         currentDir =
-                            fs::canonical(
-                                fs::path(currentDir) /
-                                "..")
+                            fs::canonical(fs::path(currentDir) / "..")
                                 .string();
                     }
                     catch (...)
@@ -104,15 +87,13 @@ namespace shoecomp
                 }
                 else if (entry.back() == '/')
                 {
-                    std::string dirName = entry.substr(
-                        0, entry.size() - 1);
+                    std::string dirName =
+                        entry.substr(0, entry.size() - 1);
                     try
                     {
-                        currentDir =
-                            fs::canonical(
-                                fs::path(currentDir) /
-                                dirName)
-                                .string();
+                        currentDir = fs::canonical(
+                                         fs::path(currentDir) / dirName)
+                                         .string();
                     }
                     catch (...)
                     {
@@ -123,12 +104,9 @@ namespace shoecomp
                              ImGuiMouseButton_Left))
                 {
                     std::string fullPath =
-                        fs::canonical(
-                            fs::path(currentDir) /
-                            entry)
+                        fs::canonical(fs::path(currentDir) / entry)
                             .string();
-                    if (onSelect)
-                        onSelect(fullPath, entry);
+                    if (onSelect) onSelect(fullPath, entry);
                     ImGui::CloseCurrentPopup();
                 }
             }
@@ -138,10 +116,7 @@ namespace shoecomp
         ImGui::Checkbox("Load Corresponding JSON",
                         &loadCorrespondingJson);
         ImGui::SameLine();
-        if (ImGui::Button("Cancel"))
-        {
-            ImGui::CloseCurrentPopup();
-        }
+        if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
 
         ImGui::EndPopup();
     }

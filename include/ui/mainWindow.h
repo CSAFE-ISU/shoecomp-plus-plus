@@ -33,8 +33,7 @@ namespace shoecomp
         ImageCanvas viewerLeft;
         ImageCanvas viewerRight;
         bool viewerLocked = false;
-        std::vector<AlignState> viewerAlignments{
-            AlignState{}};
+        std::vector<AlignState> viewerAlignments{AlignState{}};
         int viewerAlignmentIdx = 0;
 
         // Active gallery image (last-focused

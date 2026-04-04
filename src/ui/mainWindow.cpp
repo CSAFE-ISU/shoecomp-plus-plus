@@ -473,8 +473,7 @@ namespace shoecomp
                     state.viewerLocked = false;
                     float rad =
                         na.rotation * (3.14159265358979f / 180.0f);
-                    rv.zoom = rv.zoomTarget =
-                        lv.zoomTarget * na.scale;
+                    rv.zoom = rv.zoomTarget = lv.zoomTarget * na.scale;
                     rv.rotation = rv.rotationTarget =
                         lv.rotationTarget + rad;
                     rv.pan = rv.panTarget =
@@ -498,8 +497,7 @@ namespace shoecomp
                     state.viewerLocked = false;
                     float rad =
                         na.rotation * (3.14159265358979f / 180.0f);
-                    rv.zoom = rv.zoomTarget =
-                        lv.zoomTarget * na.scale;
+                    rv.zoom = rv.zoomTarget = lv.zoomTarget * na.scale;
                     rv.rotation = rv.rotationTarget =
                         lv.rotationTarget + rad;
                     rv.pan = rv.panTarget =
@@ -536,8 +534,7 @@ namespace shoecomp
                 auto& rv2 = state.viewerRight.viewState;
                 state.viewerLocked = false;
                 float rad2 = na.rotation * (3.14159265358979f / 180.0f);
-                rv2.zoom = rv2.zoomTarget =
-                    lv2.zoomTarget * na.scale;
+                rv2.zoom = rv2.zoomTarget = lv2.zoomTarget * na.scale;
                 rv2.rotation = rv2.rotationTarget =
                     lv2.rotationTarget + rad2;
                 rv2.pan = rv2.panTarget =
@@ -551,10 +548,8 @@ namespace shoecomp
             if (ImGui::Button("Edit"))
             {
                 state.alignEditState =
-                    state.viewerAlignments
-                        [state.viewerAlignmentIdx];
-                state.alignEditOriginal =
-                    state.alignEditState;
+                    state.viewerAlignments[state.viewerAlignmentIdx];
+                state.alignEditOriginal = state.alignEditState;
                 state.alignEditOpen = true;
             }
         }
@@ -785,19 +780,17 @@ namespace shoecomp
             state.alignDialog.workerFinished &&
             !state.alignDialog.workerResults.empty())
         {
-            size_t count =
-                state.alignDialog.workerResults.size();
-            for (auto& a :
-                 state.alignDialog.workerResults)
-                state.viewerAlignments.push_back(
-                    std::move(a));
+            size_t count = state.alignDialog.workerResults.size();
+            for (auto& a : state.alignDialog.workerResults)
+                state.viewerAlignments.push_back(std::move(a));
             state.viewerAlignmentIdx =
                 (int)state.viewerAlignments.size() - 1;
             state.alignDialog.workerResults.clear();
             state.alignDialog.workerFinished = false;
-            printf("mainWindow: %zu alignment(s) "
-                   "added\n",
-                   count);
+            printf(
+                "mainWindow: %zu alignment(s) "
+                "added\n",
+                count);
         }
 
         // Alignment edit popup
@@ -807,56 +800,42 @@ namespace shoecomp
             state.alignEditOpen = false;
         }
         ImVec2 eds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(eds.x * 0.35f, eds.y * 0.35f),
-            ImGuiCond_Appearing);
-        ImGui::SetNextWindowPos(
-            ImVec2(eds.x * 0.325f, eds.y * 0.325f),
-            ImGuiCond_Appearing);
+        ImGui::SetNextWindowSize(ImVec2(eds.x * 0.35f, eds.y * 0.35f),
+                                 ImGuiCond_Appearing);
+        ImGui::SetNextWindowPos(ImVec2(eds.x * 0.325f, eds.y * 0.325f),
+                                ImGuiCond_Appearing);
         if (ImGui::BeginPopupModal(
                 "Edit Alignment", nullptr,
-                ImGuiWindowFlags_NoResize |
-                    ImGuiWindowFlags_NoMove))
+                ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
         {
             bool changed = false;
             changed |= ImGui::SliderFloat(
-                "Rotation (deg)",
-                &state.alignEditState.rotation,
+                "Rotation (deg)", &state.alignEditState.rotation,
                 -180.0f, 180.0f, "%.1f");
             changed |= ImGui::SliderFloat(
-                "Translation X",
-                &state.alignEditState.translationX,
+                "Translation X", &state.alignEditState.translationX,
                 -2000.0f, 2000.0f, "%.1f");
             changed |= ImGui::SliderFloat(
-                "Translation Y",
-                &state.alignEditState.translationY,
+                "Translation Y", &state.alignEditState.translationY,
                 -2000.0f, 2000.0f, "%.1f");
-            changed |= ImGui::SliderFloat(
-                "Scale",
-                &state.alignEditState.scale, 0.1f,
-                10.0f, "%.2f");
+            changed |=
+                ImGui::SliderFloat("Scale", &state.alignEditState.scale,
+                                   0.1f, 10.0f, "%.2f");
 
             // Live-update right viewer transform
             if (changed)
             {
                 auto& ae = state.alignEditState;
-                auto& lv =
-                    state.viewerLeft.viewState;
-                auto& rv =
-                    state.viewerRight.viewState;
+                auto& lv = state.viewerLeft.viewState;
+                auto& rv = state.viewerRight.viewState;
                 state.viewerLocked = false;
-                float rad =
-                    ae.rotation *
-                    (3.14159265358979f / 180.0f);
-                rv.zoom = rv.zoomTarget =
-                    lv.zoomTarget * ae.scale;
+                float rad = ae.rotation * (3.14159265358979f / 180.0f);
+                rv.zoom = rv.zoomTarget = lv.zoomTarget * ae.scale;
                 rv.rotation = rv.rotationTarget =
                     lv.rotationTarget + rad;
-                rv.pan = rv.panTarget = ImVec2(
-                    lv.panTarget.x +
-                        ae.translationX,
-                    lv.panTarget.y +
-                        ae.translationY);
+                rv.pan = rv.panTarget =
+                    ImVec2(lv.panTarget.x + ae.translationX,
+                           lv.panTarget.y + ae.translationY);
                 state.viewerLocked = true;
             }
 
@@ -864,37 +843,27 @@ namespace shoecomp
             ImGui::Separator();
             if (ImGui::Button("Save"))
             {
-                state.viewerAlignments
-                    [state.viewerAlignmentIdx] =
-                        state.alignEditState;
+                state.viewerAlignments[state.viewerAlignmentIdx] =
+                    state.alignEditState;
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
             if (ImGui::Button("Cancel"))
             {
                 // Revert to original alignment
-                auto& orig =
-                    state.alignEditOriginal;
-                state.viewerAlignments
-                    [state.viewerAlignmentIdx] =
-                        orig;
-                auto& lv =
-                    state.viewerLeft.viewState;
-                auto& rv =
-                    state.viewerRight.viewState;
+                auto& orig = state.alignEditOriginal;
+                state.viewerAlignments[state.viewerAlignmentIdx] = orig;
+                auto& lv = state.viewerLeft.viewState;
+                auto& rv = state.viewerRight.viewState;
                 state.viewerLocked = false;
                 float rad =
-                    orig.rotation *
-                    (3.14159265358979f / 180.0f);
-                rv.zoom = rv.zoomTarget =
-                    lv.zoomTarget * orig.scale;
+                    orig.rotation * (3.14159265358979f / 180.0f);
+                rv.zoom = rv.zoomTarget = lv.zoomTarget * orig.scale;
                 rv.rotation = rv.rotationTarget =
                     lv.rotationTarget + rad;
-                rv.pan = rv.panTarget = ImVec2(
-                    lv.panTarget.x +
-                        orig.translationX,
-                    lv.panTarget.y +
-                        orig.translationY);
+                rv.pan = rv.panTarget =
+                    ImVec2(lv.panTarget.x + orig.translationX,
+                           lv.panTarget.y + orig.translationY);
                 state.viewerLocked = true;
                 ImGui::CloseCurrentPopup();
             }

@@ -53,8 +53,7 @@ namespace shoecomp
             {
                 if (!el["type"].isString()) return -1;
                 auto& t = el["type"].getString();
-                if (t != "Corner" && t != "Center")
-                    return -1;
+                if (t != "Corner" && t != "Center") return -1;
             }
         }
 

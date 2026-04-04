@@ -11,8 +11,7 @@ namespace shoecomp
     {
         bool show = false;
         void render(std::vector<ImageCanvas>& images,
-                    int& viewerLeftIdx,
-                    int& viewerRightIdx,
+                    int& viewerLeftIdx, int& viewerRightIdx,
                     int& activeGalleryImage);
     };
 }  // namespace shoecomp

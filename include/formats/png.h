@@ -6,15 +6,13 @@
 
 namespace shoecomp
 {
-    bool loadPngFromDisk(
-        const std::string& filePath,
-        ImTextureID& outTextureId,
-        int& outWidth, int& outHeight);
+    bool loadPngFromDisk(const std::string& filePath,
+                         ImTextureID& outTextureId, int& outWidth,
+                         int& outHeight);
 
-    int savePngToDisk(
-        const std::string& filePath,
-        const unsigned char* rgbaData,
-        int width, int height);
+    int savePngToDisk(const std::string& filePath,
+                      const unsigned char* rgbaData, int width,
+                      int height);
 
     void freeTexture(ImTextureID textureId);
 } /* namespace shoecomp */

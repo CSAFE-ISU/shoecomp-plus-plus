@@ -6,18 +6,16 @@
 namespace shoecomp
 {
     int savePngToDisk(const std::string& filePath,
-                      const unsigned char* rgbaData,
-                      int width, int height)
+                      const unsigned char* rgbaData, int width,
+                      int height)
     {
-        if (!rgbaData || width <= 0 || height <= 0)
-            return -1;
+        if (!rgbaData || width <= 0 || height <= 0) return -1;
 
         FILE* fp = fopen(filePath.c_str(), "wb");
         if (!fp) return -1;
 
         png_structp png = png_create_write_struct(
-            PNG_LIBPNG_VER_STRING, nullptr, nullptr,
-            nullptr);
+            PNG_LIBPNG_VER_STRING, nullptr, nullptr, nullptr);
         if (!png)
         {
             fclose(fp);
@@ -41,10 +39,8 @@ namespace shoecomp
 
         png_init_io(png, fp);
 
-        png_set_IHDR(png, info, width, height, 8,
-                     PNG_COLOR_TYPE_RGBA,
-                     PNG_INTERLACE_NONE,
-                     PNG_COMPRESSION_TYPE_DEFAULT,
+        png_set_IHDR(png, info, width, height, 8, PNG_COLOR_TYPE_RGBA,
+                     PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT,
                      PNG_FILTER_TYPE_DEFAULT);
 
         png_write_info(png, info);
@@ -54,9 +50,7 @@ namespace shoecomp
         for (int y = 0; y < height; ++y)
             rows[y] = rgbaData + y * stride;
 
-        png_write_image(
-            png,
-            const_cast<png_bytepp>(rows.data()));
+        png_write_image(png, const_cast<png_bytepp>(rows.data()));
         png_write_end(png, nullptr);
 
         png_destroy_write_struct(&png, &info);

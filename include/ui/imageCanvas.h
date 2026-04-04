@@ -24,19 +24,15 @@ namespace shoecomp
     };
 
     const char* pointTypeToString(PointType t);
-    PointType stringToPointType(
-        const std::string& s);
+    PointType stringToPointType(const std::string& s);
 
     struct AnnotationStyle
     {
         float pointRadius = 5.0f;
-        float cornerColor[4] = {
-            1.0f, 0.2f, 0.2f, 0.86f};
-        float centerColor[4] = {
-            0.2f, 0.39f, 1.0f, 0.86f};
+        float cornerColor[4] = {1.0f, 0.2f, 0.2f, 0.86f};
+        float centerColor[4] = {0.2f, 0.39f, 1.0f, 0.86f};
         float boundsLineThickness = 2.0f;
-        float boundsColor[4] = {
-            0.2f, 1.0f, 0.2f, 0.86f};
+        float boundsColor[4] = {0.2f, 1.0f, 0.2f, 0.86f};
     };
 
     extern AnnotationStyle g_annotationStyle;
@@ -59,10 +55,8 @@ namespace shoecomp
         int width = 0;
         int height = 0;
         jt::Json annotations;
-        AnnotationMode annotationMode =
-            AnnotationMode::None;
-        PointType selectedPointType =
-            PointType::Corner;
+        AnnotationMode annotationMode = AnnotationMode::None;
+        PointType selectedPointType = PointType::Corner;
 
         ~ImageData();
     };
@@ -73,35 +67,32 @@ namespace shoecomp
         ImageViewState viewState;
 
         ImageCanvas();
-        explicit ImageCanvas(
-            std::shared_ptr<ImageData> img);
+        explicit ImageCanvas(std::shared_ptr<ImageData> img);
 
         // Static math helpers (pure functions)
-        static ImVec2 screenToImageCoord(
-            ImVec2 sp, ImVec2 canvasPos, ImVec2 avail,
-            ImVec2 pan, float zoom, float baseScale,
-            float rotation, int imgW, int imgH);
+        static ImVec2 screenToImageCoord(ImVec2 sp, ImVec2 canvasPos,
+                                         ImVec2 avail, ImVec2 pan,
+                                         float zoom, float baseScale,
+                                         float rotation, int imgW,
+                                         int imgH);
 
-        static ImVec2 imageToScreenCoord(
-            float ix, float iy, float cx, float cy,
-            float scale, float cosR, float sinR,
-            int imgW, int imgH);
+        static ImVec2 imageToScreenCoord(float ix, float iy, float cx,
+                                         float cy, float scale,
+                                         float cosR, float sinR,
+                                         int imgW, int imgH);
 
-        static bool pointInPolygon(
-            float px, float py,
-            std::vector<jt::Json>& poly);
+        static bool pointInPolygon(float px, float py,
+                                   std::vector<jt::Json>& poly);
 
         // Instance methods
         void removePointsOutsideBounds();
 
-        void renderCanvas(
-            const char* canvasId,
-            ImageViewState* linked = nullptr);
+        void renderCanvas(const char* canvasId,
+                          ImageViewState* linked = nullptr);
 
-        void renderToolbar(
-            const char* toolbarId,
-            ImageViewState* linked = nullptr);
+        void renderToolbar(const char* toolbarId,
+                           ImageViewState* linked = nullptr);
     };
-}
+}  // namespace shoecomp
 
 #endif

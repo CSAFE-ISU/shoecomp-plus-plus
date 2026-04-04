@@ -17,8 +17,7 @@ namespace shoecomp
                 workerFinished = true;
                 cleanup();
             }
-            else if (msg->kind ==
-                     MsgKind::Cancelled)
+            else if (msg->kind == MsgKind::Cancelled)
             {
                 workerFinished = false;
                 cleanup();
@@ -27,14 +26,11 @@ namespace shoecomp
                 msg->kind == MsgKind::Progress ||
                 msg->kind == MsgKind::Done)
             {
-                if(!msg->text || msg->text[0] == '\0') continue;
-                std::strncpy(
-                    statusText, msg->text,
-                    sizeof(statusText) - 1);
-                statusText[sizeof(statusText) -
-                           1] = '\0';
-                statusIsError =
-                    (msg->kind == MsgKind::Error);
+                if (!msg->text || msg->text[0] == '\0') continue;
+                std::strncpy(statusText, msg->text,
+                             sizeof(statusText) - 1);
+                statusText[sizeof(statusText) - 1] = '\0';
+                statusIsError = (msg->kind == MsgKind::Error);
             }
         }
 
@@ -42,8 +38,7 @@ namespace shoecomp
         // messages when full. If the worker
         // stopped but we never saw Done or
         // Cancelled, recover here.
-        if (!channel.is_running.load() &&
-            workerThread.joinable())
+        if (!channel.is_running.load() && workerThread.joinable())
         {
             cleanup();
             workerFinished = !workerResults.empty();
@@ -66,85 +61,64 @@ namespace shoecomp
         if (!open) return;
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(
-            ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-            ImGuiCond_Appearing);
-        ImGui::SetNextWindowPos(
-            ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-            ImGuiCond_Appearing);
+        ImGui::SetNextWindowSize(ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+                                 ImGuiCond_Appearing);
+        ImGui::SetNextWindowPos(ImVec2(ds.x * 0.25f, ds.y * 0.2f),
+                                ImGuiCond_Appearing);
 
         if (ImGui::BeginPopupModal(
                 "Align Images", nullptr,
-                ImGuiWindowFlags_NoResize |
-                    ImGuiWindowFlags_NoMove))
+                ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
         {
-            ImGui::Text("Aligning %s to %s",
-                        rightName.c_str(),
+            ImGui::Text("Aligning %s to %s", rightName.c_str(),
                         leftName.c_str());
             ImGui::Separator();
 
-            int nw = static_cast<int>(
-                rtsParams.numWorkers);
+            int nw = static_cast<int>(rtsParams.numWorkers);
             if (ImGui::SliderInt("Workers", &nw, 1, 8))
             {
-                rtsParams.numWorkers =
-                    static_cast<size_t>(nw);
+                rtsParams.numWorkers = static_cast<size_t>(nw);
             }
 
-            int nr = static_cast<int>(
-                rtsParams.numResults);
+            int nr = static_cast<int>(rtsParams.numResults);
             if (ImGui::InputInt("Results", &nr))
             {
                 if (nr < 1) nr = 1;
-                rtsParams.numResults =
-                    static_cast<size_t>(nr);
+                rtsParams.numResults = static_cast<size_t>(nr);
             }
 
             int maxPts = 256;
             auto countPts =
-                [](const std::shared_ptr<ImageData>&
-                       img) -> int
+                [](const std::shared_ptr<ImageData>& img) -> int
             {
                 if (!img) return 0;
                 auto& a = img->annotations;
-                if (!a.isObject() ||
-                    !a.contains("points") ||
+                if (!a.isObject() || !a.contains("points") ||
                     !a["points"].isArray())
                     return 0;
-                return static_cast<int>(
-                    a["points"].getArray().size());
+                return static_cast<int>(a["points"].getArray().size());
             };
             int lp = countPts(leftImage);
             int rp = countPts(rightImage);
             maxPts = std::max(3, std::min(lp, rp));
             rtsParams.upperBound = maxPts;
 
-            ImGui::SliderInt("Lower Bound",
-                             &rtsParams.lowerBound, 3,
+            ImGui::SliderInt("Lower Bound", &rtsParams.lowerBound, 3,
                              maxPts);
-            if (rtsParams.lowerBound < 3)
-                rtsParams.lowerBound = 3;
+            if (rtsParams.lowerBound < 3) rtsParams.lowerBound = 3;
 
-            ImGui::SliderInt(
-                "Upper Bound",
-                &rtsParams.upperBound,
-                rtsParams.lowerBound, maxPts);
-            if (rtsParams.upperBound <
-                rtsParams.lowerBound)
-                rtsParams.upperBound =
-                    rtsParams.lowerBound;
+            ImGui::SliderInt("Upper Bound", &rtsParams.upperBound,
+                             rtsParams.lowerBound, maxPts);
+            if (rtsParams.upperBound < rtsParams.lowerBound)
+                rtsParams.upperBound = rtsParams.lowerBound;
 
-            float delta =
-                static_cast<float>(rtsParams.delta);
-            if (ImGui::SliderFloat("Delta", &delta,
-                                   0.01f, 0.25f,
+            float delta = static_cast<float>(rtsParams.delta);
+            if (ImGui::SliderFloat("Delta", &delta, 0.01f, 0.25f,
                                    "%.2f"))
                 rtsParams.delta = delta;
 
-            float epsilon =
-                static_cast<float>(rtsParams.epsilon);
-            if (ImGui::SliderFloat("Epsilon", &epsilon,
-                                   0.01f, 0.25f,
+            float epsilon = static_cast<float>(rtsParams.epsilon);
+            if (ImGui::SliderFloat("Epsilon", &epsilon, 0.01f, 0.25f,
                                    "%.2f"))
                 rtsParams.epsilon = epsilon;
 
@@ -155,39 +129,27 @@ namespace shoecomp
 
             if (!running)
             {
-                if (ImGui::Button("Run"))
-                    startWorker();
+                if (ImGui::Button("Run")) startWorker();
             }
             else
             {
-                if (ImGui::Button("Cancel##worker"))
-                    cancelWorker();
+                if (ImGui::Button("Cancel##worker")) cancelWorker();
                 ImGui::SameLine();
                 float p = channel.progress.load();
                 ImGui::ProgressBar(
-                    p,
-                    ImVec2(
-                        ImGui::GetContentRegionAvail()
-                            .x,
-                        0.0f));
+                    p, ImVec2(ImGui::GetContentRegionAvail().x, 0.0f));
             }
 
             if (statusText[0] != '\0')
             {
                 if (statusIsError)
                 {
-                    ImGui::PushStyleColor(
-                        ImGuiCol_Text,
-                        ImVec4(1, 0.2f, 0.2f, 1));
-                    ImGui::TextWrapped("%s",
-                                       statusText);
+                    ImGui::PushStyleColor(ImGuiCol_Text,
+                                          ImVec4(1, 0.2f, 0.2f, 1));
+                    ImGui::TextWrapped("%s", statusText);
                     ImGui::PopStyleColor();
                 }
-                else
-                {
-                    ImGui::TextWrapped("%s",
-                                       statusText);
-                }
+                else { ImGui::TextWrapped("%s", statusText); }
             }
 
             ImGui::Separator();
@@ -220,8 +182,8 @@ namespace shoecomp
         workerThread = std::thread(
             [this, left, right, params]()
             {
-                runAutoAlign(*left, *right, channel,
-                             workerResults, params);
+                runAutoAlign(*left, *right, channel, workerResults,
+                             params);
             });
     }
 
@@ -232,10 +194,7 @@ namespace shoecomp
 
     void AlignDialog::cleanup()
     {
-        if (workerThread.joinable())
-        {
-            workerThread.join();
-        }
+        if (workerThread.joinable()) { workerThread.join(); }
     }
 
 }  // namespace shoecomp

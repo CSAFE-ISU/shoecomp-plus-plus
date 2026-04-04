@@ -6,13 +6,11 @@
 
 namespace shoecomp
 {
-    int saveAnnotationsToFile(
-        const std::string& filePath,
-        const jt::Json& annotations);
+    int saveAnnotationsToFile(const std::string& filePath,
+                              const jt::Json& annotations);
 
-    int loadAnnotationsFromFile(
-        const std::string& filePath,
-        jt::Json& annotations);
+    int loadAnnotationsFromFile(const std::string& filePath,
+                                jt::Json& annotations);
 } /* namespace shoecomp */
 
 #endif

@@ -16,8 +16,7 @@ namespace shoecomp
         std::string fileName;
         std::string extension;
         std::string title;
-        std::function<void(const std::string& path)>
-            onOk;
+        std::function<void(const std::string& path)> onOk;
         void render();
     };
 }  // namespace shoecomp
