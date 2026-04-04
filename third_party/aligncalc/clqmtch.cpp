@@ -152,6 +152,7 @@ namespace AlignCalc
             bool others_inited = false;
             size_t tid = 0;
             bool queue_full = false;
+            channel.report(0.5f, "searching cliques...");
             printf("\n\nstarting lb=%d, ub=%d\n\n", lowerBound,
                    upperBound);
             //
@@ -207,7 +208,6 @@ namespace AlignCalc
                 {
                     this->update(graph, results, std::move(answer));
                 }
-                channel.report((i1 * 1.0f) / N1, "searching cliques...");
             }
             work_q.stop();
 

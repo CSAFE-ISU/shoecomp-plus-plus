@@ -30,6 +30,7 @@ namespace AlignCalc
         TaskInfo answer;
         bool queue_full = false;
 
+        channel.report(0.25f, "finding matchable points...");
         while (i1 < N1)
         {
             if (channel.should_cancel())
@@ -92,7 +93,6 @@ namespace AlignCalc
 
             // consume results, and update graph
             while (result_q.pop(answer)) { graph.updateAll(answer); }
-            channel.report((i1 * 1.0f) / N1, "matching points...");
         }
         work_q.stop();
 
@@ -139,7 +139,7 @@ namespace AlignCalc
             return false;
         }
 
-        channel.report(0.95f, "matching points...");
+        channel.report(0.75f, "fitting transforms...");
         for (const auto& clq : cliques)
         {
             if (clq.size() < params.lowerBound) continue;
@@ -155,8 +155,11 @@ namespace AlignCalc
                 const clqmtch::Vertex& v = G.vertices[c];
                 match.left_pts.row(i) = left_pts.row(v.ind1);
                 match.right_pts.row(i) = right_pts.row(v.ind2);
+                std::cout << c << ": " << 
+                    match.left_pts.row(i) << "<--->" << match.right_pts.row(i) << "\n";
                 ++i;
             }
+            printf("\n\n");
         }
         printf("%ld matched results\n", results.size());
         return true;

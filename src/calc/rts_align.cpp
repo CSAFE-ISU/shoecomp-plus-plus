@@ -86,7 +86,7 @@ namespace shoecomp
         char buf[64];
         snprintf(buf, sizeof(buf), "%zu alignment(s) added",
                  aligns.size());
-        channel.post(MsgKind::Done, buf, 1.0f);
+        channel.report(1.0f, buf);
         channel.done();
     }
 }  // namespace shoecomp

@@ -27,6 +27,7 @@ namespace shoecomp
                 msg->kind == MsgKind::Progress ||
                 msg->kind == MsgKind::Done)
             {
+                if(!msg->text || msg->text[0] == '\0') continue;
                 std::strncpy(
                     statusText, msg->text,
                     sizeof(statusText) - 1);
@@ -115,7 +116,7 @@ namespace shoecomp
             };
             int lp = countPts(leftImage);
             int rp = countPts(rightImage);
-            maxPts = std::max({lp, rp, 3});
+            maxPts = std::max(3, std::min(lp, rp));
             rtsParams.upperBound = maxPts;
 
             ImGui::SliderInt("Lower Bound",
