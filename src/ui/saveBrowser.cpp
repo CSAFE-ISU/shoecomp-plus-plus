@@ -1,6 +1,6 @@
 #include "ui/saveBrowser.h"
+#include "ui/uiHelpers.h"
 #include "imgui.h"
-#include <algorithm>
 #include <filesystem>
 
 namespace shoecomp
@@ -9,55 +9,17 @@ namespace shoecomp
 
     void SaveBrowser::render()
     {
-        if (show)
-        {
-            ImGui::OpenPopup(title.c_str());
-            show = false;
-        }
-
-        ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(ImVec2(ds.x * 0.5f, ds.y * 0.6f),
-                                 ImGuiCond_Always);
-        ImGui::SetNextWindowPos(ImVec2(ds.x * 0.25f, ds.y * 0.2f),
-                                ImGuiCond_Always);
-
-        bool browserOpen = true;
-        if (!ImGui::BeginPopupModal(title.c_str(), &browserOpen,
-                                    ImGuiWindowFlags_NoResize))
+        if (!popupBeginClosable(title.c_str(), show, 0.5f, 0.6f, 0.25f,
+                                0.2f))
             return;
-        if (!browserOpen)
-        {
-            ImGui::CloseCurrentPopup();
-            ImGui::EndPopup();
-            return;
-        }
 
         ImGui::Text("%s", title.c_str());
         ImGui::Separator();
 
         ImGui::Text("Directory: %s", browseDir.c_str());
 
-        if (dirNeedsRefresh)
-        {
-            dirEntries.clear();
-            dirEntries.push_back("..");
-            try
-            {
-                for (auto& entry : fs::directory_iterator(browseDir))
-                {
-                    std::string name = entry.path().filename().string();
-                    if (entry.is_directory())
-                        dirEntries.push_back(name + "/");
-                    else if (entry.path().extension() == extension)
-                        dirEntries.push_back(name);
-                }
-            }
-            catch (...)
-            {
-            }
-            std::sort(dirEntries.begin() + 1, dirEntries.end());
-            dirNeedsRefresh = false;
-        }
+        refreshDirEntries(browseDir, extension, dirEntries,
+                          dirNeedsRefresh);
 
         ImVec2 listAvail = ImGui::GetContentRegionAvail();
         float bottomH = ImGui::GetFrameHeightWithSpacing() * 2.0f;
@@ -71,31 +33,13 @@ namespace shoecomp
             {
                 if (entry == "..")
                 {
-                    try
-                    {
-                        browseDir =
-                            fs::canonical(fs::path(browseDir) / "..")
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    dirNeedsRefresh = true;
+                    navigateDir(browseDir, "..", dirNeedsRefresh);
                 }
                 else if (isDir)
                 {
                     std::string dirName =
                         entry.substr(0, entry.size() - 1);
-                    try
-                    {
-                        browseDir =
-                            fs::canonical(fs::path(browseDir) / dirName)
-                                .string();
-                    }
-                    catch (...)
-                    {
-                    }
-                    dirNeedsRefresh = true;
+                    navigateDir(browseDir, dirName, dirNeedsRefresh);
                 }
                 else { fileName = entry; }
             }

@@ -87,6 +87,11 @@ namespace shoecomp
         // Instance methods
         void removePointsOutsideBounds();
 
+        void renderAnnotations(ImDrawList* dl, float cx, float cy,
+                               float annScale, float cosR, float sinR,
+                               bool hovered, AnnotationMode mode,
+                               const ImGuiIO& io);
+
         void renderCanvas(const char* canvasId,
                           ImageViewState* linked = nullptr);
 

@@ -1,6 +1,7 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas.h"
 #include "ui/alignDialog.h"
+#include "ui/uiHelpers.h"
 #include "formats/png.h"
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
@@ -14,6 +15,75 @@
 namespace shoecomp
 {
     namespace fs = std::filesystem;
+
+    static constexpr float kDegToRad = 3.14159265358979f / 180.0f;
+
+    // Apply alignment transform: set right viewer
+    // to match left viewer + alignment offset.
+    static void applyAlignment(ImageViewState& lv, ImageViewState& rv,
+                               const AlignState& a, bool& locked)
+    {
+        locked = false;
+        float rad = a.rotation * kDegToRad;
+        rv.zoom = rv.zoomTarget = lv.zoomTarget * a.scale;
+        rv.rotation = rv.rotationTarget = lv.rotationTarget + rad;
+        rv.pan = rv.panTarget = ImVec2(lv.panTarget.x + a.translationX,
+                                       lv.panTarget.y + a.translationY);
+        locked = true;
+    }
+
+    // Sync locked viewers after rendering. Detects
+    // which viewer changed and propagates through
+    // alignment.
+    static void syncLockedViewers(ImageViewState& lv,
+                                  ImageViewState& rv,
+                                  const AlignState& a, float lZoom0,
+                                  ImVec2 lPan0, float lRot0,
+                                  float rZoom0, ImVec2 rPan0,
+                                  float rRot0)
+    {
+        float aRad = a.rotation * kDegToRad;
+        bool lChanged =
+            lv.zoomTarget != lZoom0 || lv.panTarget.x != lPan0.x ||
+            lv.panTarget.y != lPan0.y || lv.rotationTarget != lRot0;
+        bool rChanged =
+            rv.zoomTarget != rZoom0 || rv.panTarget.x != rPan0.x ||
+            rv.panTarget.y != rPan0.y || rv.rotationTarget != rRot0;
+
+        if (lChanged && !rChanged)
+        {
+            rv.zoomTarget = lv.zoomTarget * a.scale;
+            rv.zoom = lv.zoom * a.scale;
+            rv.panTarget.x = lv.panTarget.x + a.translationX;
+            rv.panTarget.y = lv.panTarget.y + a.translationY;
+            rv.pan.x = lv.pan.x + a.translationX;
+            rv.pan.y = lv.pan.y + a.translationY;
+            rv.rotationTarget = lv.rotationTarget + aRad;
+            rv.rotation = lv.rotation + aRad;
+        }
+        else if (rChanged && !lChanged)
+        {
+            lv.zoomTarget = rv.zoomTarget / a.scale;
+            lv.zoom = rv.zoom / a.scale;
+            lv.panTarget.x = rv.panTarget.x - a.translationX;
+            lv.panTarget.y = rv.panTarget.y - a.translationY;
+            lv.pan.x = rv.pan.x - a.translationX;
+            lv.pan.y = rv.pan.y - a.translationY;
+            lv.rotationTarget = rv.rotationTarget - aRad;
+            lv.rotation = rv.rotation - aRad;
+        }
+        else if (lChanged && rChanged)
+        {
+            rv.zoomTarget = lv.zoomTarget * a.scale;
+            rv.zoom = lv.zoom * a.scale;
+            rv.panTarget.x = lv.panTarget.x + a.translationX;
+            rv.panTarget.y = lv.panTarget.y + a.translationY;
+            rv.pan.x = lv.pan.x + a.translationX;
+            rv.pan.y = lv.pan.y + a.translationY;
+            rv.rotationTarget = lv.rotationTarget + aRad;
+            rv.rotation = lv.rotation + aRad;
+        }
+    }
 
     static void runSplash(double duration)
     {
@@ -83,10 +153,10 @@ namespace shoecomp
         if (removeIdx >= 0)
         {
             state.images.erase(state.images.begin() + removeIdx);
-            if (state.viewerLeftIdx >= (int)state.images.size())
-                state.viewerLeftIdx = (int)state.images.size() - 1;
-            if (state.viewerRightIdx >= (int)state.images.size())
-                state.viewerRightIdx = (int)state.images.size() - 1;
+            int dummy = -1;
+            clampViewerIndices(removeIdx, (int)state.images.size(),
+                               state.viewerLeftIdx,
+                               state.viewerRightIdx, dummy);
         }
     }
 
@@ -115,30 +185,13 @@ namespace shoecomp
             ImGui::TableSetupColumn("Widget",
                                     ImGuiTableColumnFlags_WidthStretch);
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Theme");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Theme");
             ImGui::Combo("##Theme", &s.themeIdx, "Light\0Dark\0");
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Fullscreen");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
+            settingsTableRow("Fullscreen");
             ImGui::Checkbox("##Fullscreen", &s.fullscreen);
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Font Scale");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Font Scale");
             ImGui::SliderFloat("##FontScale", &s.fontScale, 0.5f, 4.0f,
                                "%.2f");
             s.fontScale = std::round(s.fontScale / 0.05f) * 0.05f;
@@ -156,55 +209,25 @@ namespace shoecomp
             ImGui::TableSetupColumn("Widget",
                                     ImGuiTableColumnFlags_WidthStretch);
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Point Radius");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Point Radius");
             ImGui::SliderFloat("##PointRadius",
                                &g_annotationStyle.pointRadius, 2.0f,
                                15.0f, "%.1f");
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Corner Color");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Corner Color");
             ImGui::ColorEdit4("##CornerColor",
                               g_annotationStyle.cornerColor);
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Center Color");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Center Color");
             ImGui::ColorEdit4("##CenterColor",
                               g_annotationStyle.centerColor);
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Bounds Thickness");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Bounds Thickness");
             ImGui::SliderFloat("##BoundsThickness",
                                &g_annotationStyle.boundsLineThickness,
                                1.0f, 8.0f, "%.1f");
 
-            ImGui::TableNextRow();
-            ImGui::TableNextColumn();
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Bounds Color");
-            ImGui::TableNextColumn();
-            ImGui::TableNextColumn();
-            ImGui::SetNextItemWidth(-FLT_MIN);
+            settingsTableRow("Bounds Color");
             ImGui::ColorEdit4("##BoundsColor",
                               g_annotationStyle.boundsColor);
 
@@ -315,9 +338,6 @@ namespace shoecomp
             // we can detect which viewer changed.
             auto& lv = state.viewerLeft.viewState;
             auto& rv = state.viewerRight.viewState;
-            auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
-            float pi = 3.14159265358979f;
-            float aRad = a.rotation * (pi / 180.0f);
 
             float lZoom0 = lv.zoomTarget;
             ImVec2 lPan0 = lv.panTarget;
@@ -361,48 +381,10 @@ namespace shoecomp
             // offset after both viewers render.
             if (state.viewerLocked)
             {
-                bool lChanged = lv.zoomTarget != lZoom0 ||
-                                lv.panTarget.x != lPan0.x ||
-                                lv.panTarget.y != lPan0.y ||
-                                lv.rotationTarget != lRot0;
-                bool rChanged = rv.zoomTarget != rZoom0 ||
-                                rv.panTarget.x != rPan0.x ||
-                                rv.panTarget.y != rPan0.y ||
-                                rv.rotationTarget != rRot0;
-
-                if (lChanged && !rChanged)
-                {
-                    rv.zoomTarget = lv.zoomTarget * a.scale;
-                    rv.zoom = lv.zoom * a.scale;
-                    rv.panTarget.x = lv.panTarget.x + a.translationX;
-                    rv.panTarget.y = lv.panTarget.y + a.translationY;
-                    rv.pan.x = lv.pan.x + a.translationX;
-                    rv.pan.y = lv.pan.y + a.translationY;
-                    rv.rotationTarget = lv.rotationTarget + aRad;
-                    rv.rotation = lv.rotation + aRad;
-                }
-                else if (rChanged && !lChanged)
-                {
-                    lv.zoomTarget = rv.zoomTarget / a.scale;
-                    lv.zoom = rv.zoom / a.scale;
-                    lv.panTarget.x = rv.panTarget.x - a.translationX;
-                    lv.panTarget.y = rv.panTarget.y - a.translationY;
-                    lv.pan.x = rv.pan.x - a.translationX;
-                    lv.pan.y = rv.pan.y - a.translationY;
-                    lv.rotationTarget = rv.rotationTarget - aRad;
-                    lv.rotation = rv.rotation - aRad;
-                }
-                else if (lChanged && rChanged)
-                {
-                    rv.zoomTarget = lv.zoomTarget * a.scale;
-                    rv.zoom = lv.zoom * a.scale;
-                    rv.panTarget.x = lv.panTarget.x + a.translationX;
-                    rv.panTarget.y = lv.panTarget.y + a.translationY;
-                    rv.pan.x = lv.pan.x + a.translationX;
-                    rv.pan.y = lv.pan.y + a.translationY;
-                    rv.rotationTarget = lv.rotationTarget + aRad;
-                    rv.rotation = lv.rotation + aRad;
-                }
+                auto& a =
+                    state.viewerAlignments[state.viewerAlignmentIdx];
+                syncLockedViewers(lv, rv, a, lZoom0, lPan0, lRot0,
+                                  rZoom0, rPan0, rRot0);
             }
         }
         ImGui::EndChild();
@@ -465,21 +447,12 @@ namespace shoecomp
                 if (state.viewerAlignmentIdx > 0)
                 {
                     state.viewerAlignmentIdx--;
-                    auto& na =
+                    applyAlignment(
+                        state.viewerLeft.viewState,
+                        state.viewerRight.viewState,
                         state
-                            .viewerAlignments[state.viewerAlignmentIdx];
-                    auto& lv = state.viewerLeft.viewState;
-                    auto& rv = state.viewerRight.viewState;
-                    state.viewerLocked = false;
-                    float rad =
-                        na.rotation * (3.14159265358979f / 180.0f);
-                    rv.zoom = rv.zoomTarget = lv.zoomTarget * na.scale;
-                    rv.rotation = rv.rotationTarget =
-                        lv.rotationTarget + rad;
-                    rv.pan = rv.panTarget =
-                        ImVec2(lv.panTarget.x + na.translationX,
-                               lv.panTarget.y + na.translationY);
-                    state.viewerLocked = true;
+                            .viewerAlignments[state.viewerAlignmentIdx],
+                        state.viewerLocked);
                 }
             }
             ImGui::SameLine();
@@ -489,21 +462,12 @@ namespace shoecomp
                 if (state.viewerAlignmentIdx < maxIdx)
                 {
                     state.viewerAlignmentIdx++;
-                    auto& na =
+                    applyAlignment(
+                        state.viewerLeft.viewState,
+                        state.viewerRight.viewState,
                         state
-                            .viewerAlignments[state.viewerAlignmentIdx];
-                    auto& lv = state.viewerLeft.viewState;
-                    auto& rv = state.viewerRight.viewState;
-                    state.viewerLocked = false;
-                    float rad =
-                        na.rotation * (3.14159265358979f / 180.0f);
-                    rv.zoom = rv.zoomTarget = lv.zoomTarget * na.scale;
-                    rv.rotation = rv.rotationTarget =
-                        lv.rotationTarget + rad;
-                    rv.pan = rv.panTarget =
-                        ImVec2(lv.panTarget.x + na.translationX,
-                               lv.panTarget.y + na.translationY);
-                    state.viewerLocked = true;
+                            .viewerAlignments[state.viewerAlignmentIdx],
+                        state.viewerLocked);
                 }
             }
             if (navDisabled) ImGui::EndDisabled();
@@ -529,18 +493,10 @@ namespace shoecomp
                 if (idx >= (int)state.viewerAlignments.size())
                     idx = (int)state.viewerAlignments.size() - 1;
                 state.viewerAlignmentIdx = idx;
-                auto& na = state.viewerAlignments[idx];
-                auto& lv2 = state.viewerLeft.viewState;
-                auto& rv2 = state.viewerRight.viewState;
-                state.viewerLocked = false;
-                float rad2 = na.rotation * (3.14159265358979f / 180.0f);
-                rv2.zoom = rv2.zoomTarget = lv2.zoomTarget * na.scale;
-                rv2.rotation = rv2.rotationTarget =
-                    lv2.rotationTarget + rad2;
-                rv2.pan = rv2.panTarget =
-                    ImVec2(lv2.panTarget.x + na.translationX,
-                           lv2.panTarget.y + na.translationY);
-                state.viewerLocked = true;
+                applyAlignment(state.viewerLeft.viewState,
+                               state.viewerRight.viewState,
+                               state.viewerAlignments[idx],
+                               state.viewerLocked);
             }
             if (delDisabled) ImGui::EndDisabled();
 
@@ -637,14 +593,10 @@ namespace shoecomp
         if (removeIdx >= 0)
         {
             state.images.erase(state.images.begin() + removeIdx);
-            if (state.viewerLeftIdx >= (int)state.images.size())
-                state.viewerLeftIdx = (int)state.images.size() - 1;
-            if (state.viewerRightIdx >= (int)state.images.size())
-                state.viewerRightIdx = (int)state.images.size() - 1;
-            if (state.activeGalleryImage == removeIdx)
-                state.activeGalleryImage = -1;
-            else if (state.activeGalleryImage > removeIdx)
-                state.activeGalleryImage--;
+            clampViewerIndices(removeIdx, (int)state.images.size(),
+                               state.viewerLeftIdx,
+                               state.viewerRightIdx,
+                               state.activeGalleryImage);
         }
 
         if (state.images.empty())
@@ -759,23 +711,8 @@ namespace shoecomp
         }
     }
 
-    static void renderGui(AppState& state)
+    static void consumeAlignResults(AppState& state)
     {
-        state.annotationError.render();
-        state.imageSaveError.render();
-        state.alignmentSaveError.render();
-        state.alignmentSaveBrowser.render();
-        state.imageLoadBrowser.render();
-        state.imageSaveBrowser.render();
-        state.annotationFileBrowser.render();
-        renderImageSaveProgressPopup(state);
-        state.imageListDialog.render(state.images, state.viewerLeftIdx,
-                                     state.viewerRightIdx,
-                                     state.activeGalleryImage);
-
-        state.alignDialog.render();
-
-        // Consume worker results when dialog closes
         if (!state.alignDialog.open &&
             state.alignDialog.workerFinished &&
             !state.alignDialog.workerResults.empty())
@@ -792,8 +729,10 @@ namespace shoecomp
                 "added\n",
                 count);
         }
+    }
 
-        // Alignment edit popup
+    static void renderAlignEditPopup(AppState& state)
+    {
         if (state.alignEditOpen)
         {
             ImGui::OpenPopup("Edit Alignment");
@@ -822,21 +761,12 @@ namespace shoecomp
                 ImGui::SliderFloat("Scale", &state.alignEditState.scale,
                                    0.1f, 10.0f, "%.2f");
 
-            // Live-update right viewer transform
             if (changed)
             {
-                auto& ae = state.alignEditState;
-                auto& lv = state.viewerLeft.viewState;
-                auto& rv = state.viewerRight.viewState;
-                state.viewerLocked = false;
-                float rad = ae.rotation * (3.14159265358979f / 180.0f);
-                rv.zoom = rv.zoomTarget = lv.zoomTarget * ae.scale;
-                rv.rotation = rv.rotationTarget =
-                    lv.rotationTarget + rad;
-                rv.pan = rv.panTarget =
-                    ImVec2(lv.panTarget.x + ae.translationX,
-                           lv.panTarget.y + ae.translationY);
-                state.viewerLocked = true;
+                applyAlignment(state.viewerLeft.viewState,
+                               state.viewerRight.viewState,
+                               state.alignEditState,
+                               state.viewerLocked);
             }
 
             ImGui::Spacing();
@@ -850,25 +780,35 @@ namespace shoecomp
             ImGui::SameLine();
             if (ImGui::Button("Cancel"))
             {
-                // Revert to original alignment
-                auto& orig = state.alignEditOriginal;
-                state.viewerAlignments[state.viewerAlignmentIdx] = orig;
-                auto& lv = state.viewerLeft.viewState;
-                auto& rv = state.viewerRight.viewState;
-                state.viewerLocked = false;
-                float rad =
-                    orig.rotation * (3.14159265358979f / 180.0f);
-                rv.zoom = rv.zoomTarget = lv.zoomTarget * orig.scale;
-                rv.rotation = rv.rotationTarget =
-                    lv.rotationTarget + rad;
-                rv.pan = rv.panTarget =
-                    ImVec2(lv.panTarget.x + orig.translationX,
-                           lv.panTarget.y + orig.translationY);
-                state.viewerLocked = true;
+                state.viewerAlignments[state.viewerAlignmentIdx] =
+                    state.alignEditOriginal;
+                applyAlignment(state.viewerLeft.viewState,
+                               state.viewerRight.viewState,
+                               state.alignEditOriginal,
+                               state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
         }
+    }
+
+    static void renderGui(AppState& state)
+    {
+        state.annotationError.render();
+        state.imageSaveError.render();
+        state.alignmentSaveError.render();
+        state.alignmentSaveBrowser.render();
+        state.imageLoadBrowser.render();
+        state.imageSaveBrowser.render();
+        state.annotationFileBrowser.render();
+        renderImageSaveProgressPopup(state);
+        state.imageListDialog.render(state.images, state.viewerLeftIdx,
+                                     state.viewerRightIdx,
+                                     state.activeGalleryImage);
+
+        state.alignDialog.render();
+        consumeAlignResults(state);
+        renderAlignEditPopup(state);
 
         if (ImGui::BeginTabBar("MainTabs"))
         {
@@ -896,192 +836,194 @@ namespace shoecomp
         }
     }
 
+    static void onImageSaveOk(AppState& state,
+                              const std::string& fullPath)
+    {
+        if (state.imageSaveTarget < 0 ||
+            state.imageSaveTarget >= (int)state.images.size() ||
+            state.imageSaveInProgress.load())
+            return;
+        auto& img = state.images[state.imageSaveTarget].image;
+
+        int w = img->width;
+        int h = img->height;
+        auto buffer =
+            std::make_shared<std::vector<unsigned char>>(w * h * 4);
+        GLuint tex = (GLuint)(intptr_t)img->textureId;
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE,
+                      buffer->data());
+
+        state.imageSaveInProgress = true;
+        state.imageSaveDone = false;
+        state.imageSaveProgressPath = fullPath;
+        if (state.imageSaveThread.joinable())
+            state.imageSaveThread.join();
+        state.imageSaveThread = std::thread(
+            [&state, fullPath, buffer, w, h]()
+            {
+                int res = savePngToDisk(fullPath, buffer->data(), w, h);
+                state.imageSaveResult = res;
+                state.imageSaveDone = true;
+            });
+    }
+
+    static void onAnnotationFileOk(AppState& state,
+                                   const std::string& fullPath)
+    {
+        if (state.annotationFileTarget < 0 ||
+            state.annotationFileTarget >= (int)state.images.size())
+            return;
+        auto& img = state.images[state.annotationFileTarget].image;
+        if (state.annotationFileSave)
+        {
+            if (saveAnnotationsToFile(fullPath, img->annotations) != 0)
+            {
+                state.annotationError.show = true;
+                state.annotationError.message =
+                    "Failed to save "
+                    "annotations to:\n" +
+                    fullPath;
+            }
+        }
+        else
+        {
+            if (loadAnnotationsFromFile(fullPath, img->annotations) !=
+                0)
+            {
+                state.annotationError.show = true;
+                state.annotationError.message =
+                    "Failed to load "
+                    "annotations from:\n" +
+                    fullPath;
+            }
+        }
+    }
+
+    static void onAlignmentSaveOk(AppState& state,
+                                  const std::string& fullPath)
+    {
+        auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
+        jt::Json obj;
+        obj.setObject();
+        obj["mode"] = jt::Json(
+            a.mode == AlignMode::Manual ? "Manual" : "Automatic");
+        obj["rotation"] = jt::Json((double)a.rotation);
+        obj["translationX"] = jt::Json((double)a.translationX);
+        obj["translationY"] = jt::Json((double)a.translationY);
+        obj["scale"] = jt::Json((double)a.scale);
+        obj["info"] = a.info;
+
+        std::ofstream ofs(fullPath);
+        if (!ofs)
+        {
+            state.alignmentSaveError.show = true;
+            state.alignmentSaveError.message =
+                "Failed to save alignment "
+                "to:\n" +
+                fullPath;
+            return;
+        }
+        ofs << obj.toStringPretty();
+        if (!ofs)
+        {
+            state.alignmentSaveError.show = true;
+            state.alignmentSaveError.message =
+                "Failed to write alignment "
+                "to:\n" +
+                fullPath;
+        }
+    }
+
+    static void onImageLoadSelect(AppState& state,
+                                  const std::string& fullPath,
+                                  const std::string& name)
+    {
+        for (auto& c : state.images)
+        {
+            if (c.image->path == fullPath) return;
+        }
+        ImageCanvas canvas;
+        canvas.image->name = name;
+        canvas.image->path = fullPath;
+        if (!loadPngFromDisk(fullPath, canvas.image->textureId,
+                             canvas.image->width, canvas.image->height))
+            return;
+
+        canvas.image->annotations.setObject();
+        canvas.image->annotations["bounds"].setArray();
+        canvas.image->annotations["points"].setArray();
+
+        if (state.imageLoadBrowser.loadCorrespondingJson)
+        {
+            fs::path jsonPath =
+                fs::path(fullPath).replace_extension(".json");
+            if (fs::exists(jsonPath))
+            {
+                if (loadAnnotationsFromFile(
+                        jsonPath.string(), canvas.image->annotations) !=
+                    0)
+                {
+                    canvas.image->annotations.setObject();
+                    canvas.image->annotations["bounds"].setArray();
+                    canvas.image->annotations["points"].setArray();
+                    state.annotationError.show = true;
+                    state.annotationError.message =
+                        "Failed to load "
+                        "annotations "
+                        "from:\n" +
+                        jsonPath.string();
+                }
+            }
+        }
+
+        state.images.push_back(std::move(canvas));
+    }
+
+    static void onBeforeExit(AppState& state)
+    {
+        if (state.imageSaveThread.joinable())
+            state.imageSaveThread.join();
+        state.alignDialog.cancelWorker();
+        state.alignDialog.cleanup();
+        state.alignDialog.leftImage.reset();
+        state.alignDialog.rightImage.reset();
+        state.viewerLeft.image.reset();
+        state.viewerRight.image.reset();
+        state.images.clear();
+    }
+
     void submain(void)
     {
         runSplash(1.0);
 
         AppState state;
 
-        // Configure error popup titles
         state.imageSaveError.title = "Image Save Error";
         state.annotationError.title = "Annotation Error";
 
-        // Configure image save browser
         state.imageSaveBrowser.extension = ".png";
         state.imageSaveBrowser.title = "Save Image";
-        state.imageSaveBrowser.onOk =
-            [&state](const std::string& fullPath)
-        {
-            if (state.imageSaveTarget >= 0 &&
-                state.imageSaveTarget < (int)state.images.size() &&
-                !state.imageSaveInProgress.load())
-            {
-                auto& img = state.images[state.imageSaveTarget].image;
+        state.imageSaveBrowser.onOk = [&state](const std::string& p)
+        { onImageSaveOk(state, p); };
 
-                // GL readback on UI thread
-                int w = img->width;
-                int h = img->height;
-                auto buffer =
-                    std::make_shared<std::vector<unsigned char>>(w * h *
-                                                                 4);
-                GLuint tex = (GLuint)(intptr_t)img->textureId;
-                glBindTexture(GL_TEXTURE_2D, tex);
-                glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA,
-                              GL_UNSIGNED_BYTE, buffer->data());
-
-                // Launch background thread
-                state.imageSaveInProgress = true;
-                state.imageSaveDone = false;
-                state.imageSaveProgressPath = fullPath;
-                if (state.imageSaveThread.joinable())
-                    state.imageSaveThread.join();
-                state.imageSaveThread = std::thread(
-                    [&state, fullPath, buffer, w, h]()
-                    {
-                        int res = savePngToDisk(fullPath,
-                                                buffer->data(), w, h);
-                        state.imageSaveResult = res;
-                        state.imageSaveDone = true;
-                    });
-            }
-        };
-
-        // Configure annotation file browser
         state.annotationFileBrowser.extension = ".json";
         state.annotationFileBrowser.title = "Annotation File";
         state.annotationFileBrowser.onOk =
-            [&state](const std::string& fullPath)
-        {
-            if (state.annotationFileTarget >= 0 &&
-                state.annotationFileTarget < (int)state.images.size())
-            {
-                auto& img =
-                    state.images[state.annotationFileTarget].image;
-                if (state.annotationFileSave)
-                {
-                    if (saveAnnotationsToFile(fullPath,
-                                              img->annotations) != 0)
-                    {
-                        state.annotationError.show = true;
-                        state.annotationError.message =
-                            "Failed to save "
-                            "annotations to:\n" +
-                            fullPath;
-                    }
-                }
-                else
-                {
-                    if (loadAnnotationsFromFile(fullPath,
-                                                img->annotations) != 0)
-                    {
-                        state.annotationError.show = true;
-                        state.annotationError.message =
-                            "Failed to load "
-                            "annotations from:\n" +
-                            fullPath;
-                    }
-                }
-            }
-        };
+            [&state](const std::string& p)
+        { onAnnotationFileOk(state, p); };
 
-        // Configure alignment save browser
         state.alignmentSaveBrowser.extension = ".json";
         state.alignmentSaveBrowser.title = "Save Alignment";
         state.alignmentSaveError.title = "Alignment Save Error";
-        state.alignmentSaveBrowser.onOk =
-            [&state](const std::string& fullPath)
-        {
-            auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
-            jt::Json obj;
-            obj.setObject();
-            obj["mode"] = jt::Json(
-                a.mode == AlignMode::Manual ? "Manual" : "Automatic");
-            obj["rotation"] = jt::Json((double)a.rotation);
-            obj["translationX"] = jt::Json((double)a.translationX);
-            obj["translationY"] = jt::Json((double)a.translationY);
-            obj["scale"] = jt::Json((double)a.scale);
-            obj["info"] = a.info;
+        state.alignmentSaveBrowser.onOk = [&state](const std::string& p)
+        { onAlignmentSaveOk(state, p); };
 
-            std::ofstream ofs(fullPath);
-            if (!ofs)
-            {
-                state.alignmentSaveError.show = true;
-                state.alignmentSaveError.message =
-                    "Failed to save alignment "
-                    "to:\n" +
-                    fullPath;
-                return;
-            }
-            ofs << obj.toStringPretty();
-            if (!ofs)
-            {
-                state.alignmentSaveError.show = true;
-                state.alignmentSaveError.message =
-                    "Failed to write alignment "
-                    "to:\n" +
-                    fullPath;
-            }
-        };
-
-        // Configure image load browser
         state.imageLoadBrowser.extension = ".png";
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
-            [&state](const std::string& fullPath,
-                     const std::string& name)
-        {
-            bool alreadyLoaded = false;
-            for (auto& c : state.images)
-            {
-                if (c.image->path == fullPath)
-                {
-                    alreadyLoaded = true;
-                    break;
-                }
-            }
-            if (!alreadyLoaded)
-            {
-                ImageCanvas canvas;
-                canvas.image->name = name;
-                canvas.image->path = fullPath;
-                if (loadPngFromDisk(fullPath, canvas.image->textureId,
-                                    canvas.image->width,
-                                    canvas.image->height))
-                {
-                    canvas.image->annotations.setObject();
-                    canvas.image->annotations["bounds"].setArray();
-                    canvas.image->annotations["points"].setArray();
-
-                    if (state.imageLoadBrowser.loadCorrespondingJson)
-                    {
-                        fs::path jsonPath =
-                            fs::path(fullPath).replace_extension(
-                                ".json");
-                        if (fs::exists(jsonPath))
-                        {
-                            if (loadAnnotationsFromFile(
-                                    jsonPath.string(),
-                                    canvas.image->annotations) != 0)
-                            {
-                                canvas.image->annotations.setObject();
-                                canvas.image->annotations["bounds"]
-                                    .setArray();
-                                canvas.image->annotations["points"]
-                                    .setArray();
-                                state.annotationError.show = true;
-                                state.annotationError.message =
-                                    "Failed to load "
-                                    "annotations "
-                                    "from:\n" +
-                                    jsonPath.string();
-                            }
-                        }
-                    }
-
-                    state.images.push_back(std::move(canvas));
-                }
-            }
-        };
+            [&state](const std::string& p, const std::string& n)
+        { onImageLoadSelect(state, p, n); };
 
         HelloImGui::RunnerParams params;
         params.appWindowParams.windowTitle = "ShoeComp";
@@ -1093,17 +1035,7 @@ namespace shoecomp
         { ImGui::GetIO().FontGlobalScale = 2.5f; };
         params.callbacks.ShowGui = [&state]() { renderGui(state); };
         params.callbacks.BeforeExit = [&state]()
-        {
-            if (state.imageSaveThread.joinable())
-                state.imageSaveThread.join();
-            state.alignDialog.cancelWorker();
-            state.alignDialog.cleanup();
-            state.alignDialog.leftImage.reset();
-            state.alignDialog.rightImage.reset();
-            state.viewerLeft.image.reset();
-            state.viewerRight.image.reset();
-            state.images.clear();
-        };
+        { onBeforeExit(state); };
 
         HelloImGui::Run(params);
     }

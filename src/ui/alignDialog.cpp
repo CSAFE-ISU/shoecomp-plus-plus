@@ -1,5 +1,6 @@
 #include "ui/alignDialog.h"
 #include "ui/imageCanvas.h"
+#include "ui/uiHelpers.h"
 #include "calc/align.h"
 #include "imgui.h"
 #include <algorithm>
@@ -92,11 +93,10 @@ namespace shoecomp
                 [](const std::shared_ptr<ImageData>& img) -> int
             {
                 if (!img) return 0;
-                auto& a = img->annotations;
-                if (!a.isObject() || !a.contains("points") ||
-                    !a["points"].isArray())
+                if (!hasAnnotationArray(img->annotations, "points"))
                     return 0;
-                return static_cast<int>(a["points"].getArray().size());
+                return static_cast<int>(
+                    img->annotations["points"].getArray().size());
             };
             int lp = countPts(leftImage);
             int rp = countPts(rightImage);

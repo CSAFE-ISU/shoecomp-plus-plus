@@ -1,4 +1,5 @@
 #include "ui/imageCanvas.h"
+#include "ui/uiHelpers.h"
 #include "formats/png.h"
 #include <algorithm>
 #include <cmath>
@@ -87,15 +88,10 @@ namespace shoecomp
 
     void ImageCanvas::removePointsOutsideBounds()
     {
-        if (!image->annotations.isObject() ||
-            !image->annotations.contains("bounds") ||
-            !image->annotations["bounds"].isArray())
-            return;
+        if (!hasAnnotationArray(image->annotations, "bounds")) return;
         auto& bnd = image->annotations["bounds"].getArray();
         if (bnd.size() < 3) return;
-        if (!image->annotations.contains("points") ||
-            !image->annotations["points"].isArray())
-            return;
+        if (!hasAnnotationArray(image->annotations, "points")) return;
         auto& pts = image->annotations["points"].getArray();
         pts.erase(std::remove_if(pts.begin(), pts.end(),
                                  [&bnd](jt::Json& p)
@@ -105,6 +101,290 @@ namespace shoecomp
                                          p["y"].getFloat(), bnd);
                                  }),
                   pts.end());
+    }
+
+    // --- Static helpers for renderCanvas ---
+
+    static void drawDashedLine(ImDrawList* dl, ImVec2 p0, ImVec2 p1,
+                               float dashLen, float gapLen)
+    {
+        float dx = p1.x - p0.x;
+        float dy = p1.y - p0.y;
+        float len = sqrtf(dx * dx + dy * dy);
+        if (len < 1.0f) return;
+        float nx = dx / len;
+        float ny = dy / len;
+        float t = 0.0f;
+        while (t < len)
+        {
+            float t1 = std::min(t + dashLen, len);
+            dl->AddLine(ImVec2(p0.x + nx * t, p0.y + ny * t),
+                        ImVec2(p0.x + nx * t1, p0.y + ny * t1),
+                        IM_COL32(50, 255, 50, 120), 1.5f);
+            t = t1 + gapLen;
+        }
+    }
+
+    static void renderScrollbar(
+        ImDrawList* dl, bool isVertical, float dispSize,
+        float availSize, float limSize, float panVal,
+        float panTargetVal, ImVec2 canvasPos, ImVec2 avail, ImGuiIO& io,
+        float barThick, float barPad, ImU32 barCol, ImU32 barColHov,
+        ImageViewState& vs, ImageViewState* linked)
+    {
+        if (dispSize <= availSize) return;
+        float viewRatio = availSize / dispSize;
+        float barLen = availSize * viewRatio;
+        float t = (limSize - panVal) / (2.0f * limSize);
+        float barX, barY;
+        ImVec2 bMin, bMax;
+        if (isVertical)
+        {
+            barX = canvasPos.x + avail.x - barThick - barPad;
+            barY = canvasPos.y + t * (availSize - barLen);
+            bMin = ImVec2(barX, barY);
+            bMax = ImVec2(barX + barThick, barY + barLen);
+        }
+        else
+        {
+            barX = canvasPos.x + t * (availSize - barLen);
+            barY = canvasPos.y + avail.y - barThick - barPad;
+            bMin = ImVec2(barX, barY);
+            bMax = ImVec2(barX + barLen, barY + barThick);
+        }
+        ImVec2 mpos = io.MousePos;
+        bool barHov = mpos.x >= bMin.x && mpos.x <= bMax.x &&
+                      mpos.y >= bMin.y && mpos.y <= bMax.y;
+        bool barDrag =
+            barHov && ImGui::IsMouseDragging(ImGuiMouseButton_Left);
+        if (barDrag)
+        {
+            float delta =
+                isVertical ? io.MouseDelta.y : io.MouseDelta.x;
+            float d = -delta / (availSize - barLen) * (2.0f * limSize);
+            if (isVertical)
+            {
+                vs.pan.y += d;
+                vs.panTarget.y += d;
+                if (linked)
+                {
+                    linked->pan.y += d;
+                    linked->panTarget.y += d;
+                }
+            }
+            else
+            {
+                vs.pan.x += d;
+                vs.panTarget.x += d;
+                if (linked)
+                {
+                    linked->pan.x += d;
+                    linked->panTarget.x += d;
+                }
+            }
+        }
+        dl->AddRectFilled(bMin, bMax,
+                          barDrag || barHov ? barColHov : barCol,
+                          barThick * 0.5f);
+    }
+
+    static void renderBoundsDimming(ImDrawList* dl,
+                                    jt::Json& annotations, float cx,
+                                    float cy, float annScale,
+                                    float cosR, float sinR, int imgW,
+                                    int imgH, ImVec2 canvasPos,
+                                    ImVec2 avail, ImVec2 tl, ImVec2 tr,
+                                    ImVec2 br, ImVec2 bl)
+    {
+        auto& bnd = annotations["bounds"].getArray();
+        std::vector<ImVec2> screenBnd;
+        screenBnd.reserve(bnd.size());
+        for (auto& v : bnd)
+        {
+            screenBnd.push_back(ImageCanvas::imageToScreenCoord(
+                v["x"].getFloat(), v["y"].getFloat(), cx, cy, annScale,
+                cosR, sinR, imgW, imgH));
+        }
+        float oMinX = canvasPos.x;
+        float oMinY = canvasPos.y;
+        float oMaxX = canvasPos.x + avail.x;
+        float oMaxY = canvasPos.y + avail.y;
+        for (auto& sp : screenBnd)
+        {
+            oMinX = std::min(oMinX, sp.x);
+            oMinY = std::min(oMinY, sp.y);
+            oMaxX = std::max(oMaxX, sp.x);
+            oMaxY = std::max(oMaxY, sp.y);
+        }
+        ImVec2 imgCorners[4] = {tl, tr, br, bl};
+        for (auto& ic : imgCorners)
+        {
+            oMinX = std::min(oMinX, ic.x);
+            oMinY = std::min(oMinY, ic.y);
+            oMaxX = std::max(oMaxX, ic.x);
+            oMaxY = std::max(oMaxY, ic.y);
+        }
+        float pad = 10.0f;
+        oMinX -= pad;
+        oMinY -= pad;
+        oMaxX += pad;
+        oMaxY += pad;
+        ImVec2 cTL(oMinX, oMinY);
+        ImVec2 cTR(oMaxX, oMinY);
+        ImVec2 cBR(oMaxX, oMaxY);
+        ImVec2 cBL(oMinX, oMaxY);
+        int maxXIdx = 0;
+        for (int si = 1; si < (int)screenBnd.size(); ++si)
+        {
+            if (screenBnd[si].x > screenBnd[maxXIdx].x) maxXIdx = si;
+        }
+        ImVec2 bridge(oMaxX, screenBnd[maxXIdx].y);
+        int n = (int)screenBnd.size();
+        float signedArea = 0.0f;
+        for (int si = 0; si < n; ++si)
+        {
+            auto& a2 = screenBnd[si];
+            auto& b2 = screenBnd[(si + 1) % n];
+            signedArea += (b2.x - a2.x) * (b2.y + a2.y);
+        }
+        bool isCW = signedArea < 0.0f;
+        std::vector<ImVec2> frame;
+        frame.reserve(n + 8);
+        frame.push_back(cTL);
+        frame.push_back(cTR);
+        frame.push_back(bridge);
+        for (int si = 0; si <= n; ++si)
+        {
+            int idx =
+                isCW ? (maxXIdx - si + n) % n : (maxXIdx + si) % n;
+            frame.push_back(screenBnd[idx]);
+        }
+        frame.push_back(bridge);
+        frame.push_back(cBR);
+        frame.push_back(cBL);
+        dl->AddConcavePolyFilled(frame.data(), (int)frame.size(),
+                                 IM_COL32(0, 0, 0, 120));
+    }
+
+    void ImageCanvas::renderAnnotations(ImDrawList* dl, float cx,
+                                        float cy, float annScale,
+                                        float cosR, float sinR,
+                                        bool hovered,
+                                        AnnotationMode mode,
+                                        const ImGuiIO& io)
+    {
+        if (!image->annotations.isObject()) return;
+
+        int imgW = image->width;
+        int imgH = image->height;
+
+        if (hasAnnotationArray(image->annotations, "points"))
+        {
+            auto& pts = image->annotations["points"].getArray();
+            for (auto& p : pts)
+            {
+                ImVec2 sp = imageToScreenCoord(
+                    p["x"].getFloat(), p["y"].getFloat(), cx, cy,
+                    annScale, cosR, sinR, imgW, imgH);
+                PointType pType = PointType::Corner;
+                if (p.contains("type") && p["type"].isString())
+                {
+                    pType = stringToPointType(p["type"].getString());
+                }
+                if (pType == PointType::Center)
+                {
+                    ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
+                        ImVec4(g_annotationStyle.centerColor[0],
+                               g_annotationStyle.centerColor[1],
+                               g_annotationStyle.centerColor[2],
+                               g_annotationStyle.centerColor[3]));
+                    dl->AddCircleFilled(
+                        sp, g_annotationStyle.pointRadius, cCol);
+                    dl->AddCircle(sp, g_annotationStyle.pointRadius,
+                                  IM_COL32(255, 255, 255, 200), 12,
+                                  1.5f);
+                }
+                else
+                {
+                    ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
+                        ImVec4(g_annotationStyle.cornerColor[0],
+                               g_annotationStyle.cornerColor[1],
+                               g_annotationStyle.cornerColor[2],
+                               g_annotationStyle.cornerColor[3]));
+                    float d = g_annotationStyle.pointRadius;
+                    ImVec2 top(sp.x, sp.y - d);
+                    ImVec2 right(sp.x + d, sp.y);
+                    ImVec2 bot(sp.x, sp.y + d);
+                    ImVec2 left(sp.x - d, sp.y);
+                    ImVec2 diamond[4] = {top, right, bot, left};
+                    dl->AddConvexPolyFilled(diamond, 4, cCol);
+                    dl->AddPolyline(diamond, 4,
+                                    IM_COL32(255, 255, 255, 200),
+                                    ImDrawFlags_Closed, 1.5f);
+                }
+            }
+        }
+        if (hasAnnotationArray(image->annotations, "bounds"))
+        {
+            auto& bnd = image->annotations["bounds"].getArray();
+            bool editing = (mode == AnnotationMode::AddBounds);
+            ImU32 bndCol = ImGui::ColorConvertFloat4ToU32(
+                ImVec4(g_annotationStyle.boundsColor[0],
+                       g_annotationStyle.boundsColor[1],
+                       g_annotationStyle.boundsColor[2],
+                       g_annotationStyle.boundsColor[3]));
+            if (bnd.size() >= 2)
+            {
+                for (size_t i = 0; i + 1 < bnd.size(); ++i)
+                {
+                    ImVec2 a = imageToScreenCoord(
+                        bnd[i]["x"].getFloat(), bnd[i]["y"].getFloat(),
+                        cx, cy, annScale, cosR, sinR, imgW, imgH);
+                    ImVec2 b = imageToScreenCoord(
+                        bnd[i + 1]["x"].getFloat(),
+                        bnd[i + 1]["y"].getFloat(), cx, cy, annScale,
+                        cosR, sinR, imgW, imgH);
+                    dl->AddLine(a, b, bndCol,
+                                g_annotationStyle.boundsLineThickness);
+                }
+            }
+            if (bnd.size() >= 2)
+            {
+                ImVec2 last = imageToScreenCoord(
+                    bnd.back()["x"].getFloat(),
+                    bnd.back()["y"].getFloat(), cx, cy, annScale, cosR,
+                    sinR, imgW, imgH);
+                ImVec2 first = imageToScreenCoord(
+                    bnd[0]["x"].getFloat(), bnd[0]["y"].getFloat(), cx,
+                    cy, annScale, cosR, sinR, imgW, imgH);
+                if (!editing)
+                {
+                    dl->AddLine(last, first, bndCol,
+                                g_annotationStyle.boundsLineThickness);
+                }
+                else
+                {
+                    bool shift = io.KeyShift;
+                    if (hovered && !shift)
+                    {
+                        drawDashedLine(dl, last, io.MousePos, 8.0f,
+                                       6.0f);
+                    }
+                    else if (!shift)
+                    {
+                        drawDashedLine(dl, last, first, 8.0f, 6.0f);
+                    }
+                }
+            }
+            for (auto& v : bnd)
+            {
+                ImVec2 sp = imageToScreenCoord(
+                    v["x"].getFloat(), v["y"].getFloat(), cx, cy,
+                    annScale, cosR, sinR, imgW, imgH);
+                dl->AddCircleFilled(
+                    sp, g_annotationStyle.pointRadius - 1.0f, bndCol);
+            }
+        }
     }
 
     void ImageCanvas::renderCanvas(const char* canvasId,
@@ -183,17 +463,12 @@ namespace shoecomp
                                   ? "points"
                                   : "bounds";
 
-            // Screen-pixel threshold converted to
-            // image-space
             float screenPx = 10.0f;
             float imgPx = screenPx / (baseScale * viewState.zoom);
             float thresh2 = imgPx * imgPx;
 
-            // Close bounds polygon by clicking
-            // near the first vertex
             if (mode == AnnotationMode::AddBounds && !io.KeyShift &&
-                image->annotations.contains("bounds") &&
-                image->annotations["bounds"].isArray() &&
+                hasAnnotationArray(image->annotations, "bounds") &&
                 image->annotations["bounds"].getArray().size() >= 3)
             {
                 auto& bnd = image->annotations["bounds"].getArray();
@@ -212,10 +487,7 @@ namespace shoecomp
             }
             else if (io.KeyShift)
             {
-                // Remove nearest annotation within
-                // 10 image-pixels
-                if (image->annotations.contains(key) &&
-                    image->annotations[key].isArray())
+                if (hasAnnotationArray(image->annotations, key))
                 {
                     auto& arr = image->annotations[key].getArray();
                     float bestDist = thresh2;
@@ -238,8 +510,7 @@ namespace shoecomp
             {
                 bool allow = true;
                 if (mode == AnnotationMode::AddPoint &&
-                    image->annotations.contains("bounds") &&
-                    image->annotations["bounds"].isArray() &&
+                    hasAnnotationArray(image->annotations, "bounds") &&
                     image->annotations["bounds"].getArray().size() >= 3)
                 {
                     allow = pointInPolygon(
@@ -312,310 +583,32 @@ namespace shoecomp
         // Dim area outside bounds when not editing
         float annScale = baseScale * viewState.zoom;
         if (mode != AnnotationMode::AddBounds &&
-            image->annotations.isObject() &&
-            image->annotations.contains("bounds") &&
-            image->annotations["bounds"].isArray() &&
+            hasAnnotationArray(image->annotations, "bounds") &&
             image->annotations["bounds"].getArray().size() >= 3)
         {
-            auto& bnd = image->annotations["bounds"].getArray();
-            // Build screen-space bounds polygon
-            std::vector<ImVec2> screenBnd;
-            screenBnd.reserve(bnd.size());
-            for (auto& v : bnd)
-            {
-                screenBnd.push_back(imageToScreenCoord(
-                    v["x"].getFloat(), v["y"].getFloat(), cx, cy,
-                    annScale, cosR, sinR, image->width, image->height));
-            }
-            // Outer rect large enough to cover all
-            // bounds vertices, image corners, and
-            // the canvas
-            float oMinX = canvasPos.x;
-            float oMinY = canvasPos.y;
-            float oMaxX = canvasPos.x + avail.x;
-            float oMaxY = canvasPos.y + avail.y;
-            for (auto& sp : screenBnd)
-            {
-                oMinX = std::min(oMinX, sp.x);
-                oMinY = std::min(oMinY, sp.y);
-                oMaxX = std::max(oMaxX, sp.x);
-                oMaxY = std::max(oMaxY, sp.y);
-            }
-            ImVec2 imgCorners[4] = {tl, tr, br, bl};
-            for (auto& ic : imgCorners)
-            {
-                oMinX = std::min(oMinX, ic.x);
-                oMinY = std::min(oMinY, ic.y);
-                oMaxX = std::max(oMaxX, ic.x);
-                oMaxY = std::max(oMaxY, ic.y);
-            }
-            float pad = 10.0f;
-            oMinX -= pad;
-            oMinY -= pad;
-            oMaxX += pad;
-            oMaxY += pad;
-            ImVec2 cTL(oMinX, oMinY);
-            ImVec2 cTR(oMaxX, oMinY);
-            ImVec2 cBR(oMaxX, oMaxY);
-            ImVec2 cBL(oMinX, oMaxY);
-            // Find rightmost inner vertex for a
-            // safe horizontal bridge to the right
-            // edge of the outer rect
-            int maxXIdx = 0;
-            for (int si = 1; si < (int)screenBnd.size(); ++si)
-            {
-                if (screenBnd[si].x > screenBnd[maxXIdx].x)
-                    maxXIdx = si;
-            }
-            ImVec2 bridge(oMaxX, screenBnd[maxXIdx].y);
-            int n = (int)screenBnd.size();
-            // Signed area to determine winding
-            float signedArea = 0.0f;
-            for (int si = 0; si < n; ++si)
-            {
-                auto& a2 = screenBnd[si];
-                auto& b2 = screenBnd[(si + 1) % n];
-                signedArea += (b2.x - a2.x) * (b2.y + a2.y);
-            }
-            // In screen coords (Y-down) the
-            // trapezoid formula gives positive for
-            // CCW. Inner hole must be CCW, so keep
-            // CCW as-is, reverse CW.
-            bool isCW = signedArea < 0.0f;
-            std::vector<ImVec2> frame;
-            frame.reserve(n + 8);
-            frame.push_back(cTL);
-            frame.push_back(cTR);
-            frame.push_back(bridge);
-            // Traverse inner polygon CCW from
-            // maxXIdx
-            for (int si = 0; si <= n; ++si)
-            {
-                int idx =
-                    isCW ? (maxXIdx - si + n) % n : (maxXIdx + si) % n;
-                frame.push_back(screenBnd[idx]);
-            }
-            frame.push_back(bridge);
-            frame.push_back(cBR);
-            frame.push_back(cBL);
-            dl->AddConcavePolyFilled(frame.data(), (int)frame.size(),
-                                     IM_COL32(0, 0, 0, 120));
+            renderBoundsDimming(dl, image->annotations, cx, cy,
+                                annScale, cosR, sinR, image->width,
+                                image->height, canvasPos, avail, tl, tr,
+                                br, bl);
         }
 
         // Annotation overlays
-        if (image->annotations.isObject())
-        {
-            if (image->annotations.contains("points") &&
-                image->annotations["points"].isArray())
-            {
-                auto& pts = image->annotations["points"].getArray();
-                for (auto& p : pts)
-                {
-                    ImVec2 sp = imageToScreenCoord(
-                        p["x"].getFloat(), p["y"].getFloat(), cx, cy,
-                        annScale, cosR, sinR, image->width,
-                        image->height);
-                    PointType pType = PointType::Corner;
-                    if (p.contains("type") && p["type"].isString())
-                    {
-                        pType =
-                            stringToPointType(p["type"].getString());
-                    }
-                    if (pType == PointType::Center)
-                    {
-                        ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                            ImVec4(g_annotationStyle.centerColor[0],
-                                   g_annotationStyle.centerColor[1],
-                                   g_annotationStyle.centerColor[2],
-                                   g_annotationStyle.centerColor[3]));
-                        dl->AddCircleFilled(
-                            sp, g_annotationStyle.pointRadius, cCol);
-                        dl->AddCircle(sp, g_annotationStyle.pointRadius,
-                                      IM_COL32(255, 255, 255, 200), 12,
-                                      1.5f);
-                    }
-                    else
-                    {
-                        ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                            ImVec4(g_annotationStyle.cornerColor[0],
-                                   g_annotationStyle.cornerColor[1],
-                                   g_annotationStyle.cornerColor[2],
-                                   g_annotationStyle.cornerColor[3]));
-                        float d = g_annotationStyle.pointRadius;
-                        ImVec2 top(sp.x, sp.y - d);
-                        ImVec2 right(sp.x + d, sp.y);
-                        ImVec2 bot(sp.x, sp.y + d);
-                        ImVec2 left(sp.x - d, sp.y);
-                        ImVec2 diamond[4] = {top, right, bot, left};
-                        dl->AddConvexPolyFilled(diamond, 4, cCol);
-                        dl->AddPolyline(diamond, 4,
-                                        IM_COL32(255, 255, 255, 200),
-                                        ImDrawFlags_Closed, 1.5f);
-                    }
-                }
-            }
-            if (image->annotations.contains("bounds") &&
-                image->annotations["bounds"].isArray())
-            {
-                auto& bnd = image->annotations["bounds"].getArray();
-                bool editing = (mode == AnnotationMode::AddBounds);
-                // Solid edges between consecutive
-                // vertices
-                ImU32 bndCol = ImGui::ColorConvertFloat4ToU32(
-                    ImVec4(g_annotationStyle.boundsColor[0],
-                           g_annotationStyle.boundsColor[1],
-                           g_annotationStyle.boundsColor[2],
-                           g_annotationStyle.boundsColor[3]));
-                if (bnd.size() >= 2)
-                {
-                    for (size_t i = 0; i + 1 < bnd.size(); ++i)
-                    {
-                        ImVec2 a = imageToScreenCoord(
-                            bnd[i]["x"].getFloat(),
-                            bnd[i]["y"].getFloat(), cx, cy, annScale,
-                            cosR, sinR, image->width, image->height);
-                        ImVec2 b = imageToScreenCoord(
-                            bnd[i + 1]["x"].getFloat(),
-                            bnd[i + 1]["y"].getFloat(), cx, cy,
-                            annScale, cosR, sinR, image->width,
-                            image->height);
-                        dl->AddLine(
-                            a, b, bndCol,
-                            g_annotationStyle.boundsLineThickness);
-                    }
-                }
-                // Closing segment: solid when not
-                // editing, dashed when editing
-                if (bnd.size() >= 2)
-                {
-                    ImVec2 last = imageToScreenCoord(
-                        bnd.back()["x"].getFloat(),
-                        bnd.back()["y"].getFloat(), cx, cy, annScale,
-                        cosR, sinR, image->width, image->height);
-                    ImVec2 first = imageToScreenCoord(
-                        bnd[0]["x"].getFloat(), bnd[0]["y"].getFloat(),
-                        cx, cy, annScale, cosR, sinR, image->width,
-                        image->height);
-                    if (!editing)
-                    {
-                        dl->AddLine(
-                            last, first, bndCol,
-                            g_annotationStyle.boundsLineThickness);
-                    }
-                    else
-                    {
-                        // Dashed closing segment
-                        float dashLen = 8.0f;
-                        float gapLen = 6.0f;
-                        auto drawDashed = [&](ImVec2 p0, ImVec2 p1)
-                        {
-                            float dx = p1.x - p0.x;
-                            float dy = p1.y - p0.y;
-                            float len = sqrtf(dx * dx + dy * dy);
-                            if (len < 1.0f) return;
-                            float nx = dx / len;
-                            float ny = dy / len;
-                            float t = 0.0f;
-                            while (t < len)
-                            {
-                                float t1 = std::min(t + dashLen, len);
-                                dl->AddLine(ImVec2(p0.x + nx * t,
-                                                   p0.y + ny * t),
-                                            ImVec2(p0.x + nx * t1,
-                                                   p0.y + ny * t1),
-                                            IM_COL32(50, 255, 50, 120),
-                                            1.5f);
-                                t = t1 + gapLen;
-                            }
-                        };
-                        bool shift = io.KeyShift;
-                        if (hovered && !shift)
-                        {
-                            drawDashed(last, io.MousePos);
-                        }
-                        else if (!shift) { drawDashed(last, first); }
-                    }
-                }
-                for (auto& v : bnd)
-                {
-                    ImVec2 sp = imageToScreenCoord(
-                        v["x"].getFloat(), v["y"].getFloat(), cx, cy,
-                        annScale, cosR, sinR, image->width,
-                        image->height);
-                    dl->AddCircleFilled(
-                        sp, g_annotationStyle.pointRadius - 1.0f,
-                        bndCol);
-                }
-            }
-        }
+        renderAnnotations(dl, cx, cy, annScale, cosR, sinR, hovered,
+                          mode, io);
 
+        // Scrollbars
         float barThick = 8.0f;
         float barPad = 2.0f;
         ImU32 barCol = IM_COL32(200, 200, 200, 100);
         ImU32 barColHov = IM_COL32(200, 200, 200, 180);
-        ImVec2 mpos = io.MousePos;
-
-        if (dispW > avail.x)
-        {
-            float viewRatio = avail.x / dispW;
-            float barW = avail.x * viewRatio;
-            float t = (limX - viewState.pan.x) / (2.0f * limX);
-            float barX = canvasPos.x + t * (avail.x - barW);
-            float barY = canvasPos.y + avail.y - barThick - barPad;
-            ImVec2 bMin(barX, barY);
-            ImVec2 bMax(barX + barW, barY + barThick);
-
-            bool barHov = mpos.x >= bMin.x && mpos.x <= bMax.x &&
-                          mpos.y >= bMin.y && mpos.y <= bMax.y;
-            bool barDrag =
-                barHov && ImGui::IsMouseDragging(ImGuiMouseButton_Left);
-            if (barDrag)
-            {
-                float dx =
-                    -io.MouseDelta.x / (avail.x - barW) * (2.0f * limX);
-                viewState.pan.x += dx;
-                viewState.panTarget.x += dx;
-                if (linked)
-                {
-                    linked->pan.x += dx;
-                    linked->panTarget.x += dx;
-                }
-            }
-            dl->AddRectFilled(bMin, bMax,
-                              barDrag || barHov ? barColHov : barCol,
-                              barThick * 0.5f);
-        }
-
-        if (dispH > avail.y)
-        {
-            float viewRatio = avail.y / dispH;
-            float barH = avail.y * viewRatio;
-            float t = (limY - viewState.pan.y) / (2.0f * limY);
-            float barX = canvasPos.x + avail.x - barThick - barPad;
-            float barY = canvasPos.y + t * (avail.y - barH);
-            ImVec2 bMin(barX, barY);
-            ImVec2 bMax(barX + barThick, barY + barH);
-
-            bool barHov = mpos.x >= bMin.x && mpos.x <= bMax.x &&
-                          mpos.y >= bMin.y && mpos.y <= bMax.y;
-            bool barDrag =
-                barHov && ImGui::IsMouseDragging(ImGuiMouseButton_Left);
-            if (barDrag)
-            {
-                float dy =
-                    -io.MouseDelta.y / (avail.y - barH) * (2.0f * limY);
-                viewState.pan.y += dy;
-                viewState.panTarget.y += dy;
-                if (linked)
-                {
-                    linked->pan.y += dy;
-                    linked->panTarget.y += dy;
-                }
-            }
-            dl->AddRectFilled(bMin, bMax,
-                              barDrag || barHov ? barColHov : barCol,
-                              barThick * 0.5f);
-        }
+        renderScrollbar(dl, false, dispW, avail.x, limX,
+                        viewState.pan.x, viewState.panTarget.x,
+                        canvasPos, avail, io, barThick, barPad, barCol,
+                        barColHov, viewState, linked);
+        renderScrollbar(dl, true, dispH, avail.y, limY, viewState.pan.y,
+                        viewState.panTarget.y, canvasPos, avail, io,
+                        barThick, barPad, barCol, barColHov, viewState,
+                        linked);
 
         viewState.panTarget.x =
             std::clamp(viewState.panTarget.x, -limX, limX);
@@ -635,7 +628,6 @@ namespace shoecomp
 
         float frameH = ImGui::GetFrameHeight();
 
-        // Home: fit image vertically, reset pan
         if (ImGui::Button("Home"))
         {
             viewState.zoomTarget = 1.0f;
@@ -650,7 +642,6 @@ namespace shoecomp
         }
         ImGui::SameLine();
 
-        // Zoom in
         if (ImGui::Button("Zoom+"))
         {
             viewState.zoomTarget =
@@ -659,7 +650,6 @@ namespace shoecomp
         }
         ImGui::SameLine();
 
-        // Zoom out
         if (ImGui::Button("Zoom-"))
         {
             viewState.zoomTarget =
@@ -668,7 +658,6 @@ namespace shoecomp
         }
         ImGui::SameLine();
 
-        // Rotation dial
         float dialR = frameH * 0.5f;
         ImVec2 cursor = ImGui::GetCursorScreenPos();
         ImVec2 center(cursor.x + dialR, cursor.y + dialR);
@@ -679,9 +668,9 @@ namespace shoecomp
 
         if (dialAct)
         {
-            ImGuiIO& io = ImGui::GetIO();
-            float angle = atan2f(io.MousePos.y - center.y,
-                                 io.MousePos.x - center.x);
+            ImGuiIO& dio = ImGui::GetIO();
+            float angle = atan2f(dio.MousePos.y - center.y,
+                                 dio.MousePos.x - center.x);
             viewState.rotationTarget = angle;
             viewState.rotation = angle;
             if (linked)
@@ -748,8 +737,7 @@ namespace shoecomp
                 key = "points";
             else if (mode == AnnotationMode::AddBounds)
                 key = "bounds";
-            if (key && image->annotations.contains(key) &&
-                image->annotations[key].isArray())
+            if (key && hasAnnotationArray(image->annotations, key))
             {
                 auto& arr = image->annotations[key].getArray();
                 if (!arr.empty()) arr.pop_back();
