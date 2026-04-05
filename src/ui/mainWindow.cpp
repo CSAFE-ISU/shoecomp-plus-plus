@@ -347,6 +347,12 @@ namespace shoecomp
 
         auto& align = state.viewerAlignments[state.viewerAlignmentIdx];
 
+        // Guard against division by zero in inverse transformation
+        if (align.scale < 0.001f)
+        {
+            return;
+        }
+
         // Check if we have matched points stored
         if (!align.info.isObject() ||
             !align.info.contains("leftPoints") ||
@@ -373,6 +379,12 @@ namespace shoecomp
         const ImU32 correspondingColor = IM_COL32(0, 255, 100, 180);  // Green: corresponding point
         const float hoverThreshold = 15.0f;  // pixels
 
+        // Transformed cursor indicator constants
+        const float transformedRadius = 7.0f;
+        const ImU32 transformedFill = IM_COL32(255, 150, 0, 180);      // Orange
+        const ImU32 transformedOutline = IM_COL32(255, 255, 255, 255);  // White
+        const ImU32 transformedTextColor = IM_COL32(255, 150, 0, 255);  // Orange (opaque)
+
         if (leftView.isHovered)
         {
             // Get cursor position in image coordinates
@@ -392,6 +404,47 @@ namespace shoecomp
             ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
                           io.MousePos.y - primaryRadius);
             dl->AddText(textPos, primaryFill, coordText);
+
+            // Apply inverse RTS transformation: left -> right
+            // Inverse of (Rotate, Scale, Translate) is: Untranslate, Unrotate, Unscale
+            float radians = align.rotation * 3.14159265f / 180.0f;
+            float cos_theta = cosf(radians);
+            float sin_theta = sinf(radians);
+
+            float tempX = imgCoord.x - align.translationX;
+            float tempY = imgCoord.y - align.translationY;
+            float rotX = tempX * cos_theta + tempY * sin_theta;
+            float rotY = -tempX * sin_theta + tempY * cos_theta;
+            float transformedX = rotX / align.scale;
+            float transformedY = rotY / align.scale;
+
+            // Check if transformed position is within right image bounds
+            if (transformedX >= 0 && transformedX < rightImg->width &&
+                transformedY >= 0 && transformedY < rightImg->height)
+            {
+                // Convert to screen coordinates
+                ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
+                    transformedX, transformedY,
+                    rightView.centerX, rightView.centerY,
+                    rightView.renderScale,
+                    cosf(rightView.rotation), sinf(rightView.rotation),
+                    rightImg->width, rightImg->height);
+
+                // Draw orange transformed cursor indicator
+                dl->AddCircleFilled(rightScreenPos, transformedRadius,
+                                  transformedFill);
+                dl->AddCircle(rightScreenPos, transformedRadius,
+                            transformedOutline, 12, 1.5f);
+
+                // Draw coordinate text below circle
+                char transformedText[64];
+                snprintf(transformedText, sizeof(transformedText),
+                        "(%.1f, %.1f)", transformedX, transformedY);
+                ImVec2 transformedTextPos(rightScreenPos.x - 30.0f,
+                                        rightScreenPos.y + transformedRadius + 5.0f);
+                dl->AddText(transformedTextPos, transformedTextColor,
+                          transformedText);
+            }
 
             // Find if cursor is near any matched point
             for (size_t i = 0; i < leftPoints.size(); ++i)
@@ -427,6 +480,14 @@ namespace shoecomp
                                       correspondingColor);
                     dl->AddCircle(rightScreenPos, secondaryRadius,
                                 primaryOutline, 12, 2.5f);
+
+                    // Draw coordinate text below green circle
+                    char matchedText[64];
+                    snprintf(matchedText, sizeof(matchedText),
+                            "(%.1f, %.1f)", rx, ry);
+                    ImVec2 matchedTextPos(rightScreenPos.x - 30.0f,
+                                        rightScreenPos.y + secondaryRadius + 5.0f);
+                    dl->AddText(matchedTextPos, correspondingColor, matchedText);
                     break;  // Only show first matching point
                 }
             }
@@ -450,6 +511,47 @@ namespace shoecomp
             ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
                           io.MousePos.y - primaryRadius);
             dl->AddText(textPos, primaryFill, coordText);
+
+            // Apply forward RTS transformation: right -> left
+            // Scale, Rotate, Translate
+            float radians = align.rotation * 3.14159265f / 180.0f;
+            float cos_theta = cosf(radians);
+            float sin_theta = sinf(radians);
+
+            float scaledX = imgCoord.x * align.scale;
+            float scaledY = imgCoord.y * align.scale;
+            float rotX = scaledX * cos_theta - scaledY * sin_theta;
+            float rotY = scaledX * sin_theta + scaledY * cos_theta;
+            float transformedX = rotX + align.translationX;
+            float transformedY = rotY + align.translationY;
+
+            // Check if transformed position is within left image bounds
+            if (transformedX >= 0 && transformedX < leftImg->width &&
+                transformedY >= 0 && transformedY < leftImg->height)
+            {
+                // Convert to screen coordinates
+                ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
+                    transformedX, transformedY,
+                    leftView.centerX, leftView.centerY,
+                    leftView.renderScale,
+                    cosf(leftView.rotation), sinf(leftView.rotation),
+                    leftImg->width, leftImg->height);
+
+                // Draw orange transformed cursor indicator
+                dl->AddCircleFilled(leftScreenPos, transformedRadius,
+                                  transformedFill);
+                dl->AddCircle(leftScreenPos, transformedRadius,
+                            transformedOutline, 12, 1.5f);
+
+                // Draw coordinate text below circle
+                char transformedText[64];
+                snprintf(transformedText, sizeof(transformedText),
+                        "(%.1f, %.1f)", transformedX, transformedY);
+                ImVec2 transformedTextPos(leftScreenPos.x - 30.0f,
+                                        leftScreenPos.y + transformedRadius + 5.0f);
+                dl->AddText(transformedTextPos, transformedTextColor,
+                          transformedText);
+            }
 
             // Find if cursor is near any matched point
             for (size_t i = 0; i < rightPoints.size(); ++i)
@@ -485,6 +587,14 @@ namespace shoecomp
                                       correspondingColor);
                     dl->AddCircle(leftScreenPos, secondaryRadius,
                                 primaryOutline, 12, 2.5f);
+
+                    // Draw coordinate text below green circle
+                    char matchedText[64];
+                    snprintf(matchedText, sizeof(matchedText),
+                            "(%.1f, %.1f)", lx, ly);
+                    ImVec2 matchedTextPos(leftScreenPos.x - 30.0f,
+                                        leftScreenPos.y + secondaryRadius + 5.0f);
+                    dl->AddText(matchedTextPos, correspondingColor, matchedText);
                     break;  // Only show first matching point
                 }
             }
