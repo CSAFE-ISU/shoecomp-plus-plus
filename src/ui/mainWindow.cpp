@@ -347,6 +347,15 @@ namespace shoecomp
 
         auto& align = state.viewerAlignments[state.viewerAlignmentIdx];
 
+        // Debug: print transformation parameters (only once)
+        static bool printed = false;
+        if (!printed)
+        {
+            printf("Align params: rot=%.2f, tx=%.2f, ty=%.2f, scale=%.4f\n",
+                   align.rotation, align.translationX, align.translationY, align.scale);
+            printed = true;
+        }
+
         // Guard against division by zero in inverse transformation
         if (align.scale < 0.001f)
         {
@@ -406,15 +415,15 @@ namespace shoecomp
             dl->AddText(textPos, primaryFill, coordText);
 
             // Apply inverse RTS transformation: left -> right
-            // Inverse of (Rotate, Scale, Translate) is: Untranslate, Unrotate, Unscale
+            // Add translation, rotate, unscale
             float radians = align.rotation * 3.14159265f / 180.0f;
             float cos_theta = cosf(radians);
             float sin_theta = sinf(radians);
 
-            float tempX = imgCoord.x - align.translationX;
-            float tempY = imgCoord.y - align.translationY;
-            float rotX = tempX * cos_theta + tempY * sin_theta;
-            float rotY = -tempX * sin_theta + tempY * cos_theta;
+            float tempX = imgCoord.x + align.translationX / align.scale;
+            float tempY = imgCoord.y + align.translationY / align.scale;
+            float rotX = tempX * cos_theta - tempY * sin_theta;
+            float rotY = tempX * sin_theta + tempY * cos_theta;
             float transformedX = rotX / align.scale;
             float transformedY = rotY / align.scale;
 
@@ -513,17 +522,17 @@ namespace shoecomp
             dl->AddText(textPos, primaryFill, coordText);
 
             // Apply forward RTS transformation: right -> left
-            // Scale, Rotate, Translate
+            // Inverse of left transformation
             float radians = align.rotation * 3.14159265f / 180.0f;
             float cos_theta = cosf(radians);
             float sin_theta = sinf(radians);
 
             float scaledX = imgCoord.x * align.scale;
             float scaledY = imgCoord.y * align.scale;
-            float rotX = scaledX * cos_theta - scaledY * sin_theta;
-            float rotY = scaledX * sin_theta + scaledY * cos_theta;
-            float transformedX = rotX + align.translationX;
-            float transformedY = rotY + align.translationY;
+            float rotX = scaledX * cos_theta + scaledY * sin_theta;
+            float rotY = -scaledX * sin_theta + scaledY * cos_theta;
+            float transformedX = rotX - align.translationX / align.scale;
+            float transformedY = rotY - align.translationY / align.scale;
 
             // Check if transformed position is within left image bounds
             if (transformedX >= 0 && transformedX < leftImg->width &&
