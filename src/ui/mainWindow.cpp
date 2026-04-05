@@ -105,8 +105,7 @@ namespace shoecomp
 
         if (lChanged && !rChanged)
         {
-            // Compute how zoom and pan changed in left viewer
-            float leftZoomChange = lv.zoomTarget / lZoom0;
+            // Compute pan change and scale factor
             ImVec2 leftPanChange(lv.panTarget.x - lPan0.x,
                                  lv.panTarget.y - lPan0.y);
 
@@ -116,23 +115,15 @@ namespace shoecomp
             rv.rotationTarget = lv.rotationTarget + aRad;
             rv.rotation = lv.rotation + aRad;
 
-            // Scale right pan proportionally to maintain zoom center
-            float rightZoomChange = rv.zoomTarget / rZoom0;
-            rv.panTarget.x = rPan0.x * rightZoomChange;
-            rv.panTarget.y = rPan0.y * rightZoomChange;
-
-            // Apply the left viewer's pan change to right viewer
-            // Scale by relative zoom levels
-            float panScale = (rv.baseScale * rv.zoomTarget) / (lv.baseScale * lv.zoomTarget);
-            rv.panTarget.x += leftPanChange.x * panScale;
-            rv.panTarget.y += leftPanChange.y * panScale;
-
+            // Apply pan change with baseScale ratio (constant, independent of zoom)
+            float panScale = (rv.baseScale * a.scale) / lv.baseScale;
+            rv.panTarget.x = rPan0.x + leftPanChange.x * panScale;
+            rv.panTarget.y = rPan0.y + leftPanChange.y * panScale;
             rv.pan = rv.panTarget;
         }
         else if (rChanged && !lChanged)
         {
-            // Compute how zoom and pan changed in right viewer
-            float rightZoomChange = rv.zoomTarget / rZoom0;
+            // Compute pan change and scale factor
             ImVec2 rightPanChange(rv.panTarget.x - rPan0.x,
                                   rv.panTarget.y - rPan0.y);
 
@@ -142,23 +133,15 @@ namespace shoecomp
             lv.rotationTarget = rv.rotationTarget - aRad;
             lv.rotation = rv.rotation - aRad;
 
-            // Scale left pan proportionally to maintain zoom center
-            float leftZoomChange = lv.zoomTarget / lZoom0;
-            lv.panTarget.x = lPan0.x * leftZoomChange;
-            lv.panTarget.y = lPan0.y * leftZoomChange;
-
-            // Apply the right viewer's pan change to left viewer
-            // Scale by relative zoom levels
-            float panScale = (lv.baseScale * lv.zoomTarget) / (rv.baseScale * rv.zoomTarget);
-            lv.panTarget.x += rightPanChange.x * panScale;
-            lv.panTarget.y += rightPanChange.y * panScale;
-
+            // Apply pan change with inverse baseScale ratio
+            float panScale = lv.baseScale / (rv.baseScale * a.scale);
+            lv.panTarget.x = lPan0.x + rightPanChange.x * panScale;
+            lv.panTarget.y = lPan0.y + rightPanChange.y * panScale;
             lv.pan = lv.panTarget;
         }
         else if (lChanged && rChanged)
         {
-            // Compute how zoom and pan changed in left viewer
-            float leftZoomChange = lv.zoomTarget / lZoom0;
+            // Compute pan change and scale factor
             ImVec2 leftPanChange(lv.panTarget.x - lPan0.x,
                                  lv.panTarget.y - lPan0.y);
 
@@ -168,17 +151,10 @@ namespace shoecomp
             rv.rotationTarget = lv.rotationTarget + aRad;
             rv.rotation = lv.rotation + aRad;
 
-            // Scale right pan proportionally to maintain zoom center
-            float rightZoomChange = rv.zoomTarget / rZoom0;
-            rv.panTarget.x = rPan0.x * rightZoomChange;
-            rv.panTarget.y = rPan0.y * rightZoomChange;
-
-            // Apply the left viewer's pan change to right viewer
-            // Scale by relative zoom levels
-            float panScale = (rv.baseScale * rv.zoomTarget) / (lv.baseScale * lv.zoomTarget);
-            rv.panTarget.x += leftPanChange.x * panScale;
-            rv.panTarget.y += leftPanChange.y * panScale;
-
+            // Apply pan change with baseScale ratio (constant, independent of zoom)
+            float panScale = (rv.baseScale * a.scale) / lv.baseScale;
+            rv.panTarget.x = rPan0.x + leftPanChange.x * panScale;
+            rv.panTarget.y = rPan0.y + leftPanChange.y * panScale;
             rv.pan = rv.panTarget;
         }
     }
