@@ -20,28 +20,81 @@ namespace shoecomp
 
     // Apply alignment transform: set right viewer
     // to match left viewer + alignment offset.
-    static void applyAlignment(ImageViewState& lv, ImageViewState& rv,
+    static void applyAlignment(ImageCanvas& viewerLeft, ImageCanvas& viewerRight,
                                const AlignState& a, bool& locked)
     {
+        auto& lv = viewerLeft.viewState;
+        auto& rv = viewerRight.viewState;
+
+        if (!viewerLeft.image || !viewerRight.image)
+        {
+            locked = false;
+            return;
+        }
+
         locked = false;
-        float rad = a.rotation * kDegToRad;
+        float aRad = a.rotation * kDegToRad;
         rv.zoom = rv.zoomTarget = lv.zoomTarget * a.scale;
-        rv.rotation = rv.rotationTarget = lv.rotationTarget + rad;
-        rv.pan = rv.panTarget = ImVec2(lv.panTarget.x + a.translationX,
-                                       lv.panTarget.y + a.translationY);
+        rv.rotation = rv.rotationTarget = lv.rotationTarget + aRad;
+
+        // Use each viewer's canvas center as reference point
+        ImVec2 leftRefScreen(lv.canvasPos.x + lv.canvasSize.x * 0.5f,
+                             lv.canvasPos.y + lv.canvasSize.y * 0.5f);
+        ImVec2 rightRefScreen(rv.canvasPos.x + rv.canvasSize.x * 0.5f,
+                              rv.canvasPos.y + rv.canvasSize.y * 0.5f);
+
+        // Convert left reference to image coordinates
+        ImVec2 leftImgPt = ImageCanvas::screenToImageCoord(
+            leftRefScreen, lv.canvasPos, lv.canvasSize, lv.panTarget, lv.zoomTarget,
+            lv.baseScale, lv.rotationTarget,
+            viewerLeft.image->width, viewerLeft.image->height);
+
+        // Apply alignment transformation: right = S * R * left + T
+        float cosA = cosf(aRad);
+        float sinA = sinf(aRad);
+        float rotX = leftImgPt.x * cosA - leftImgPt.y * sinA;
+        float rotY = leftImgPt.x * sinA + leftImgPt.y * cosA;
+        ImVec2 rightImgPt(rotX * a.scale + a.translationX,
+                          rotY * a.scale + a.translationY);
+
+        // Start with same pan as left, then compute adjustment
+        rv.pan = rv.panTarget = lv.panTarget;
+
+        // Compute right viewer rendering state
+        float rightRenderScale = rv.baseScale * rv.zoomTarget;
+        float rightCenterX = rv.canvasPos.x + rv.canvasSize.x * 0.5f + rv.panTarget.x;
+        float rightCenterY = rv.canvasPos.y + rv.canvasSize.y * 0.5f + rv.panTarget.y;
+
+        // Convert right image point back to screen coordinates
+        ImVec2 rightScreen = ImageCanvas::imageToScreenCoord(
+            rightImgPt.x, rightImgPt.y, rightCenterX, rightCenterY, rightRenderScale,
+            cosf(rv.rotationTarget), sinf(rv.rotationTarget),
+            viewerRight.image->width, viewerRight.image->height);
+
+        // Adjust pan so right image point appears at right canvas center
+        rv.panTarget.x += rightRefScreen.x - rightScreen.x;
+        rv.panTarget.y += rightRefScreen.y - rightScreen.y;
+        rv.pan = rv.panTarget;
+
         locked = true;
     }
 
     // Sync locked viewers after rendering. Detects
     // which viewer changed and propagates through
     // alignment.
-    static void syncLockedViewers(ImageViewState& lv,
-                                  ImageViewState& rv,
+    static void syncLockedViewers(ImageCanvas& viewerLeft,
+                                  ImageCanvas& viewerRight,
                                   const AlignState& a, float lZoom0,
                                   ImVec2 lPan0, float lRot0,
                                   float rZoom0, ImVec2 rPan0,
                                   float rRot0)
     {
+        auto& lv = viewerLeft.viewState;
+        auto& rv = viewerRight.viewState;
+
+        if (!viewerLeft.image || !viewerRight.image)
+            return;
+
         float aRad = a.rotation * kDegToRad;
         bool lChanged =
             lv.zoomTarget != lZoom0 || lv.panTarget.x != lPan0.x ||
@@ -52,36 +105,81 @@ namespace shoecomp
 
         if (lChanged && !rChanged)
         {
+            // Compute how zoom and pan changed in left viewer
+            float leftZoomChange = lv.zoomTarget / lZoom0;
+            ImVec2 leftPanChange(lv.panTarget.x - lPan0.x,
+                                 lv.panTarget.y - lPan0.y);
+
+            // Apply zoom change to right viewer (scaled by alignment)
             rv.zoomTarget = lv.zoomTarget * a.scale;
             rv.zoom = lv.zoom * a.scale;
-            rv.panTarget.x = lv.panTarget.x + a.translationX;
-            rv.panTarget.y = lv.panTarget.y + a.translationY;
-            rv.pan.x = lv.pan.x + a.translationX;
-            rv.pan.y = lv.pan.y + a.translationY;
             rv.rotationTarget = lv.rotationTarget + aRad;
             rv.rotation = lv.rotation + aRad;
+
+            // Scale right pan proportionally to maintain zoom center
+            float rightZoomChange = rv.zoomTarget / rZoom0;
+            rv.panTarget.x = rPan0.x * rightZoomChange;
+            rv.panTarget.y = rPan0.y * rightZoomChange;
+
+            // Apply the left viewer's pan change to right viewer
+            // Scale by relative zoom levels
+            float panScale = (rv.baseScale * rv.zoomTarget) / (lv.baseScale * lv.zoomTarget);
+            rv.panTarget.x += leftPanChange.x * panScale;
+            rv.panTarget.y += leftPanChange.y * panScale;
+
+            rv.pan = rv.panTarget;
         }
         else if (rChanged && !lChanged)
         {
+            // Compute how zoom and pan changed in right viewer
+            float rightZoomChange = rv.zoomTarget / rZoom0;
+            ImVec2 rightPanChange(rv.panTarget.x - rPan0.x,
+                                  rv.panTarget.y - rPan0.y);
+
+            // Apply zoom change to left viewer (inverse scale)
             lv.zoomTarget = rv.zoomTarget / a.scale;
             lv.zoom = rv.zoom / a.scale;
-            lv.panTarget.x = rv.panTarget.x - a.translationX;
-            lv.panTarget.y = rv.panTarget.y - a.translationY;
-            lv.pan.x = rv.pan.x - a.translationX;
-            lv.pan.y = rv.pan.y - a.translationY;
             lv.rotationTarget = rv.rotationTarget - aRad;
             lv.rotation = rv.rotation - aRad;
+
+            // Scale left pan proportionally to maintain zoom center
+            float leftZoomChange = lv.zoomTarget / lZoom0;
+            lv.panTarget.x = lPan0.x * leftZoomChange;
+            lv.panTarget.y = lPan0.y * leftZoomChange;
+
+            // Apply the right viewer's pan change to left viewer
+            // Scale by relative zoom levels
+            float panScale = (lv.baseScale * lv.zoomTarget) / (rv.baseScale * rv.zoomTarget);
+            lv.panTarget.x += rightPanChange.x * panScale;
+            lv.panTarget.y += rightPanChange.y * panScale;
+
+            lv.pan = lv.panTarget;
         }
         else if (lChanged && rChanged)
         {
+            // Compute how zoom and pan changed in left viewer
+            float leftZoomChange = lv.zoomTarget / lZoom0;
+            ImVec2 leftPanChange(lv.panTarget.x - lPan0.x,
+                                 lv.panTarget.y - lPan0.y);
+
+            // Apply zoom change to right viewer (scaled by alignment)
             rv.zoomTarget = lv.zoomTarget * a.scale;
             rv.zoom = lv.zoom * a.scale;
-            rv.panTarget.x = lv.panTarget.x + a.translationX;
-            rv.panTarget.y = lv.panTarget.y + a.translationY;
-            rv.pan.x = lv.pan.x + a.translationX;
-            rv.pan.y = lv.pan.y + a.translationY;
             rv.rotationTarget = lv.rotationTarget + aRad;
             rv.rotation = lv.rotation + aRad;
+
+            // Scale right pan proportionally to maintain zoom center
+            float rightZoomChange = rv.zoomTarget / rZoom0;
+            rv.panTarget.x = rPan0.x * rightZoomChange;
+            rv.panTarget.y = rPan0.y * rightZoomChange;
+
+            // Apply the left viewer's pan change to right viewer
+            // Scale by relative zoom levels
+            float panScale = (rv.baseScale * rv.zoomTarget) / (lv.baseScale * lv.zoomTarget);
+            rv.panTarget.x += leftPanChange.x * panScale;
+            rv.panTarget.y += leftPanChange.y * panScale;
+
+            rv.pan = rv.panTarget;
         }
     }
 
@@ -574,7 +672,8 @@ namespace shoecomp
             {
                 auto& a =
                     state.viewerAlignments[state.viewerAlignmentIdx];
-                syncLockedViewers(lv, rv, a, lZoom0, lPan0, lRot0,
+                syncLockedViewers(state.viewerLeft, state.viewerRight, a,
+                                  lZoom0, lPan0, lRot0,
                                   rZoom0, rPan0, rRot0);
             }
         }
@@ -639,8 +738,8 @@ namespace shoecomp
                 {
                     state.viewerAlignmentIdx--;
                     applyAlignment(
-                        state.viewerLeft.viewState,
-                        state.viewerRight.viewState,
+                        state.viewerLeft,
+                        state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
                         state.viewerLocked);
@@ -654,8 +753,8 @@ namespace shoecomp
                 {
                     state.viewerAlignmentIdx++;
                     applyAlignment(
-                        state.viewerLeft.viewState,
-                        state.viewerRight.viewState,
+                        state.viewerLeft,
+                        state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
                         state.viewerLocked);
@@ -684,8 +783,8 @@ namespace shoecomp
                 if (idx >= (int)state.viewerAlignments.size())
                     idx = (int)state.viewerAlignments.size() - 1;
                 state.viewerAlignmentIdx = idx;
-                applyAlignment(state.viewerLeft.viewState,
-                               state.viewerRight.viewState,
+                applyAlignment(state.viewerLeft,
+                               state.viewerRight,
                                state.viewerAlignments[idx],
                                state.viewerLocked);
             }
@@ -954,8 +1053,8 @@ namespace shoecomp
 
             if (changed)
             {
-                applyAlignment(state.viewerLeft.viewState,
-                               state.viewerRight.viewState,
+                applyAlignment(state.viewerLeft,
+                               state.viewerRight,
                                state.alignEditState,
                                state.viewerLocked);
             }
@@ -973,8 +1072,8 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditOriginal;
-                applyAlignment(state.viewerLeft.viewState,
-                               state.viewerRight.viewState,
+                applyAlignment(state.viewerLeft,
+                               state.viewerRight,
                                state.alignEditOriginal,
                                state.viewerLocked);
                 ImGui::CloseCurrentPopup();
