@@ -105,57 +105,30 @@ namespace shoecomp
 
         if (lChanged && !rChanged)
         {
-            // Compute pan change and scale factor
-            ImVec2 leftPanChange(lv.panTarget.x - lPan0.x,
-                                 lv.panTarget.y - lPan0.y);
-
-            // Apply zoom change to right viewer (scaled by alignment)
             rv.zoomTarget = lv.zoomTarget * a.scale;
             rv.zoom = lv.zoom * a.scale;
+            rv.panTarget.x += (lv.panTarget.x - lPan0.x);
+            rv.panTarget.y += (lv.panTarget.y - lPan0.y);
             rv.rotationTarget = lv.rotationTarget + aRad;
             rv.rotation = lv.rotation + aRad;
-
-            // Apply pan change with baseScale ratio (constant, independent of zoom)
-            float panScale = (rv.baseScale * a.scale) / lv.baseScale;
-            rv.panTarget.x = rPan0.x + leftPanChange.x * panScale;
-            rv.panTarget.y = rPan0.y + leftPanChange.y * panScale;
-            rv.pan = rv.panTarget;
         }
         else if (rChanged && !lChanged)
         {
-            // Compute pan change and scale factor
-            ImVec2 rightPanChange(rv.panTarget.x - rPan0.x,
-                                  rv.panTarget.y - rPan0.y);
-
-            // Apply zoom change to left viewer (inverse scale)
             lv.zoomTarget = rv.zoomTarget / a.scale;
             lv.zoom = rv.zoom / a.scale;
+            lv.panTarget.x += (rv.panTarget.x - rPan0.x);
+            lv.panTarget.y += (rv.panTarget.y - rPan0.y);
             lv.rotationTarget = rv.rotationTarget - aRad;
             lv.rotation = rv.rotation - aRad;
-
-            // Apply pan change with inverse baseScale ratio
-            float panScale = lv.baseScale / (rv.baseScale * a.scale);
-            lv.panTarget.x = lPan0.x + rightPanChange.x * panScale;
-            lv.panTarget.y = lPan0.y + rightPanChange.y * panScale;
-            lv.pan = lv.panTarget;
         }
         else if (lChanged && rChanged)
         {
-            // Compute pan change and scale factor
-            ImVec2 leftPanChange(lv.panTarget.x - lPan0.x,
-                                 lv.panTarget.y - lPan0.y);
-
-            // Apply zoom change to right viewer (scaled by alignment)
             rv.zoomTarget = lv.zoomTarget * a.scale;
             rv.zoom = lv.zoom * a.scale;
+            rv.panTarget.x += (lv.panTarget.x - lPan0.x);
+            rv.panTarget.y += (lv.panTarget.y - lPan0.y);
             rv.rotationTarget = lv.rotationTarget + aRad;
             rv.rotation = lv.rotation + aRad;
-
-            // Apply pan change with baseScale ratio (constant, independent of zoom)
-            float panScale = (rv.baseScale * a.scale) / lv.baseScale;
-            rv.panTarget.x = rPan0.x + leftPanChange.x * panScale;
-            rv.panTarget.y = rPan0.y + leftPanChange.y * panScale;
-            rv.pan = rv.panTarget;
         }
     }
 
