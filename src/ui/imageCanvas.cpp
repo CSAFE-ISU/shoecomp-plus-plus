@@ -1,8 +1,6 @@
 #include "ui/imageCanvas.h"
 #include "ui/uiHelpers.h"
 #include "formats/png.h"
-#include <algorithm>
-#include <cmath>
 
 namespace shoecomp
 {
@@ -124,18 +122,17 @@ namespace shoecomp
     static void drawDashedLine(ImDrawList* dl, ImVec2 p0, ImVec2 p1,
                                float dashLen, float gapLen)
     {
-        float dx = p1.x - p0.x;
-        float dy = p1.y - p0.y;
-        float len = sqrtf(dx * dx + dy * dy);
+        ImVec2 d = p1 - p0;
+        float len = length(d);
+
         if (len < 1.0f) return;
-        float nx = dx / len;
-        float ny = dy / len;
+        ImVec2 nd = d / len;
         float t = 0.0f;
         while (t < len)
         {
             float t1 = std::min(t + dashLen, len);
-            dl->AddLine(ImVec2(p0.x + nx * t, p0.y + ny * t),
-                        ImVec2(p0.x + nx * t1, p0.y + ny * t1),
+            dl->AddLine(p0 + nd * t,
+                        p0 + nd * t1,
                         IM_COL32(50, 255, 50, 120), 1.5f);
             t = t1 + gapLen;
         }
@@ -403,6 +400,13 @@ namespace shoecomp
         }
     }
 
+    static ImVec2 getRotatedVec2(const ImVec2& c, float rotation,
+                                 float lx, float ly)
+    {
+        return ImVec2(c.x + lx * cosf(rotation) - ly * sinf(rotation),
+                      c.y + lx * sinf(rotation) + ly * cosf(rotation));
+    }
+
     void ImageCanvas::renderCanvas(const char* canvasId,
                                    ImageViewState* linked)
     {
@@ -437,15 +441,11 @@ namespace shoecomp
             viewState.zoomTarget *= (io.MouseWheel > 0) ? 1.15f : 0.87f;
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget, 0.1f, 50.0f);
-            ImVec2 mouse = ImVec2(io.MousePos.x - canvasPos.x,
-                                  io.MousePos.y - canvasPos.y);
+            ImVec2 mouse = io.MousePos - canvasPos;
             float ratio = viewState.zoomTarget / oldTarget;
-            viewState.panTarget.x =
-                (1.0f - ratio) * (mouse.x - avail.x * 0.5f) +
-                ratio * viewState.panTarget.x;
-            viewState.panTarget.y =
-                (1.0f - ratio) * (mouse.y - avail.y * 0.5f) +
-                ratio * viewState.panTarget.y;
+            viewState.panTarget =
+                (1.0f - ratio) * (mouse - avail * 0.5f) +
+                ratio * viewState.panTarget;
             if (linked)
             {
                 linked->zoomTarget = viewState.zoomTarget;
@@ -462,16 +462,12 @@ namespace shoecomp
         if (active && io.KeyCtrl &&
             ImGui::IsMouseDragging(ImGuiMouseButton_Left))
         {
-            viewState.panTarget.x += io.MouseDelta.x;
-            viewState.panTarget.y += io.MouseDelta.y;
-            viewState.pan.x += io.MouseDelta.x;
-            viewState.pan.y += io.MouseDelta.y;
+            viewState.panTarget += io.MouseDelta;
+            viewState.pan += io.MouseDelta;
             if (linked)
             {
-                linked->panTarget.x += io.MouseDelta.x;
-                linked->panTarget.y += io.MouseDelta.y;
-                linked->pan.x += io.MouseDelta.x;
-                linked->pan.y += io.MouseDelta.y;
+                linked->panTarget += io.MouseDelta;
+                linked->pan += io.MouseDelta;
             }
         }
 
@@ -561,46 +557,35 @@ namespace shoecomp
         speed = std::clamp(speed, 0.0f, 1.0f);
         viewState.zoom +=
             (viewState.zoomTarget - viewState.zoom) * speed;
-        viewState.pan.x +=
-            (viewState.panTarget.x - viewState.pan.x) * speed;
-        viewState.pan.y +=
-            (viewState.panTarget.y - viewState.pan.y) * speed;
+        viewState.pan +=
+            (viewState.panTarget - viewState.pan) * speed;
         viewState.rotation +=
             (viewState.rotationTarget - viewState.rotation) * speed;
 
-        float dispW = image->width * baseScale * viewState.zoom;
-        float dispH = image->height * baseScale * viewState.zoom;
+        ImVec2 disp(image->width * baseScale * viewState.zoom,
+                image->height * baseScale * viewState.zoom);
 
-        float limX = std::max(avail.x, dispW) * 0.5f;
-        float limY = std::max(avail.y, dispH) * 0.5f;
-        viewState.panTarget.x =
-            std::clamp(viewState.panTarget.x, -limX, limX);
-        viewState.panTarget.y =
-            std::clamp(viewState.panTarget.y, -limY, limY);
-        viewState.pan.x = std::clamp(viewState.pan.x, -limX, limX);
-        viewState.pan.y = std::clamp(viewState.pan.y, -limY, limY);
+        ImVec2 lim = max(avail, disp) * 0.5f;
+
+        viewState.panTarget = clamp(viewState.panTarget, lim);
+        viewState.pan = clamp(viewState.pan, lim);
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
         dl->PushClipRect(
             canvasPos,
-            ImVec2(canvasPos.x + avail.x, canvasPos.y + avail.y), true);
-        float cx = canvasPos.x + avail.x * 0.5f + viewState.pan.x;
-        float cy = canvasPos.y + avail.y * 0.5f + viewState.pan.y;
+            canvasPos + avail, true);
 
-        viewState.centerX = cx;
-        viewState.centerY = cy;
-        float hw = dispW * 0.5f;
-        float hh = dispH * 0.5f;
-        float rotation = viewState.rotation;
-        auto rot = [&](float lx, float ly) -> ImVec2
-        {
-            return ImVec2(cx + lx * cosf(rotation) - ly * sinf(rotation),
-                          cy + lx * sinf(rotation) + ly * cosf(rotation));
-        };
-        ImVec2 tl = rot(-hw, -hh);
-        ImVec2 tr = rot(hw, -hh);
-        ImVec2 br = rot(hw, hh);
-        ImVec2 bl = rot(-hw, hh);
+        ImVec2 c = canvasPos + (0.5f * avail) + viewState.pan;
+        viewState.centerX = c.x;
+        viewState.centerY = c.y;
+
+        //
+        float hw = disp.x * 0.5f;
+        float hh = disp.y * 0.5f;
+        ImVec2 tl = getRotatedVec2(c, viewState.rotation, -hw, -hh);
+        ImVec2 tr = getRotatedVec2(c, viewState.rotation, hw, -hh);
+        ImVec2 br = getRotatedVec2(c, viewState.rotation, hw, hh);
+        ImVec2 bl = getRotatedVec2(c, viewState.rotation, -hw, hh);
         dl->AddImageQuad(image->textureId, tl, tr, br, bl, ImVec2(0, 0),
                          ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1));
         dl->AddQuad(tl, tr, br, bl, IM_COL32(180, 180, 180, 200));
@@ -613,14 +598,14 @@ namespace shoecomp
             hasAnnotationArray(image->annotations, "bounds") &&
             image->annotations["bounds"].getArray().size() >= 3)
         {
-            renderBoundsDimming(dl, image->annotations, cx, cy,
-                                annScale, rotation, image->width,
+            renderBoundsDimming(dl, image->annotations, c.x, c.y,
+                                annScale, viewState.rotation, image->width,
                                 image->height, canvasPos, avail, tl, tr,
                                 br, bl);
         }
 
         // Annotation overlays
-        renderAnnotations(dl, cx, cy, annScale, rotation, hovered,
+        renderAnnotations(dl, c.x, c.y, annScale, viewState.rotation, hovered,
                           mode, io);
 
         // Scrollbars
@@ -628,21 +613,17 @@ namespace shoecomp
         float barPad = 2.0f;
         ImU32 barCol = IM_COL32(200, 200, 200, 100);
         ImU32 barColHov = IM_COL32(200, 200, 200, 180);
-        renderScrollbar(dl, false, dispW, avail.x, limX,
+        renderScrollbar(dl, false, disp.x, avail.x, lim.x,
                         viewState.pan.x, viewState.panTarget.x,
                         canvasPos, avail, io, barThick, barPad, barCol,
                         barColHov, viewState, linked);
-        renderScrollbar(dl, true, dispH, avail.y, limY, viewState.pan.y,
+        renderScrollbar(dl, true, disp.y, avail.y, lim.y, viewState.pan.y,
                         viewState.panTarget.y, canvasPos, avail, io,
                         barThick, barPad, barCol, barColHov, viewState,
                         linked);
 
-        viewState.panTarget.x =
-            std::clamp(viewState.panTarget.x, -limX, limX);
-        viewState.panTarget.y =
-            std::clamp(viewState.panTarget.y, -limY, limY);
-        viewState.pan.x = std::clamp(viewState.pan.x, -limX, limX);
-        viewState.pan.y = std::clamp(viewState.pan.y, -limY, limY);
+        viewState.panTarget = clamp(viewState.panTarget, lim);
+        viewState.pan = clamp(viewState.pan, lim);
 
         dl->PopClipRect();
     }
@@ -713,11 +694,11 @@ namespace shoecomp
                             ? IM_COL32(200, 200, 200, 255)
                             : IM_COL32(150, 150, 150, 200);
         dl->AddCircle(center, dialR, ringCol, 24, 2.0f);
-        float indX = center.x + cosf(viewState.rotation) * dialR;
-        float indY = center.y + sinf(viewState.rotation) * dialR;
-        dl->AddLine(center, ImVec2(indX, indY),
+
+        ImVec2 ind = center + (direction(viewState.rotation) * dialR);
+        dl->AddLine(center, ind,
                     IM_COL32(255, 180, 50, 255), 2.0f);
-        dl->AddCircleFilled(ImVec2(indX, indY), 3.0f,
+        dl->AddCircleFilled(ind, 3.0f,
                             IM_COL32(255, 180, 50, 255));
 
         ImGui::SameLine();
