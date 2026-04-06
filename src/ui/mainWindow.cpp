@@ -72,6 +72,98 @@ namespace shoecomp
         locked = true;
     }
 
+    // Propagate a zoom change on the left viewer to
+    // the right viewer, keeping the transformed image
+    // point under the user's cursor anchored to its
+    // current right-canvas screen position.
+    static void propagateZoomLeftToRight(
+        ImageCanvas& viewerLeft, ImageCanvas& viewerRight,
+        const AlignState& a, float rZoom0, ImVec2 rPan0, float rRot0)
+    {
+        auto& lv = viewerLeft.viewState;
+        auto& rv = viewerRight.viewState;
+
+        ImVec2 cursor = ImGui::GetIO().MousePos;
+        ImVec2 leftImgPt = ImageCanvas::screenToImageCoord(
+            cursor, lv.canvasPos, lv.canvasSize, lv.panTarget,
+            lv.zoomTarget, lv.baseScale, lv.rotationTarget,
+            viewerLeft.image->width, viewerLeft.image->height);
+        ImVec2 rightImgPt = a.transformLeft2Right(leftImgPt);
+
+        float oldRightScale = rv.baseScale * rZoom0;
+        float oldRightCx =
+            rv.canvasPos.x + rv.canvasSize.x * 0.5f + rPan0.x;
+        float oldRightCy =
+            rv.canvasPos.y + rv.canvasSize.y * 0.5f + rPan0.y;
+        ImVec2 oldRightScreen = ImageCanvas::imageToScreenCoord(
+            rightImgPt.x, rightImgPt.y, oldRightCx, oldRightCy,
+            oldRightScale, cosf(rRot0), sinf(rRot0),
+            viewerRight.image->width, viewerRight.image->height);
+
+        rv.zoomTarget = lv.zoomTarget * a.scale;
+        rv.rotationTarget = lv.rotationTarget + a.rotation;
+
+        rv.panTarget = rPan0;
+        float newRightScale = rv.baseScale * rv.zoomTarget;
+        float newRightCx =
+            rv.canvasPos.x + rv.canvasSize.x * 0.5f + rv.panTarget.x;
+        float newRightCy =
+            rv.canvasPos.y + rv.canvasSize.y * 0.5f + rv.panTarget.y;
+        ImVec2 newRightScreen = ImageCanvas::imageToScreenCoord(
+            rightImgPt.x, rightImgPt.y, newRightCx, newRightCy,
+            newRightScale, cosf(rv.rotationTarget),
+            sinf(rv.rotationTarget),
+            viewerRight.image->width, viewerRight.image->height);
+
+        rv.panTarget.x += oldRightScreen.x - newRightScreen.x;
+        rv.panTarget.y += oldRightScreen.y - newRightScreen.y;
+    }
+
+    // Mirror of propagateZoomLeftToRight for the
+    // right-driven case.
+    static void propagateZoomRightToLeft(
+        ImageCanvas& viewerLeft, ImageCanvas& viewerRight,
+        const AlignState& a, float lZoom0, ImVec2 lPan0, float lRot0)
+    {
+        auto& lv = viewerLeft.viewState;
+        auto& rv = viewerRight.viewState;
+
+        ImVec2 cursor = ImGui::GetIO().MousePos;
+        ImVec2 rightImgPt = ImageCanvas::screenToImageCoord(
+            cursor, rv.canvasPos, rv.canvasSize, rv.panTarget,
+            rv.zoomTarget, rv.baseScale, rv.rotationTarget,
+            viewerRight.image->width, viewerRight.image->height);
+        ImVec2 leftImgPt = a.transformRight2Left(rightImgPt);
+
+        float oldLeftScale = lv.baseScale * lZoom0;
+        float oldLeftCx =
+            lv.canvasPos.x + lv.canvasSize.x * 0.5f + lPan0.x;
+        float oldLeftCy =
+            lv.canvasPos.y + lv.canvasSize.y * 0.5f + lPan0.y;
+        ImVec2 oldLeftScreen = ImageCanvas::imageToScreenCoord(
+            leftImgPt.x, leftImgPt.y, oldLeftCx, oldLeftCy,
+            oldLeftScale, cosf(lRot0), sinf(lRot0),
+            viewerLeft.image->width, viewerLeft.image->height);
+
+        lv.zoomTarget = rv.zoomTarget / a.scale;
+        lv.rotationTarget = rv.rotationTarget - a.rotation;
+
+        lv.panTarget = lPan0;
+        float newLeftScale = lv.baseScale * lv.zoomTarget;
+        float newLeftCx =
+            lv.canvasPos.x + lv.canvasSize.x * 0.5f + lv.panTarget.x;
+        float newLeftCy =
+            lv.canvasPos.y + lv.canvasSize.y * 0.5f + lv.panTarget.y;
+        ImVec2 newLeftScreen = ImageCanvas::imageToScreenCoord(
+            leftImgPt.x, leftImgPt.y, newLeftCx, newLeftCy,
+            newLeftScale, cosf(lv.rotationTarget),
+            sinf(lv.rotationTarget),
+            viewerLeft.image->width, viewerLeft.image->height);
+
+        lv.panTarget.x += oldLeftScreen.x - newLeftScreen.x;
+        lv.panTarget.y += oldLeftScreen.y - newLeftScreen.y;
+    }
+
     // Sync locked viewers after rendering. Detects
     // which viewer changed and propagates through
     // alignment.
@@ -96,32 +188,42 @@ namespace shoecomp
             rv.zoomTarget != rZoom0 || rv.panTarget.x != rPan0.x ||
             rv.panTarget.y != rPan0.y || rv.rotationTarget != rRot0;
 
-        if (lChanged && !rChanged)
+        bool lZoomed = lv.zoomTarget != lZoom0;
+        bool rZoomed = rv.zoomTarget != rZoom0;
+
+        if ((lChanged && !rChanged) || (lChanged && rChanged))
         {
-            rv.zoomTarget = lv.zoomTarget * a.scale;
-            rv.zoom = lv.zoom * a.scale;
-            rv.panTarget.x += (lv.panTarget.x - lPan0.x);
-            rv.panTarget.y += (lv.panTarget.y - lPan0.y);
-            rv.rotationTarget = lv.rotationTarget + aRad;
-            rv.rotation = lv.rotation + aRad;
+            if (lZoomed)
+            {
+                propagateZoomLeftToRight(viewerLeft, viewerRight, a,
+                                         rZoom0, rPan0, rRot0);
+            }
+            else
+            {
+                rv.zoomTarget = lv.zoomTarget * a.scale;
+                rv.zoom = lv.zoom * a.scale;
+                rv.panTarget.x += (lv.panTarget.x - lPan0.x);
+                rv.panTarget.y += (lv.panTarget.y - lPan0.y);
+                rv.rotationTarget = lv.rotationTarget + aRad;
+                rv.rotation = lv.rotation + aRad;
+            }
         }
         else if (rChanged && !lChanged)
         {
-            lv.zoomTarget = rv.zoomTarget / a.scale;
-            lv.zoom = rv.zoom / a.scale;
-            lv.panTarget.x += (rv.panTarget.x - rPan0.x);
-            lv.panTarget.y += (rv.panTarget.y - rPan0.y);
-            lv.rotationTarget = rv.rotationTarget - aRad;
-            lv.rotation = rv.rotation - aRad;
-        }
-        else if (lChanged && rChanged)
-        {
-            rv.zoomTarget = lv.zoomTarget * a.scale;
-            rv.zoom = lv.zoom * a.scale;
-            rv.panTarget.x += (lv.panTarget.x - lPan0.x);
-            rv.panTarget.y += (lv.panTarget.y - lPan0.y);
-            rv.rotationTarget = lv.rotationTarget + aRad;
-            rv.rotation = lv.rotation + aRad;
+            if (rZoomed)
+            {
+                propagateZoomRightToLeft(viewerLeft, viewerRight, a,
+                                         lZoom0, lPan0, lRot0);
+            }
+            else
+            {
+                lv.zoomTarget = rv.zoomTarget / a.scale;
+                lv.zoom = rv.zoom / a.scale;
+                lv.panTarget.x += (rv.panTarget.x - rPan0.x);
+                lv.panTarget.y += (rv.panTarget.y - rPan0.y);
+                lv.rotationTarget = rv.rotationTarget - aRad;
+                lv.rotation = rv.rotation - aRad;
+            }
         }
     }
 
