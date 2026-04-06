@@ -82,12 +82,6 @@ namespace shoecomp
 
     void applyAlignment(ImageCanvas&, ImageCanvas&,  //
                         const AlignState& a, bool&);
-    void propagateZoomLeftToRight(ImageCanvas&, ImageCanvas&,
-                                  const AlignState&,  //
-                                  float, ImVec2, float);
-    void propagateZoomRightToLeft(ImageCanvas&, ImageCanvas&,
-                                  const AlignState&,  //
-                                  float, ImVec2, float);
     void syncLockedViewers(ImageCanvas&, ImageCanvas&,
                            const AlignState&,     //
                            float, ImVec2, float,  //
