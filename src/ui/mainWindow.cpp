@@ -637,7 +637,7 @@ namespace shoecomp
 
             // Apply locked sync with alignment
             // offset after both viewers render.
-            if (state.viewerLocked)
+            if (state.viewerLocked && !state.alignEditPopupVisible)
             {
                 auto& a =
                     state.viewerAlignments[state.viewerAlignmentIdx];
@@ -1003,10 +1003,12 @@ namespace shoecomp
                                  ImGuiCond_Appearing);
         ImGui::SetNextWindowPos(ImVec2(eds.x * 0.325f, eds.y * 0.325f),
                                 ImGuiCond_Appearing);
+        state.alignEditPopupVisible = false;
         if (ImGui::BeginPopupModal(
                 "Edit Alignment", nullptr,
                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
         {
+            state.alignEditPopupVisible = true;
             bool changed = false;
             float rotationDeg = state.alignEditState.rotation / kDegToRad;
             changed |= ImGui::SliderFloat(

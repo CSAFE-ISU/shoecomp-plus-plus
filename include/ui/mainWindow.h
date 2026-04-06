@@ -42,6 +42,7 @@ namespace shoecomp
 
         // Alignment edit popup
         bool alignEditOpen = false;
+        bool alignEditPopupVisible = false;
         AlignState alignEditState;
         AlignState alignEditOriginal;
 
