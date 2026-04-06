@@ -8,6 +8,8 @@
 
 namespace shoecomp
 {
+    static constexpr float kDegToRad = 3.14159265358979f / 180.0f;
+
     // Opens a sized/positioned modal popup triggered by a
     // show-then-hide flag. Returns false if popup isn't
     // open (caller should return). Caller still calls

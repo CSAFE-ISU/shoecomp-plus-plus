@@ -76,9 +76,9 @@ namespace shoecomp
             tform.estimate(match, true);
             aligns.push_back(AlignState{});
             aligns.back().rotation =
-                tform.rotation * (180.0f / 3.14159265358979f);
-            aligns.back().translationX = -tform.dx;
-            aligns.back().translationY = -tform.dy;
+                tform.rotation /* in radians */;
+            aligns.back().translationX = tform.dx;
+            aligns.back().translationY = tform.dy;
             aligns.back().scale = tform.scale;
             aligns.back().mode = AlignMode::Automatic;
 

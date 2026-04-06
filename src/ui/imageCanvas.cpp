@@ -706,7 +706,7 @@ namespace shoecomp
 
         ImGui::SameLine();
         ImGui::Text("%.0f deg",
-                    viewState.rotation * 180.0f / 3.14159265f);
+                    viewState.rotation / kDegToRad);
 
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)

@@ -5,6 +5,7 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include "imgui.h"
 #include "calc/align.h"
 #include "jtjson/json.h"
 
@@ -25,6 +26,9 @@ namespace shoecomp
         float translationY = 0.0f;
         float scale = 1.0f;
         jt::Json info;
+
+        ImVec2 transformRight2Left(const ImVec2 &pt) const;
+        ImVec2 transformLeft2Right(const ImVec2 &pt) const;
     };
 
     struct AlignDialog

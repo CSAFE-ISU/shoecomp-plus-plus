@@ -16,8 +16,6 @@ namespace shoecomp
 {
     namespace fs = std::filesystem;
 
-    static constexpr float kDegToRad = 3.14159265358979f / 180.0f;
-
     // Apply alignment transform: set right viewer
     // to match left viewer + alignment offset.
     static void applyAlignment(ImageCanvas& viewerLeft, ImageCanvas& viewerRight,
@@ -33,7 +31,7 @@ namespace shoecomp
         }
 
         locked = false;
-        float aRad = a.rotation * kDegToRad;
+        float aRad = a.rotation;
         rv.zoom = rv.zoomTarget = lv.zoomTarget * a.scale;
         rv.rotation = rv.rotationTarget = lv.rotationTarget + aRad;
 
@@ -95,7 +93,7 @@ namespace shoecomp
         if (!viewerLeft.image || !viewerRight.image)
             return;
 
-        float aRad = a.rotation * kDegToRad;
+        float aRad = a.rotation;
         bool lChanged =
             lv.zoomTarget != lZoom0 || lv.panTarget.x != lPan0.x ||
             lv.panTarget.y != lPan0.y || lv.rotationTarget != lRot0;
@@ -414,26 +412,18 @@ namespace shoecomp
                           io.MousePos.y - primaryRadius);
             dl->AddText(textPos, primaryFill, coordText);
 
-            // Apply inverse RTS transformation: left -> right
-            // Add translation, rotate, unscale
-            float radians = align.rotation * 3.14159265f / 180.0f;
-            float cos_theta = cosf(radians);
-            float sin_theta = sinf(radians);
 
-            float tempX = imgCoord.x + align.translationX / align.scale;
-            float tempY = imgCoord.y + align.translationY / align.scale;
-            float rotX = tempX * cos_theta - tempY * sin_theta;
-            float rotY = tempX * sin_theta + tempY * cos_theta;
-            float transformedX = rotX / align.scale;
-            float transformedY = rotY / align.scale;
+            // Apply inverse RTS transformation: left -> right
+            ImVec2 transformed = align.transformLeft2Right(imgCoord);
+            printf("left is at %.1f, %.1f; right at %.1f, %1f\n", imgCoord.x, imgCoord.y, transformed.x, transformed.y);
 
             // Check if transformed position is within right image bounds
-            if (transformedX >= 0 && transformedX < rightImg->width &&
-                transformedY >= 0 && transformedY < rightImg->height)
+            if (transformed.x >= 0 && transformed.x < rightImg->width &&
+                transformed.y >= 0 && transformed.y < rightImg->height)
             {
                 // Convert to screen coordinates
                 ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
-                    transformedX, transformedY,
+                    transformed.x, transformed.y,
                     rightView.centerX, rightView.centerY,
                     rightView.renderScale,
                     cosf(rightView.rotation), sinf(rightView.rotation),
@@ -448,7 +438,7 @@ namespace shoecomp
                 // Draw coordinate text below circle
                 char transformedText[64];
                 snprintf(transformedText, sizeof(transformedText),
-                        "(%.1f, %.1f)", transformedX, transformedY);
+                        "(%.1f, %.1f)", transformed.x, transformed.y);
                 ImVec2 transformedTextPos(rightScreenPos.x - 30.0f,
                                         rightScreenPos.y + transformedRadius + 5.0f);
                 dl->AddText(transformedTextPos, transformedTextColor,
@@ -522,25 +512,16 @@ namespace shoecomp
             dl->AddText(textPos, primaryFill, coordText);
 
             // Apply forward RTS transformation: right -> left
-            // Inverse of left transformation
-            float radians = align.rotation * 3.14159265f / 180.0f;
-            float cos_theta = cosf(radians);
-            float sin_theta = sinf(radians);
-
-            float scaledX = imgCoord.x * align.scale;
-            float scaledY = imgCoord.y * align.scale;
-            float rotX = scaledX * cos_theta + scaledY * sin_theta;
-            float rotY = -scaledX * sin_theta + scaledY * cos_theta;
-            float transformedX = rotX - align.translationX / align.scale;
-            float transformedY = rotY - align.translationY / align.scale;
+            ImVec2 transformed = align.transformRight2Left(imgCoord);
+            printf("right is at %.1f, %.1f; left at %.1f, %1f\n", imgCoord.x, imgCoord.y, transformed.x, transformed.y);
 
             // Check if transformed position is within left image bounds
-            if (transformedX >= 0 && transformedX < leftImg->width &&
-                transformedY >= 0 && transformedY < leftImg->height)
+            if (transformed.x >= 0 && transformed.x < leftImg->width &&
+                transformed.y >= 0 && transformed.y < leftImg->height)
             {
                 // Convert to screen coordinates
                 ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
-                    transformedX, transformedY,
+                    transformed.x, transformed.y,
                     leftView.centerX, leftView.centerY,
                     leftView.renderScale,
                     cosf(leftView.rotation), sinf(leftView.rotation),
@@ -555,7 +536,7 @@ namespace shoecomp
                 // Draw coordinate text below circle
                 char transformedText[64];
                 snprintf(transformedText, sizeof(transformedText),
-                        "(%.1f, %.1f)", transformedX, transformedY);
+                        "(%.1f, %.1f)", transformed.x, transformed.y);
                 ImVec2 transformedTextPos(leftScreenPos.x - 30.0f,
                                         leftScreenPos.y + transformedRadius + 5.0f);
                 dl->AddText(transformedTextPos, transformedTextColor,
