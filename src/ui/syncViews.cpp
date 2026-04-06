@@ -2,6 +2,14 @@
 
 namespace shoecomp
 {
+    static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs)
+    {
+        return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y);
+    }
+    static inline ImVec2 operator-(const ImVec2& lhs, const ImVec2& rhs)
+    {
+        return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y);
+    }
 
     // Apply alignment transform: set right viewer
     // to match left viewer + alignment offset.
@@ -19,15 +27,12 @@ namespace shoecomp
         }
 
         locked = false;
-        float aRad = a.rotation;
         rv.zoom = rv.zoomTarget = lv.zoomTarget * a.scale;
-        rv.rotation = rv.rotationTarget = lv.rotationTarget + aRad;
+        rv.rotation = rv.rotationTarget = lv.rotationTarget + a.rotation;
 
         // Use each viewer's canvas center as reference point
-        ImVec2 leftRefScreen(lv.canvasPos.x + lv.canvasSize.x * 0.5f,
-                             lv.canvasPos.y + lv.canvasSize.y * 0.5f);
-        ImVec2 rightRefScreen(rv.canvasPos.x + rv.canvasSize.x * 0.5f,
-                              rv.canvasPos.y + rv.canvasSize.y * 0.5f);
+        ImVec2 leftRefScreen = lv.center();
+        ImVec2 rightRefScreen = rv.center();
 
         // Convert left reference to image coordinates
         ImVec2 leftImgPt = ImageCanvas::screenToImageCoord(
@@ -43,22 +48,18 @@ namespace shoecomp
 
         // Compute right viewer rendering state
         float rightRenderScale = rv.baseScale * rv.zoomTarget;
-        float rightCenterX =
-            rv.canvasPos.x + rv.canvasSize.x * 0.5f + rv.panTarget.x;
-        float rightCenterY =
-            rv.canvasPos.y + rv.canvasSize.y * 0.5f + rv.panTarget.y;
+        ImVec2 rightCenter = rv.center() + rv.panTarget;
 
         // Convert right image point back to screen coordinates
         ImVec2 rightScreen = ImageCanvas::imageToScreenCoord(
-            rightImgPt.x, rightImgPt.y, rightCenterX, rightCenterY,
+            rightImgPt.x, rightImgPt.y, rightCenter.x, rightCenter.y,
             rightRenderScale, cosf(rv.rotationTarget),
             sinf(rv.rotationTarget), viewerRight.image->width,
             viewerRight.image->height);
 
         // Adjust pan so right image point appears at right canvas
         // center
-        rv.panTarget.x += rightRefScreen.x - rightScreen.x;
-        rv.panTarget.y += rightRefScreen.y - rightScreen.y;
+        rv.panTarget = rightRefScreen - rightScreen;
         rv.pan = rv.panTarget;
 
         locked = true;
@@ -72,10 +73,10 @@ namespace shoecomp
         auto& dstView = dst.viewState;
         ImVec2 srcImgPt;
         ImVec2 dstImgPt;
-        float oldDstScale, oldDstCx, oldDstCy;
-        ImVec2 oldDstScreen;
-        float newDstScale, newDstCx, newDstCy;
-        ImVec2 newDstScreen;
+        float oldDstScale;
+        ImVec2 oldDstCenter, oldDstScreen;
+        float newDstScale;
+        ImVec2 newDstCenter, newDstScreen;
 
         ImVec2 cursor = ImGui::GetIO().MousePos;
         srcImgPt = ImageCanvas::screenToImageCoord(
@@ -85,10 +86,7 @@ namespace shoecomp
             src.image->height);
 
         oldDstScale = dstView.baseScale * zoom0;
-        oldDstCx =
-            dstView.canvasPos.x + dstView.canvasSize.x * 0.5f + pan0.x;
-        oldDstCy =
-            dstView.canvasPos.y + dstView.canvasSize.y * 0.5f + pan0.y;
+        oldDstCenter = dstView.center() + pan0;
 
         if (srcIsLeft)
         {
@@ -108,22 +106,18 @@ namespace shoecomp
         }
 
         oldDstScreen = ImageCanvas::imageToScreenCoord(
-            dstImgPt.x, dstImgPt.y, oldDstCx, oldDstCy, oldDstScale,
+            dstImgPt.x, dstImgPt.y, oldDstCenter.x, oldDstCenter.y, oldDstScale,
             cosf(rot0), sinf(rot0), dst.image->width,
             dst.image->height);
         //
         newDstScale = dstView.baseScale * dstView.zoomTarget;
-        newDstCx =
-            dstView.canvasPos.x + dstView.canvasSize.x * 0.5f + pan0.x;
-        newDstCy =
-            dstView.canvasPos.y + dstView.canvasSize.y * 0.5f + pan0.y;
+        newDstCenter = dstView.center() + pan0;
         newDstScreen = ImageCanvas::imageToScreenCoord(
-            dstImgPt.x, dstImgPt.y, newDstCx, newDstCy, newDstScale,
+            dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y, newDstScale,
             cosf(dstView.rotationTarget), sinf(dstView.rotationTarget),
             dst.image->width, dst.image->height);
 
-        dstView.panTarget.x += (oldDstScreen.x - newDstScreen.x);
-        dstView.panTarget.y += (oldDstScreen.y - newDstScreen.y);
+        dstView.panTarget = dstView.panTarget + (oldDstScreen - newDstScreen);
     }
 
     // Sync locked viewers after rendering. Detects
@@ -164,8 +158,7 @@ namespace shoecomp
             {
                 rv.zoomTarget = lv.zoomTarget * a.scale;
                 rv.zoom = lv.zoom * a.scale;
-                rv.panTarget.x += (lv.panTarget.x - lPan0.x);
-                rv.panTarget.y += (lv.panTarget.y - lPan0.y);
+                rv.panTarget = rv.panTarget + (lv.panTarget - lPan0);
                 rv.rotationTarget = lv.rotationTarget + aRad;
                 rv.rotation = lv.rotation + aRad;
             }
@@ -183,8 +176,7 @@ namespace shoecomp
             {
                 lv.zoomTarget = rv.zoomTarget / a.scale;
                 lv.zoom = rv.zoom / a.scale;
-                lv.panTarget.x += (rv.panTarget.x - rPan0.x);
-                lv.panTarget.y += (rv.panTarget.y - rPan0.y);
+                lv.panTarget = lv.panTarget + (rv.panTarget - rPan0);
                 lv.rotationTarget = rv.rotationTarget - aRad;
                 lv.rotation = rv.rotation - aRad;
             }
@@ -304,9 +296,8 @@ namespace shoecomp
                 sinf(srcView.rotation), srcImg->width, srcImg->height);
 
             // Check if cursor is near this point
-            float dx = io.MousePos.x - srcScreenPos.x;
-            float dy = io.MousePos.y - srcScreenPos.y;
-            float dist = sqrtf(dx * dx + dy * dy);
+            ImVec2 d = io.MousePos - srcScreenPos;
+            float dist = sqrtf(d.x * d.x + d.y * d.y);
 
             if (dist < hoverThreshold)
             {

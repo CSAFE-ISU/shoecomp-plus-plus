@@ -27,6 +27,13 @@ namespace shoecomp
                 (pt.y < (this->canvasPos.y + this->canvasSize.y)));
     }
 
+    ImVec2 ImageViewState::center() const
+    {
+        ImVec2 result(canvasPos.x + canvasSize.x * 0.5f,
+                      canvasPos.y + canvasSize.y * 0.5f);
+        return result;
+    }
+
     PointType stringToPointType(const std::string& s)
     {
         if (s == "Center") return PointType::Center;

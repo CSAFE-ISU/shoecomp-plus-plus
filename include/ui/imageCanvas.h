@@ -60,6 +60,7 @@ namespace shoecomp
         bool homeRequested = false;
 
         bool contains(const ImVec2 &pt) const;
+        ImVec2 center() const;
     };
 
     struct ImageData
