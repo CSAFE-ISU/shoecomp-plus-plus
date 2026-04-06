@@ -631,6 +631,7 @@ namespace shoecomp
                 ? state.images[selectedIdx].image->name.c_str()
                 : "<none>";
 
+        ImGui::BeginDisabled(state.viewerLocked);
         if (ImGui::BeginCombo(label, preview))
         {
             if (ImGui::Selectable("<none>", selectedIdx < 0))
@@ -658,6 +659,7 @@ namespace shoecomp
             }
             ImGui::EndCombo();
         }
+        ImGui::EndDisabled();
 
         if (selectedIdx < 0 || selectedIdx >= (int)state.images.size())
             return;
