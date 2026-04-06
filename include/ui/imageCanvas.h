@@ -55,6 +55,10 @@ namespace shoecomp
         float centerY = 0.0f;
         float renderScale = 1.0f;
 
+        // One-shot flag set by the toolbar Home
+        // button; consumed by the locked-viewer sync.
+        bool homeRequested = false;
+
         bool contains(const ImVec2 &pt) const;
     };
 

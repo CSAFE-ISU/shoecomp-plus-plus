@@ -745,11 +745,26 @@ namespace shoecomp
             {
                 auto& a =
                     state.viewerAlignments[state.viewerAlignmentIdx];
-                syncLockedViewers(state.viewerLeft, state.viewerRight, a,
-                                  lZoom0, lPan0, lRot0,
-                                  rZoom0, rPan0, rRot0);
+                if (lv.homeRequested || rv.homeRequested)
+                {
+                    lv.zoomTarget = 1.0f;
+                    lv.panTarget = ImVec2(0, 0);
+                    lv.rotationTarget = 0.0f;
+                    applyAlignment(state.viewerLeft,
+                                   state.viewerRight, a,
+                                   state.viewerLocked);
+                }
+                else
+                {
+                    syncLockedViewers(state.viewerLeft,
+                                      state.viewerRight, a,
+                                      lZoom0, lPan0, lRot0,
+                                      rZoom0, rPan0, rRot0);
+                }
                 renderLockedCursorIndicators(state);
             }
+            lv.homeRequested = false;
+            rv.homeRequested = false;
         }
         ImGui::EndChild();
 
@@ -1088,6 +1103,10 @@ namespace shoecomp
                 (int)state.viewerAlignments.size() - 1;
             state.alignDialog.workerResults.clear();
             state.alignDialog.workerFinished = false;
+            applyAlignment(
+                state.viewerLeft, state.viewerRight,
+                state.viewerAlignments[state.viewerAlignmentIdx],
+                state.viewerLocked);
             printf(
                 "mainWindow: %zu alignment(s) "
                 "added\n",
@@ -1143,6 +1162,10 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditState;
+                applyAlignment(state.viewerLeft,
+                               state.viewerRight,
+                               state.alignEditState,
+                               state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();

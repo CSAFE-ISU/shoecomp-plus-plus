@@ -652,6 +652,7 @@ namespace shoecomp
             viewState.zoomTarget = 1.0f;
             viewState.panTarget = ImVec2(0, 0);
             viewState.rotationTarget = 0.0f;
+            viewState.homeRequested = true;
             if (linked)
             {
                 linked->zoomTarget = 1.0f;
