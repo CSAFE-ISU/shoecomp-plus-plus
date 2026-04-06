@@ -73,9 +73,11 @@ namespace shoecomp
 
     ImVec2 ImageCanvas::imageToScreenCoord(float ix, float iy, float cx,
                                            float cy, float scale,
-                                           float cosR, float sinR,
+                                           float rotation,
                                            int imgW, int imgH)
     {
+        float cosR = cosf(rotation);
+        float sinR = sinf(rotation);
         float lx = (ix - imgW * 0.5f) * scale;
         float ly = (iy - imgH * 0.5f) * scale;
         return ImVec2(cx + lx * cosR - ly * sinR,
@@ -205,7 +207,7 @@ namespace shoecomp
     static void renderBoundsDimming(ImDrawList* dl,
                                     jt::Json& annotations, float cx,
                                     float cy, float annScale,
-                                    float cosR, float sinR, int imgW,
+                                    float rotation, int imgW,
                                     int imgH, ImVec2 canvasPos,
                                     ImVec2 avail, ImVec2 tl, ImVec2 tr,
                                     ImVec2 br, ImVec2 bl)
@@ -217,7 +219,7 @@ namespace shoecomp
         {
             screenBnd.push_back(ImageCanvas::imageToScreenCoord(
                 v["x"].getFloat(), v["y"].getFloat(), cx, cy, annScale,
-                cosR, sinR, imgW, imgH));
+                rotation, imgW, imgH));
         }
         float oMinX = canvasPos.x;
         float oMinY = canvasPos.y;
@@ -282,7 +284,7 @@ namespace shoecomp
 
     void ImageCanvas::renderAnnotations(ImDrawList* dl, float cx,
                                         float cy, float annScale,
-                                        float cosR, float sinR,
+                                        float rotation,
                                         bool hovered,
                                         AnnotationMode mode,
                                         const ImGuiIO& io)
@@ -299,7 +301,7 @@ namespace shoecomp
             {
                 ImVec2 sp = imageToScreenCoord(
                     p["x"].getFloat(), p["y"].getFloat(), cx, cy,
-                    annScale, cosR, sinR, imgW, imgH);
+                    annScale, rotation, imgW, imgH);
                 PointType pType = PointType::Corner;
                 if (p.contains("type") && p["type"].isString())
                 {
@@ -353,11 +355,11 @@ namespace shoecomp
                 {
                     ImVec2 a = imageToScreenCoord(
                         bnd[i]["x"].getFloat(), bnd[i]["y"].getFloat(),
-                        cx, cy, annScale, cosR, sinR, imgW, imgH);
+                        cx, cy, annScale, rotation, imgW, imgH);
                     ImVec2 b = imageToScreenCoord(
                         bnd[i + 1]["x"].getFloat(),
                         bnd[i + 1]["y"].getFloat(), cx, cy, annScale,
-                        cosR, sinR, imgW, imgH);
+                        rotation, imgW, imgH);
                     dl->AddLine(a, b, bndCol,
                                 g_annotationStyle.boundsLineThickness);
                 }
@@ -366,11 +368,11 @@ namespace shoecomp
             {
                 ImVec2 last = imageToScreenCoord(
                     bnd.back()["x"].getFloat(),
-                    bnd.back()["y"].getFloat(), cx, cy, annScale, cosR,
-                    sinR, imgW, imgH);
+                    bnd.back()["y"].getFloat(), cx, cy, annScale, rotation,
+                    imgW, imgH);
                 ImVec2 first = imageToScreenCoord(
                     bnd[0]["x"].getFloat(), bnd[0]["y"].getFloat(), cx,
-                    cy, annScale, cosR, sinR, imgW, imgH);
+                    cy, annScale, rotation, imgW, imgH);
                 if (!editing)
                 {
                     dl->AddLine(last, first, bndCol,
@@ -394,7 +396,7 @@ namespace shoecomp
             {
                 ImVec2 sp = imageToScreenCoord(
                     v["x"].getFloat(), v["y"].getFloat(), cx, cy,
-                    annScale, cosR, sinR, imgW, imgH);
+                    annScale, rotation, imgW, imgH);
                 dl->AddCircleFilled(
                     sp, g_annotationStyle.pointRadius - 1.0f, bndCol);
             }
@@ -589,12 +591,11 @@ namespace shoecomp
         viewState.centerY = cy;
         float hw = dispW * 0.5f;
         float hh = dispH * 0.5f;
-        float cosR = cosf(viewState.rotation);
-        float sinR = sinf(viewState.rotation);
+        float rotation = viewState.rotation;
         auto rot = [&](float lx, float ly) -> ImVec2
         {
-            return ImVec2(cx + lx * cosR - ly * sinR,
-                          cy + lx * sinR + ly * cosR);
+            return ImVec2(cx + lx * cosf(rotation) - ly * sinf(rotation),
+                          cy + lx * sinf(rotation) + ly * cosf(rotation));
         };
         ImVec2 tl = rot(-hw, -hh);
         ImVec2 tr = rot(hw, -hh);
@@ -613,13 +614,13 @@ namespace shoecomp
             image->annotations["bounds"].getArray().size() >= 3)
         {
             renderBoundsDimming(dl, image->annotations, cx, cy,
-                                annScale, cosR, sinR, image->width,
+                                annScale, rotation, image->width,
                                 image->height, canvasPos, avail, tl, tr,
                                 br, bl);
         }
 
         // Annotation overlays
-        renderAnnotations(dl, cx, cy, annScale, cosR, sinR, hovered,
+        renderAnnotations(dl, cx, cy, annScale, rotation, hovered,
                           mode, io);
 
         // Scrollbars

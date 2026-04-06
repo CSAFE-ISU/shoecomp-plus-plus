@@ -53,8 +53,7 @@ namespace shoecomp
         // Convert right image point back to screen coordinates
         ImVec2 rightScreen = ImageCanvas::imageToScreenCoord(
             rightImgPt.x, rightImgPt.y, rightCenter.x, rightCenter.y,
-            rightRenderScale, cosf(rv.rotationTarget),
-            sinf(rv.rotationTarget), viewerRight.image->width,
+            rightRenderScale, rv.rotationTarget, viewerRight.image->width,
             viewerRight.image->height);
 
         // Adjust pan so right image point appears at right canvas
@@ -107,14 +106,14 @@ namespace shoecomp
 
         oldDstScreen = ImageCanvas::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, oldDstCenter.x, oldDstCenter.y, oldDstScale,
-            cosf(rot0), sinf(rot0), dst.image->width,
+            rot0, dst.image->width,
             dst.image->height);
         //
         newDstScale = dstView.baseScale * dstView.zoomTarget;
         newDstCenter = dstView.center() + pan0;
         newDstScreen = ImageCanvas::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y, newDstScale,
-            cosf(dstView.rotationTarget), sinf(dstView.rotationTarget),
+            dstView.rotationTarget,
             dst.image->width, dst.image->height);
 
         dstView.panTarget = dstView.panTarget + (oldDstScreen - newDstScreen);
@@ -261,7 +260,7 @@ namespace shoecomp
         ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
             transformed.x, transformed.y, dstView.centerX,
             dstView.centerY, dstView.renderScale,
-            cosf(dstView.rotation), sinf(dstView.rotation),
+            dstView.rotation,
             dstImg->width, dstImg->height);
 
         // Check if transformed position is within dst screen bounds
@@ -292,8 +291,8 @@ namespace shoecomp
             // Convert src point to screen coordinates
             ImVec2 srcScreenPos = ImageCanvas::imageToScreenCoord(
                 lx, ly, srcView.centerX, srcView.centerY,
-                srcView.renderScale, cosf(srcView.rotation),
-                sinf(srcView.rotation), srcImg->width, srcImg->height);
+                srcView.renderScale, srcView.rotation,
+                srcImg->width, srcImg->height);
 
             // Check if cursor is near this point
             ImVec2 d = io.MousePos - srcScreenPos;
@@ -307,8 +306,8 @@ namespace shoecomp
 
                 ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
                     rx, ry, dstView.centerX, dstView.centerY,
-                    dstView.renderScale, cosf(dstView.rotation),
-                    sinf(dstView.rotation), dstImg->width,
+                    dstView.renderScale, dstView.rotation,
+                    dstImg->width,
                     dstImg->height);
 
                 dl->AddCircleFilled(dstScreenPos, secondaryRadius,

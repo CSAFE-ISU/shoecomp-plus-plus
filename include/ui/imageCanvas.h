@@ -94,7 +94,7 @@ namespace shoecomp
 
         static ImVec2 imageToScreenCoord(float ix, float iy, float cx,
                                          float cy, float scale,
-                                         float cosR, float sinR,
+                                         float rotation,
                                          int imgW, int imgH);
 
         static bool pointInPolygon(float px, float py,
@@ -104,7 +104,7 @@ namespace shoecomp
         void removePointsOutsideBounds();
 
         void renderAnnotations(ImDrawList* dl, float cx, float cy,
-                               float annScale, float cosR, float sinR,
+                               float annScale, float rotation,
                                bool hovered, AnnotationMode mode,
                                const ImGuiIO& io);
 
