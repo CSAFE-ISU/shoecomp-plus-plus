@@ -47,13 +47,8 @@ namespace shoecomp
             lv.baseScale, lv.rotationTarget,
             viewerLeft.image->width, viewerLeft.image->height);
 
-        // Apply alignment transformation: right = S * R * left + T
-        float cosA = cosf(aRad);
-        float sinA = sinf(aRad);
-        float rotX = leftImgPt.x * cosA - leftImgPt.y * sinA;
-        float rotY = leftImgPt.x * sinA + leftImgPt.y * cosA;
-        ImVec2 rightImgPt(rotX * a.scale + a.translationX,
-                          rotY * a.scale + a.translationY);
+        // Apply alignment transformation from left to right
+        ImVec2 rightImgPt = a.transformLeft2Right(leftImgPt);
 
         // Start with same pan as left, then compute adjustment
         rv.pan = rv.panTarget = lv.panTarget;
@@ -301,6 +296,148 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    static void renderLockedCursorIndicators0(AppState& state,
+                                              AlignState& align,
+                                              ImageCanvas& src,
+                                              std::vector<jt::Json>& srcPoints,
+                                              ImageCanvas& dst,
+                                              std::vector<jt::Json>& dstPoints,
+                                              bool srcIsLeft)
+    {
+        // Visual constants
+        const float primaryRadius = 8.0f;
+        const ImU32 primaryFill = IM_COL32(0, 220, 255, 200);
+        const ImU32 primaryOutline = IM_COL32(255, 255, 255, 255);
+        const float secondaryRadius = 8.0f;
+        const ImU32 correspondingColor =
+            IM_COL32(0, 255, 100, 180);  // Green: corresponding point
+        const float hoverThreshold = 15.0f;  // pixels
+
+        // Transformed cursor indicator constants
+        const float transformedRadius = 7.0f;
+        const ImU32 transformedFill =
+            IM_COL32(255, 150, 0, 180);  // Orange
+        const ImU32 transformedOutline =
+            IM_COL32(255, 255, 255, 255);  // White
+        const ImU32 transformedTextColor =
+            IM_COL32(255, 150, 0, 255);  // Orange (opaque)
+
+        ImGuiIO& io = ImGui::GetIO();
+        ImDrawList* dl = ImGui::GetForegroundDrawList();
+        ImVec2 transformed;
+        char coordText[64];
+        char transformedText[64];
+        char matchedText[64];
+        //
+
+        auto& srcView = src.viewState;
+        auto& srcImg = src.image;
+        auto& dstView = dst.viewState;
+        auto& dstImg = dst.image;
+        const size_t N = srcPoints.size();
+
+        // Get cursor position in image coordinates
+        ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
+            io.MousePos, srcView.canvasPos, srcView.canvasSize,
+            srcView.pan, srcView.zoom, srcView.baseScale,
+            srcView.rotation, srcImg->width, srcImg->height);
+
+        // apply transformation in image coordinates
+        if (srcIsLeft)
+        {
+            transformed = align.transformLeft2Right(imgCoord);
+        }
+        else
+        {
+            transformed = align.transformRight2Left(imgCoord);
+        }
+
+        // Always draw cyan circle at cursor
+        dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
+        dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12,
+                      1.5f);
+
+        // Draw pixel coordinates
+        snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
+                 imgCoord.x, imgCoord.y);
+        ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
+                       io.MousePos.y - primaryRadius);
+        dl->AddText(textPos, primaryFill, coordText);
+
+        // Check if transformed position is within dst image bounds
+        if (transformed.x >= 0 && transformed.x < dstImg->width &&
+            transformed.y >= 0 && transformed.y < dstImg->height)
+        {
+            // Convert to screen coordinates
+            ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
+                transformed.x, transformed.y, dstView.centerX,
+                dstView.centerY, dstView.renderScale,
+                cosf(dstView.rotation), sinf(dstView.rotation),
+                dstImg->width, dstImg->height);
+
+            // Draw orange transformed cursor indicator
+            dl->AddCircleFilled(dstScreenPos, transformedRadius,
+                                transformedFill);
+            dl->AddCircle(dstScreenPos, transformedRadius,
+                          transformedOutline, 12, 1.5f);
+
+            // Draw coordinate text below circle
+            snprintf(transformedText, sizeof(transformedText),
+                     "(%.1f, %.1f)", transformed.x, transformed.y);
+            ImVec2 transformedTextPos(
+                dstScreenPos.x - 30.0f,
+                dstScreenPos.y + transformedRadius + 5.0f);
+            dl->AddText(transformedTextPos, transformedTextColor,
+                        transformedText);
+        }
+
+        // Find if cursor is near any matched point
+        for (size_t i = 0; i < N; ++i)
+        {
+            float lx = srcPoints[i]["x"].getFloat();
+            float ly = srcPoints[i]["y"].getFloat();
+
+            // Convert src point to screen coordinates
+            ImVec2 srcScreenPos = ImageCanvas::imageToScreenCoord(
+                lx, ly, srcView.centerX, srcView.centerY,
+                srcView.renderScale, cosf(srcView.rotation),
+                sinf(srcView.rotation), srcImg->width, srcImg->height);
+
+            // Check if cursor is near this point
+            float dx = io.MousePos.x - srcScreenPos.x;
+            float dy = io.MousePos.y - srcScreenPos.y;
+            float dist = sqrtf(dx * dx + dy * dy);
+
+            if (dist < hoverThreshold)
+            {
+                // Draw corresponding circle on dst
+                float rx = dstPoints[i]["x"].getFloat();
+                float ry = dstPoints[i]["y"].getFloat();
+
+                ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
+                    rx, ry, dstView.centerX, dstView.centerY,
+                    dstView.renderScale, cosf(dstView.rotation),
+                    sinf(dstView.rotation), dstImg->width,
+                    dstImg->height);
+
+                dl->AddCircleFilled(dstScreenPos, secondaryRadius,
+                                    correspondingColor);
+                dl->AddCircle(dstScreenPos, secondaryRadius,
+                              primaryOutline, 12, 2.5f);
+
+                // Draw coordinate text below green circle
+                snprintf(matchedText, sizeof(matchedText),
+                         "(%.1f, %.1f)", rx, ry);
+                ImVec2 matchedTextPos(
+                    dstScreenPos.x - 30.0f,
+                    dstScreenPos.y + secondaryRadius + 5.0f);
+                dl->AddText(matchedTextPos, correspondingColor,
+                            matchedText);
+                break;  // Only show first matching point
+            }
+        }
+    }
+
     static void renderLockedCursorIndicators(AppState& state)
     {
         // Debug: check each condition
@@ -312,9 +449,6 @@ namespace shoecomp
 
         if (state.viewerLeftIdx < 0 || state.viewerRightIdx < 0)
         {
-            // Debug: uncomment to see if indices are invalid
-            // printf("DEBUG: Invalid indices - left: %d, right: %d\n",
-            //        state.viewerLeftIdx, state.viewerRightIdx);
             return;
         }
 
@@ -323,9 +457,6 @@ namespace shoecomp
 
         if (!leftView.isHovered && !rightView.isHovered)
         {
-            // Debug: uncomment to see hover state
-            // printf("DEBUG: Neither hovered - left: %d, right: %d\n",
-            //        leftView.isHovered, rightView.isHovered);
             return;
         }
 
@@ -333,15 +464,8 @@ namespace shoecomp
         auto& rightImg = state.viewerRight.image;
         if (!leftImg || !rightImg)
         {
-            // Debug: uncomment to see if images are missing
-            // printf("DEBUG: Missing images - left: %p, right: %p\n",
-            //        (void*)leftImg.get(), (void*)rightImg.get());
             return;
         }
-
-        // Debug: uncomment to confirm we're reaching the drawing code
-        // printf("DEBUG: Drawing circles! Left hovered: %d, Right hovered: %d\n",
-        //        leftView.isHovered, rightView.isHovered);
 
         auto& align = state.viewerAlignments[state.viewerAlignmentIdx];
 
@@ -375,219 +499,24 @@ namespace shoecomp
             return;
         }
 
-        ImGuiIO& io = ImGui::GetIO();
-        ImDrawList* dl = ImGui::GetForegroundDrawList();
-
-        // Visual constants
-        const float primaryRadius = 8.0f;
-        const ImU32 primaryFill = IM_COL32(0, 220, 255, 200);
-        const ImU32 primaryOutline = IM_COL32(255, 255, 255, 255);
-        const float secondaryRadius = 8.0f;
-        const ImU32 correspondingColor = IM_COL32(0, 255, 100, 180);  // Green: corresponding point
-        const float hoverThreshold = 15.0f;  // pixels
-
-        // Transformed cursor indicator constants
-        const float transformedRadius = 7.0f;
-        const ImU32 transformedFill = IM_COL32(255, 150, 0, 180);      // Orange
-        const ImU32 transformedOutline = IM_COL32(255, 255, 255, 255);  // White
-        const ImU32 transformedTextColor = IM_COL32(255, 150, 0, 255);  // Orange (opaque)
-
-        if (leftView.isHovered)
+         if (leftView.isHovered)
         {
-            // Get cursor position in image coordinates
-            ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
-                io.MousePos, leftView.canvasPos, leftView.canvasSize,
-                leftView.pan, leftView.zoom, leftView.baseScale,
-                leftView.rotation, leftImg->width, leftImg->height);
+            renderLockedCursorIndicators0(state, align,
+                    /*src=*/ state.viewerLeft,
+                    /*srcPoints=*/ leftPoints,
+                    /*dst=*/ state.viewerRight, 
+                    /*dstPoints=*/ rightPoints,
+                    true);
 
-            // Always draw cyan circle at cursor
-            dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
-            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12, 1.5f);
-
-            // Draw pixel coordinates
-            char coordText[64];
-            snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
-                     imgCoord.x, imgCoord.y);
-            ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
-                          io.MousePos.y - primaryRadius);
-            dl->AddText(textPos, primaryFill, coordText);
-
-
-            // Apply inverse RTS transformation: left -> right
-            ImVec2 transformed = align.transformLeft2Right(imgCoord);
-            printf("left is at %.1f, %.1f; right at %.1f, %1f\n", imgCoord.x, imgCoord.y, transformed.x, transformed.y);
-
-            // Check if transformed position is within right image bounds
-            if (transformed.x >= 0 && transformed.x < rightImg->width &&
-                transformed.y >= 0 && transformed.y < rightImg->height)
-            {
-                // Convert to screen coordinates
-                ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
-                    transformed.x, transformed.y,
-                    rightView.centerX, rightView.centerY,
-                    rightView.renderScale,
-                    cosf(rightView.rotation), sinf(rightView.rotation),
-                    rightImg->width, rightImg->height);
-
-                // Draw orange transformed cursor indicator
-                dl->AddCircleFilled(rightScreenPos, transformedRadius,
-                                  transformedFill);
-                dl->AddCircle(rightScreenPos, transformedRadius,
-                            transformedOutline, 12, 1.5f);
-
-                // Draw coordinate text below circle
-                char transformedText[64];
-                snprintf(transformedText, sizeof(transformedText),
-                        "(%.1f, %.1f)", transformed.x, transformed.y);
-                ImVec2 transformedTextPos(rightScreenPos.x - 30.0f,
-                                        rightScreenPos.y + transformedRadius + 5.0f);
-                dl->AddText(transformedTextPos, transformedTextColor,
-                          transformedText);
-            }
-
-            // Find if cursor is near any matched point
-            for (size_t i = 0; i < leftPoints.size(); ++i)
-            {
-                float lx = leftPoints[i]["x"].getFloat();
-                float ly = leftPoints[i]["y"].getFloat();
-
-                // Convert left point to screen coordinates
-                ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
-                    lx, ly, leftView.centerX, leftView.centerY,
-                    leftView.renderScale,
-                    cosf(leftView.rotation), sinf(leftView.rotation),
-                    leftImg->width, leftImg->height);
-
-                // Check if cursor is near this point
-                float dx = io.MousePos.x - leftScreenPos.x;
-                float dy = io.MousePos.y - leftScreenPos.y;
-                float dist = sqrtf(dx * dx + dy * dy);
-
-                if (dist < hoverThreshold)
-                {
-                    // Draw corresponding circle on right
-                    float rx = rightPoints[i]["x"].getFloat();
-                    float ry = rightPoints[i]["y"].getFloat();
-
-                    ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
-                        rx, ry, rightView.centerX, rightView.centerY,
-                        rightView.renderScale,
-                        cosf(rightView.rotation), sinf(rightView.rotation),
-                        rightImg->width, rightImg->height);
-
-                    dl->AddCircleFilled(rightScreenPos, secondaryRadius,
-                                      correspondingColor);
-                    dl->AddCircle(rightScreenPos, secondaryRadius,
-                                primaryOutline, 12, 2.5f);
-
-                    // Draw coordinate text below green circle
-                    char matchedText[64];
-                    snprintf(matchedText, sizeof(matchedText),
-                            "(%.1f, %.1f)", rx, ry);
-                    ImVec2 matchedTextPos(rightScreenPos.x - 30.0f,
-                                        rightScreenPos.y + secondaryRadius + 5.0f);
-                    dl->AddText(matchedTextPos, correspondingColor, matchedText);
-                    break;  // Only show first matching point
-                }
-            }
         }
         else if (rightView.isHovered)
         {
-            // Get cursor position in image coordinates
-            ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
-                io.MousePos, rightView.canvasPos, rightView.canvasSize,
-                rightView.pan, rightView.zoom, rightView.baseScale,
-                rightView.rotation, rightImg->width, rightImg->height);
-
-            // Always draw cyan circle at cursor
-            dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
-            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12, 1.5f);
-
-            // Draw pixel coordinates
-            char coordText[64];
-            snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
-                     imgCoord.x, imgCoord.y);
-            ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
-                          io.MousePos.y - primaryRadius);
-            dl->AddText(textPos, primaryFill, coordText);
-
-            // Apply forward RTS transformation: right -> left
-            ImVec2 transformed = align.transformRight2Left(imgCoord);
-            printf("right is at %.1f, %.1f; left at %.1f, %1f\n", imgCoord.x, imgCoord.y, transformed.x, transformed.y);
-
-            // Check if transformed position is within left image bounds
-            if (transformed.x >= 0 && transformed.x < leftImg->width &&
-                transformed.y >= 0 && transformed.y < leftImg->height)
-            {
-                // Convert to screen coordinates
-                ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
-                    transformed.x, transformed.y,
-                    leftView.centerX, leftView.centerY,
-                    leftView.renderScale,
-                    cosf(leftView.rotation), sinf(leftView.rotation),
-                    leftImg->width, leftImg->height);
-
-                // Draw orange transformed cursor indicator
-                dl->AddCircleFilled(leftScreenPos, transformedRadius,
-                                  transformedFill);
-                dl->AddCircle(leftScreenPos, transformedRadius,
-                            transformedOutline, 12, 1.5f);
-
-                // Draw coordinate text below circle
-                char transformedText[64];
-                snprintf(transformedText, sizeof(transformedText),
-                        "(%.1f, %.1f)", transformed.x, transformed.y);
-                ImVec2 transformedTextPos(leftScreenPos.x - 30.0f,
-                                        leftScreenPos.y + transformedRadius + 5.0f);
-                dl->AddText(transformedTextPos, transformedTextColor,
-                          transformedText);
-            }
-
-            // Find if cursor is near any matched point
-            for (size_t i = 0; i < rightPoints.size(); ++i)
-            {
-                float rx = rightPoints[i]["x"].getFloat();
-                float ry = rightPoints[i]["y"].getFloat();
-
-                // Convert right point to screen coordinates
-                ImVec2 rightScreenPos = ImageCanvas::imageToScreenCoord(
-                    rx, ry, rightView.centerX, rightView.centerY,
-                    rightView.renderScale,
-                    cosf(rightView.rotation), sinf(rightView.rotation),
-                    rightImg->width, rightImg->height);
-
-                // Check if cursor is near this point
-                float dx = io.MousePos.x - rightScreenPos.x;
-                float dy = io.MousePos.y - rightScreenPos.y;
-                float dist = sqrtf(dx * dx + dy * dy);
-
-                if (dist < hoverThreshold)
-                {
-                    // Draw corresponding circle on left
-                    float lx = leftPoints[i]["x"].getFloat();
-                    float ly = leftPoints[i]["y"].getFloat();
-
-                    ImVec2 leftScreenPos = ImageCanvas::imageToScreenCoord(
-                        lx, ly, leftView.centerX, leftView.centerY,
-                        leftView.renderScale,
-                        cosf(leftView.rotation), sinf(leftView.rotation),
-                        leftImg->width, leftImg->height);
-
-                    dl->AddCircleFilled(leftScreenPos, secondaryRadius,
-                                      correspondingColor);
-                    dl->AddCircle(leftScreenPos, secondaryRadius,
-                                primaryOutline, 12, 2.5f);
-
-                    // Draw coordinate text below green circle
-                    char matchedText[64];
-                    snprintf(matchedText, sizeof(matchedText),
-                            "(%.1f, %.1f)", lx, ly);
-                    ImVec2 matchedTextPos(leftScreenPos.x - 30.0f,
-                                        leftScreenPos.y + secondaryRadius + 5.0f);
-                    dl->AddText(matchedTextPos, correspondingColor, matchedText);
-                    break;  // Only show first matching point
-                }
-            }
+            renderLockedCursorIndicators0(state, align,
+                    /*src=*/ state.viewerRight,
+                    /*srcPoints=*/ rightPoints,
+                    /*dst=*/ state.viewerLeft, 
+                    /*dstPoints=*/ leftPoints,
+                    false);
         }
     }
 
