@@ -10,6 +10,22 @@
 
 namespace shoecomp
 {
+    inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs)
+    {
+        return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y);
+    }
+
+    inline ImVec2 operator-(const ImVec2& lhs, const ImVec2& rhs)
+    {
+        return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y);
+    }
+
+    inline ImVec2 operator+=(ImVec2 &lhs, const ImVec2 &rhs) {
+        lhs.x += rhs.x;
+        lhs.y += rhs.y;
+        return lhs;
+    }
+
     enum class AnnotationMode
     {
         None,
@@ -34,7 +50,7 @@ namespace shoecomp
         float boundsLineThickness = 2.0f;
         float boundsColor[4] = {0.2f, 1.0f, 0.2f, 0.86f};
     };
-
+    
     extern AnnotationStyle g_annotationStyle;
 
     struct ImageViewState

@@ -2,14 +2,6 @@
 
 namespace shoecomp
 {
-    static inline ImVec2 operator+(const ImVec2& lhs, const ImVec2& rhs)
-    {
-        return ImVec2(lhs.x + rhs.x, lhs.y + rhs.y);
-    }
-    static inline ImVec2 operator-(const ImVec2& lhs, const ImVec2& rhs)
-    {
-        return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y);
-    }
 
     // Apply alignment transform: set right viewer
     // to match left viewer + alignment offset.
@@ -116,7 +108,7 @@ namespace shoecomp
             dstView.rotationTarget,
             dst.image->width, dst.image->height);
 
-        dstView.panTarget = dstView.panTarget + (oldDstScreen - newDstScreen);
+        dstView.panTarget += (oldDstScreen - newDstScreen);
     }
 
     // Sync locked viewers after rendering. Detects
@@ -157,7 +149,7 @@ namespace shoecomp
             {
                 rv.zoomTarget = lv.zoomTarget * a.scale;
                 rv.zoom = lv.zoom * a.scale;
-                rv.panTarget = rv.panTarget + (lv.panTarget - lPan0);
+                rv.panTarget += (lv.panTarget - lPan0);
                 rv.rotationTarget = lv.rotationTarget + aRad;
                 rv.rotation = lv.rotation + aRad;
             }
@@ -175,7 +167,7 @@ namespace shoecomp
             {
                 lv.zoomTarget = rv.zoomTarget / a.scale;
                 lv.zoom = rv.zoom / a.scale;
-                lv.panTarget = lv.panTarget + (rv.panTarget - rPan0);
+                lv.panTarget += (rv.panTarget - rPan0);
                 lv.rotationTarget = rv.rotationTarget - aRad;
                 lv.rotation = rv.rotation - aRad;
             }
