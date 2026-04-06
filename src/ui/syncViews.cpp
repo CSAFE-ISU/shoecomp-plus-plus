@@ -355,7 +355,7 @@ namespace shoecomp
             printf(
                 "Align params: rot=%.2f, tx=%.2f, ty=%.2f, "
                 "scale=%.4f\n",
-                align.rotation, align.translationX, align.translationY,
+                align.rotation, align.dx, align.dy,
                 align.scale);
             printed = true;
         }

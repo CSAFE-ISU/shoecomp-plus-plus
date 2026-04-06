@@ -351,7 +351,7 @@ namespace shoecomp
                 state.viewerAlignmentIdx + 1,
                 (int)state.viewerAlignments.size(),
                 a.mode == AlignMode::Manual ? "Manual" : "Auto",
-                a.rotation / kDegToRad, a.translationX, a.translationY, a.scale);
+                a.rotation / kDegToRad, a.dx, a.dy, a.scale);
 
             ImGui::SameLine();
             bool delDisabled = (int)state.viewerAlignments.size() <= 1;
@@ -630,10 +630,10 @@ namespace shoecomp
                 "Rotation (deg)", &rotationDeg,
                 -180.0f, 180.0f, "%.1f");
             changed |= ImGui::SliderFloat(
-                "Translation X", &state.alignEditState.translationX,
+                "Translation X", &state.alignEditState.dx,
                 -2000.0f, 2000.0f, "%.1f");
             changed |= ImGui::SliderFloat(
-                "Translation Y", &state.alignEditState.translationY,
+                "Translation Y", &state.alignEditState.dy,
                 -2000.0f, 2000.0f, "%.1f");
             changed |=
                 ImGui::SliderFloat("Scale", &state.alignEditState.scale,
@@ -792,8 +792,8 @@ namespace shoecomp
         obj["mode"] = jt::Json(
             a.mode == AlignMode::Manual ? "Manual" : "Automatic");
         obj["rotation"] = jt::Json((double)a.rotation);
-        obj["translationX"] = jt::Json((double)a.translationX);
-        obj["translationY"] = jt::Json((double)a.translationY);
+        obj["dx"] = jt::Json((double)a.dx);
+        obj["dy"] = jt::Json((double)a.dy);
         obj["scale"] = jt::Json((double)a.scale);
         obj["info"] = a.info;
 

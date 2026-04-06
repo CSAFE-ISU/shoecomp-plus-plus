@@ -22,8 +22,8 @@ namespace shoecomp
     {
         AlignMode mode = AlignMode::Manual;
         float rotation = 0.0f;
-        float translationX = 0.0f;
-        float translationY = 0.0f;
+        float dx = 0.0f;
+        float dy = 0.0f;
         float scale = 1.0f;
         jt::Json info;
 

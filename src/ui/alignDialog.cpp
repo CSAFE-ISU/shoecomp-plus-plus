@@ -16,8 +16,8 @@ namespace shoecomp
         float sin_theta = sinf(this->rotation) * this->scale;
         result.x = pt.x * cos_theta - pt.y *sin_theta;
         result.y = pt.x * sin_theta + pt.y *cos_theta;
-        result.x += this->translationX;
-        result.y += this->translationY;
+        result.x += this->dx;
+        result.y += this->dy;
         return result;
     }
 
@@ -26,8 +26,8 @@ namespace shoecomp
         ImVec2 result;
         float cos_theta = cosf(-this->rotation) / this->scale;
         float sin_theta = sinf(-this->rotation) / this->scale;
-        float tempX = pt.x - this->translationX;
-        float tempY = pt.y - this->translationY;
+        float tempX = pt.x - this->dx;
+        float tempY = pt.y - this->dy;
         result.x = tempX * cos_theta - tempY *sin_theta;
         result.y = tempX * sin_theta + tempY *cos_theta;
         return result;
