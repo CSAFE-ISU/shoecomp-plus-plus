@@ -20,6 +20,13 @@ namespace shoecomp
         }
     }
 
+    bool ImageViewState::contains(const ImVec2& pt) const {
+        return ((pt.x >= this->canvasPos.x) &&
+                (pt.x < (this->canvasPos.x + this->canvasSize.x)) &&
+                (pt.y >= this->canvasPos.y) &&
+                (pt.y < (this->canvasPos.y + this->canvasSize.y)));
+    }
+
     PointType stringToPointType(const std::string& s)
     {
         if (s == "Center") return PointType::Center;

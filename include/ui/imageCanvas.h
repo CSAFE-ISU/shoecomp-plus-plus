@@ -54,6 +54,8 @@ namespace shoecomp
         float centerX = 0.0f;
         float centerY = 0.0f;
         float renderScale = 1.0f;
+
+        bool contains(const ImVec2 &pt) const;
     };
 
     struct ImageData

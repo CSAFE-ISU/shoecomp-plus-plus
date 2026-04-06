@@ -342,6 +342,18 @@ namespace shoecomp
             srcView.pan, srcView.zoom, srcView.baseScale,
             srcView.rotation, srcImg->width, srcImg->height);
 
+        // Always draw cyan circle at cursor
+        dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
+        dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12,
+                      1.5f);
+
+        // Draw pixel coordinates src
+        snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
+                 imgCoord.x, imgCoord.y);
+        ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
+                       io.MousePos.y - primaryRadius);
+        dl->AddText(textPos, primaryFill, coordText);
+
         // apply transformation in image coordinates
         if (srcIsLeft)
         {
@@ -352,29 +364,18 @@ namespace shoecomp
             transformed = align.transformRight2Left(imgCoord);
         }
 
-        // Always draw cyan circle at cursor
-        dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
-        dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12,
-                      1.5f);
 
-        // Draw pixel coordinates
-        snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
-                 imgCoord.x, imgCoord.y);
-        ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
-                       io.MousePos.y - primaryRadius);
-        dl->AddText(textPos, primaryFill, coordText);
+        // Convert to screen coordinates
+        ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
+            transformed.x, transformed.y, dstView.centerX,
+            dstView.centerY, dstView.renderScale,
+            cosf(dstView.rotation), sinf(dstView.rotation),
+            dstImg->width, dstImg->height);
 
-        // Check if transformed position is within dst image bounds
-        if (transformed.x >= 0 && transformed.x < dstImg->width &&
-            transformed.y >= 0 && transformed.y < dstImg->height)
+
+        // Check if transformed position is within dst screen bounds
+        if (dstView.contains(dstScreenPos))
         {
-            // Convert to screen coordinates
-            ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
-                transformed.x, transformed.y, dstView.centerX,
-                dstView.centerY, dstView.renderScale,
-                cosf(dstView.rotation), sinf(dstView.rotation),
-                dstImg->width, dstImg->height);
-
             // Draw orange transformed cursor indicator
             dl->AddCircleFilled(dstScreenPos, transformedRadius,
                                 transformedFill);
