@@ -741,7 +741,7 @@ namespace shoecomp
 
         ImGui::SameLine();
         ImGui::BeginDisabled(!state.viewerLocked);
-        if (ImGui::Button("Save JSON"))
+        if (ImGui::Button("Save Alignment"))
         {
             state.alignmentSaveBrowser.show = true;
             state.alignmentSaveBrowser.dirNeedsRefresh = true;
