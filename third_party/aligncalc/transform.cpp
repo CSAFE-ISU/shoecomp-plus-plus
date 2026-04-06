@@ -80,12 +80,9 @@ namespace AlignCalc
         this->scale =
             (d.asDiagonal() * S).trace() / (srcVariance + 1e-8);
         Eigen::Matrix2d rotmat = (U * S * Vt).transpose();
-        rotmat *= this->scale;
-
         this->rotation = std::atan2(rotmat(0, 1), rotmat(0, 0));
-        Eigen::VectorXd shift = -1 * (rotmat * srcMean) + dstMean;
-        this->dx = shift(0);
-        this->dy = shift(1);
+        this->dx = dstMean(0) - this->scale * (srcMean(0) * cos(this->rotation) - srcMean(1) * sin(this->rotation));
+        this->dy = dstMean(1) - this->scale * (srcMean(0) * sin(this->rotation) + srcMean(1) * cos(this->rotation));
     }
 
 } /* namespace AlignCalc */
