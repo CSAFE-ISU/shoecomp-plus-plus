@@ -440,13 +440,6 @@ namespace shoecomp
 
     static void renderLockedCursorIndicators(AppState& state)
     {
-        // Debug: check each condition
-        if (!state.viewerLocked)
-        {
-            // Not locked - this is expected, no debug needed
-            return;
-        }
-
         if (state.viewerLeftIdx < 0 || state.viewerRightIdx < 0)
         {
             return;
@@ -641,9 +634,6 @@ namespace shoecomp
                                "##Right");
             ImGui::EndChild();
 
-            // Draw locked cursor indicators
-            renderLockedCursorIndicators(state);
-
             // Apply locked sync with alignment
             // offset after both viewers render.
             if (state.viewerLocked)
@@ -653,6 +643,7 @@ namespace shoecomp
                 syncLockedViewers(state.viewerLeft, state.viewerRight, a,
                                   lZoom0, lPan0, lRot0,
                                   rZoom0, rPan0, rRot0);
+                renderLockedCursorIndicators(state);
             }
         }
         ImGui::EndChild();
@@ -748,7 +739,7 @@ namespace shoecomp
                 state.viewerAlignmentIdx + 1,
                 (int)state.viewerAlignments.size(),
                 a.mode == AlignMode::Manual ? "Manual" : "Auto",
-                a.rotation, a.translationX, a.translationY, a.scale);
+                a.rotation / kDegToRad, a.translationX, a.translationY, a.scale);
 
             ImGui::SameLine();
             bool delDisabled = (int)state.viewerAlignments.size() <= 1;
@@ -1016,8 +1007,9 @@ namespace shoecomp
                 ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove))
         {
             bool changed = false;
+            float rotationDeg = state.alignEditState.rotation / kDegToRad;
             changed |= ImGui::SliderFloat(
-                "Rotation (deg)", &state.alignEditState.rotation,
+                "Rotation (deg)", &rotationDeg,
                 -180.0f, 180.0f, "%.1f");
             changed |= ImGui::SliderFloat(
                 "Translation X", &state.alignEditState.translationX,
@@ -1031,6 +1023,7 @@ namespace shoecomp
 
             if (changed)
             {
+                state.alignEditState.rotation = rotationDeg * kDegToRad;
                 applyAlignment(state.viewerLeft,
                                state.viewerRight,
                                state.alignEditState,
