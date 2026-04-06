@@ -304,92 +304,13 @@ namespace shoecomp
 
     static void renderFilesAndSettings(AppState& state)
     {
-        struct SettingsState
-        {
-            int themeIdx = 1;
-            bool fullscreen = true;
-            float fontScale = 2.5f;
-        };
-        static SettingsState s;
-
         ImVec2 avail = ImGui::GetContentRegionAvail();
         float settingsH = avail.y * (2.0f / 3.0f);
         float imagesH = avail.y - settingsH;
 
         ImGui::BeginChild("SettingsPane", ImVec2(avail.x, settingsH),
                           ImGuiChildFlags_Borders);
-        if (ImGui::BeginTable("##settings", 3))
-        {
-            ImGui::TableSetupColumn(
-                "Label", ImGuiTableColumnFlags_WidthFixed, 250.0f);
-            ImGui::TableSetupColumn(
-                "Spacer", ImGuiTableColumnFlags_WidthFixed, 20.0f);
-            ImGui::TableSetupColumn("Widget",
-                                    ImGuiTableColumnFlags_WidthStretch);
-
-            settingsTableRow("Theme");
-            ImGui::Combo("##Theme", &s.themeIdx, "Light\0Dark\0");
-
-            settingsTableRow("Fullscreen");
-            ImGui::Checkbox("##Fullscreen", &s.fullscreen);
-
-            settingsTableRow("Font Scale");
-            ImGui::SliderFloat("##FontScale", &s.fontScale, 0.5f, 4.0f,
-                               "%.2f");
-            s.fontScale = std::round(s.fontScale / 0.05f) * 0.05f;
-
-            ImGui::EndTable();
-        }
-        ImGui::Spacing();
-        ImGui::SeparatorText("Annotations");
-        if (ImGui::BeginTable("##annSettings", 3))
-        {
-            ImGui::TableSetupColumn(
-                "Label", ImGuiTableColumnFlags_WidthFixed, 250.0f);
-            ImGui::TableSetupColumn(
-                "Spacer", ImGuiTableColumnFlags_WidthFixed, 20.0f);
-            ImGui::TableSetupColumn("Widget",
-                                    ImGuiTableColumnFlags_WidthStretch);
-
-            settingsTableRow("Point Radius");
-            ImGui::SliderFloat("##PointRadius",
-                               &g_annotationStyle.pointRadius, 2.0f,
-                               15.0f, "%.1f");
-
-            settingsTableRow("Corner Color");
-            ImGui::ColorEdit4("##CornerColor",
-                              g_annotationStyle.cornerColor);
-
-            settingsTableRow("Center Color");
-            ImGui::ColorEdit4("##CenterColor",
-                              g_annotationStyle.centerColor);
-
-            settingsTableRow("Bounds Thickness");
-            ImGui::SliderFloat("##BoundsThickness",
-                               &g_annotationStyle.boundsLineThickness,
-                               1.0f, 8.0f, "%.1f");
-
-            settingsTableRow("Bounds Color");
-            ImGui::ColorEdit4("##BoundsColor",
-                              g_annotationStyle.boundsColor);
-
-            ImGui::EndTable();
-        }
-
-        ImGui::Spacing();
-        if (ImGui::Button("Update Settings"))
-        {
-            auto theme = s.themeIdx == 0
-                             ? ImGuiTheme::ImGuiTheme_ImGuiColorsLight
-                             : ImGuiTheme::ImGuiTheme_ImGuiColorsDark;
-            ImGuiTheme::ApplyTheme(theme);
-            HelloImGui::GetRunnerParams()
-                ->appWindowParams.windowGeometry.fullScreenMode =
-                s.fullscreen
-                    ? HelloImGui::FullScreenMode::FullMonitorWorkArea
-                    : HelloImGui::FullScreenMode::NoFullScreen;
-            ImGui::GetIO().FontGlobalScale = s.fontScale;
-        }
+        renderSettingsTab(state.settings);
         ImGui::EndChild();
 
         ImGui::BeginChild("LoadedImagesPane", ImVec2(avail.x, imagesH),
@@ -404,25 +325,36 @@ namespace shoecomp
                                               std::vector<jt::Json>& srcPoints,
                                               ImageCanvas& dst,
                                               std::vector<jt::Json>& dstPoints,
-                                              bool srcIsLeft)
+                                              bool srcIsLeft,
+                                              const SettingsState& settings)
     {
-        // Visual constants
-        const float primaryRadius = 8.0f;
-        const ImU32 primaryFill = IM_COL32(0, 220, 255, 200);
+        // Visual constants (from settings)
+        const float primaryRadius = settings.cursorRadius;
+        const ImU32 primaryFill = ImGui::ColorConvertFloat4ToU32(
+            ImVec4(settings.cursorColor[0], settings.cursorColor[1],
+                   settings.cursorColor[2], settings.cursorColor[3]));
         const ImU32 primaryOutline = IM_COL32(255, 255, 255, 255);
-        const float secondaryRadius = 8.0f;
-        const ImU32 correspondingColor =
-            IM_COL32(0, 255, 100, 180);  // Green: corresponding point
-        const float hoverThreshold = 15.0f;  // pixels
+        const float secondaryRadius = settings.correspondingRadius;
+        const ImU32 correspondingColor = ImGui::ColorConvertFloat4ToU32(
+            ImVec4(settings.correspondingColor[0],
+                   settings.correspondingColor[1],
+                   settings.correspondingColor[2],
+                   settings.correspondingColor[3]));
+        const float hoverThreshold = settings.hoverThreshold;
 
         // Transformed cursor indicator constants
-        const float transformedRadius = 7.0f;
-        const ImU32 transformedFill =
-            IM_COL32(255, 150, 0, 180);  // Orange
+        const float transformedRadius = settings.cursorRadius;
+        const ImU32 transformedFill = ImGui::ColorConvertFloat4ToU32(
+            ImVec4(settings.transformedColor[0],
+                   settings.transformedColor[1],
+                   settings.transformedColor[2],
+                   settings.transformedColor[3]));
         const ImU32 transformedOutline =
             IM_COL32(255, 255, 255, 255);  // White
-        const ImU32 transformedTextColor =
-            IM_COL32(255, 150, 0, 255);  // Orange (opaque)
+        const ImU32 transformedTextColor = ImGui::ColorConvertFloat4ToU32(
+            ImVec4(settings.transformedColor[0],
+                   settings.transformedColor[1],
+                   settings.transformedColor[2], 1.0f));
 
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* dl = ImGui::GetForegroundDrawList();
@@ -541,7 +473,8 @@ namespace shoecomp
         }
     }
 
-    static void renderLockedCursorIndicators(AppState& state)
+    static void renderLockedCursorIndicators(AppState& state,
+                                             const SettingsState& settings)
     {
         if (state.viewerLeftIdx < 0 || state.viewerRightIdx < 0)
         {
@@ -602,7 +535,7 @@ namespace shoecomp
                     /*srcPoints=*/ leftPoints,
                     /*dst=*/ state.viewerRight, 
                     /*dstPoints=*/ rightPoints,
-                    true);
+                    true, settings);
 
         }
         else if (rightView.isHovered)
@@ -610,9 +543,9 @@ namespace shoecomp
             renderLockedCursorIndicators0(state, align,
                     /*src=*/ state.viewerRight,
                     /*srcPoints=*/ rightPoints,
-                    /*dst=*/ state.viewerLeft, 
+                    /*dst=*/ state.viewerLeft,
                     /*dstPoints=*/ leftPoints,
-                    false);
+                    false, settings);
         }
     }
 
@@ -761,7 +694,7 @@ namespace shoecomp
                                       lZoom0, lPan0, lRot0,
                                       rZoom0, rPan0, rRot0);
                 }
-                renderLockedCursorIndicators(state);
+                renderLockedCursorIndicators(state, state.settings);
             }
             lv.homeRequested = false;
             rv.homeRequested = false;

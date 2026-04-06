@@ -96,6 +96,7 @@ set(SC_SRCS
     src/ui/mainWindow.cpp
     src/ui/imageCanvas.cpp
     src/ui/uiHelpers.cpp
+    src/ui/settings.cpp
     src/ui/errorPopup.cpp
     src/ui/loadBrowser.cpp
     src/ui/saveBrowser.cpp

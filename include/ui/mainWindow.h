@@ -15,6 +15,7 @@
 #include "ui/imageCanvas.h"
 #include "ui/imageListDialog.h"
 #include "ui/alignDialog.h"
+#include "ui/settings.h"
 
 namespace shoecomp
 {
@@ -74,6 +75,9 @@ namespace shoecomp
         std::atomic<int> imageSaveResult{0};
         std::string imageSaveProgressPath;
         std::thread imageSaveThread;
+
+        // App-wide settings
+        SettingsState settings;
     };
 
     void submain(void);
