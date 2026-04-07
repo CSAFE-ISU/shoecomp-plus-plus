@@ -33,46 +33,47 @@ namespace shoecomp
     void applyModernStyling()
     {
         ImGuiStyle& style = ImGui::GetStyle();
+        float fontSize = ImGui::GetFontSize();
 
         // Rounding - modern apps use subtle, consistent rounding
-        style.WindowRounding = 8.0f;
-        style.ChildRounding = 6.0f;
-        style.FrameRounding = 4.0f;
-        style.PopupRounding = 6.0f;
-        style.ScrollbarRounding = 9.0f;
-        style.GrabRounding = 4.0f;
-        style.TabRounding = 4.0f;
+        style.WindowRounding = fontSize * kWindowRounding;
+        style.ChildRounding = fontSize * kChildRounding;
+        style.FrameRounding = fontSize * kFrameRounding;
+        style.PopupRounding = fontSize * kPopupRounding;
+        style.ScrollbarRounding = fontSize * kScrollbarRounding;
+        style.GrabRounding = fontSize * kGrabRounding;
+        style.TabRounding = fontSize * kTabRounding;
 
         // Borders - subtle, minimal borders
-        style.WindowBorderSize = 1.0f;
-        style.ChildBorderSize = 1.0f;
-        style.PopupBorderSize = 1.0f;
+        style.WindowBorderSize = fontSize * kBorderSize;
+        style.ChildBorderSize = fontSize * kBorderSize;
+        style.PopupBorderSize = fontSize * kBorderSize;
         style.FrameBorderSize = 0.0f;
         style.TabBorderSize = 0.0f;
 
         // Padding - comfortable spacing
-        style.WindowPadding = ImVec2(12.0f, 12.0f);
-        style.FramePadding = ImVec2(8.0f, 4.0f);
-        style.CellPadding = ImVec2(6.0f, 4.0f);
+        style.WindowPadding = ImVec2(fontSize * kWindowPadding, fontSize * kWindowPadding);
+        style.FramePadding = ImVec2(fontSize * kFramePaddingX, fontSize * kFramePaddingY);
+        style.CellPadding = ImVec2(fontSize * kCellPaddingX, fontSize * kCellPaddingY);
 
         // Spacing - consistent gaps
-        style.ItemSpacing = ImVec2(8.0f, 6.0f);
-        style.ItemInnerSpacing = ImVec2(6.0f, 4.0f);
-        style.IndentSpacing = 20.0f;
+        style.ItemSpacing = ImVec2(fontSize * kItemSpacingX, fontSize * kItemSpacingY);
+        style.ItemInnerSpacing = ImVec2(fontSize * kItemInnerSpacingX, fontSize * kItemInnerSpacingY);
+        style.IndentSpacing = fontSize * kIndentSpacing;
 
         // Interactive elements - comfortable sizes
-        style.ScrollbarSize = 14.0f;
-        style.GrabMinSize = 12.0f;
+        style.ScrollbarSize = fontSize * kScrollbarSize;
+        style.GrabMinSize = fontSize * kGrabMinSize;
 
         // Alignment - centered titles, left-aligned buttons
         style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
         style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
 
         // Window constraints
-        style.WindowMinSize = ImVec2(200.0f, 100.0f);
+        style.WindowMinSize = ImVec2(fontSize * kWindowMinWidth, fontSize * kWindowMinHeight);
 
         // Display safe areas
-        style.DisplaySafeAreaPadding = ImVec2(4.0f, 4.0f);
+        style.DisplaySafeAreaPadding = ImVec2(fontSize * kSafeAreaPadding, fontSize * kSafeAreaPadding);
     }
 
     void applyTheme(int themeIdx)

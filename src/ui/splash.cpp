@@ -1,5 +1,6 @@
 #include "ui/splash.h"
 #include "ui/settings.h"
+#include "ui/uiHelpers.h"
 #include "hello_imgui/hello_imgui.h"
 #include "hello_imgui/hello_imgui_include_opengl.h"
 #include "hello_imgui/imgui_theme.h"
@@ -80,6 +81,8 @@ namespace shoecomp
             double elapsed = ImGui::GetTime() - startTime;
 
             ImVec2 winSize = ImGui::GetWindowSize();
+            // Get base font size (before global scale is applied)
+            float fontSize = ImGui::GetFontSize() / ImGui::GetIO().FontGlobalScale;
 
             // Check for window close or ESC key
             if (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
@@ -101,10 +104,11 @@ namespace shoecomp
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonActive);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
-            // Button size needs to account for font scale (2.5x)
-            float buttonSize = 45.0f;  // Large enough for scaled font
-            ImGui::SetCursorPos(ImVec2(winSize.x - buttonSize - 10.0f, 25.0f));
-            if (ImGui::Button("x", ImVec2(buttonSize, 1.25*buttonSize)))
+            // Button size relative to font
+            float buttonSize = fontSize * kSplashButtonSize;
+            ImGui::SetCursorPos(ImVec2(winSize.x - buttonSize - fontSize * kSplashButtonOffsetX,
+                                      fontSize * kSplashButtonOffsetY));
+            if (ImGui::Button("x", ImVec2(buttonSize, buttonSize * 1.25f)))
             {
                 result.cancelled = true;
                 HelloImGui::GetRunnerParams()->appShallExit = true;
@@ -114,12 +118,12 @@ namespace shoecomp
             ImGui::PopStyleColor(3);
 
             // Left-aligned content
-            float leftMargin = 60.0f;
+            float leftMargin = fontSize * kSplashLeftMargin;
             float centerY = winSize.y * 0.5f;
 
             // Calculate icon display size
-            float iconDisplaySize = 64.0f;
-            float iconSpacing = 20.0f;
+            float iconDisplaySize = fontSize * kSplashIconSize;
+            float iconSpacing = fontSize * kSplashIconSpacing;
 
             // Title "shoecomp" (lowercase) - left aligned
             if (titleFont) ImGui::PushFont(titleFont);
@@ -143,7 +147,7 @@ namespace shoecomp
             if (titleFont) ImGui::PushFont(titleFont);
             ImGui::SetCursorPos(
                 ImVec2(leftMargin + iconDisplaySize + iconSpacing,
-                       centerY - 50.0f));
+                       centerY - fontSize * kSplashTitleOffsetY));
             ImGui::Text("%s", title);
             if (titleFont) ImGui::PopFont();
 
@@ -153,11 +157,11 @@ namespace shoecomp
             if (currentStep > progressSteps)
                 currentStep = progressSteps;
 
-            float progressBarHeight = 4.0f;
+            float progressBarHeight = fontSize * kSplashProgressHeight;
 
             ImGui::SetCursorPos(
                 ImVec2(leftMargin + iconDisplaySize + iconSpacing,
-                       centerY + 10.0f));
+                       centerY + fontSize * kSplashProgressOffsetY));
             ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 0.8f));
             ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.4f, 0.6f, 0.9f, 1.0f));
             ImGui::PushItemWidth(progressBarWidth);
@@ -173,7 +177,7 @@ namespace shoecomp
             if (smallFont) ImGui::PushFont(smallFont);
             ImGui::SetCursorPos(
                 ImVec2(leftMargin + iconDisplaySize + iconSpacing,
-                       centerY + 25.0f));
+                       centerY + fontSize * kSplashStepTextOffsetY));
             ImGui::TextDisabled("%s", stepText);
             if (smallFont) ImGui::PopFont();
 
