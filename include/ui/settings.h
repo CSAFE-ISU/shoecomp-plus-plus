@@ -28,6 +28,7 @@ namespace shoecomp
 
     void renderSettingsTab(SettingsState& s);
     void applyTheme(int themeIdx);
+    void applyModernStyling();
 }  // namespace shoecomp
 
 #endif

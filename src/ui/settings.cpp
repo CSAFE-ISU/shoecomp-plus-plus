@@ -30,10 +30,56 @@ namespace shoecomp
         ImGuiTheme::ImGuiTheme_WhiteIsWhite,
     };
 
+    void applyModernStyling()
+    {
+        ImGuiStyle& style = ImGui::GetStyle();
+
+        // Rounding - modern apps use subtle, consistent rounding
+        style.WindowRounding = 8.0f;
+        style.ChildRounding = 6.0f;
+        style.FrameRounding = 4.0f;
+        style.PopupRounding = 6.0f;
+        style.ScrollbarRounding = 9.0f;
+        style.GrabRounding = 4.0f;
+        style.TabRounding = 4.0f;
+
+        // Borders - subtle, minimal borders
+        style.WindowBorderSize = 1.0f;
+        style.ChildBorderSize = 1.0f;
+        style.PopupBorderSize = 1.0f;
+        style.FrameBorderSize = 0.0f;
+        style.TabBorderSize = 0.0f;
+
+        // Padding - comfortable spacing
+        style.WindowPadding = ImVec2(12.0f, 12.0f);
+        style.FramePadding = ImVec2(8.0f, 4.0f);
+        style.CellPadding = ImVec2(6.0f, 4.0f);
+
+        // Spacing - consistent gaps
+        style.ItemSpacing = ImVec2(8.0f, 6.0f);
+        style.ItemInnerSpacing = ImVec2(6.0f, 4.0f);
+        style.IndentSpacing = 20.0f;
+
+        // Interactive elements - comfortable sizes
+        style.ScrollbarSize = 14.0f;
+        style.GrabMinSize = 12.0f;
+
+        // Alignment - centered titles, left-aligned buttons
+        style.WindowTitleAlign = ImVec2(0.5f, 0.5f);
+        style.ButtonTextAlign = ImVec2(0.5f, 0.5f);
+
+        // Window constraints
+        style.WindowMinSize = ImVec2(200.0f, 100.0f);
+
+        // Display safe areas
+        style.DisplaySafeAreaPadding = ImVec2(4.0f, 4.0f);
+    }
+
     void applyTheme(int themeIdx)
     {
         int idx = std::clamp(themeIdx, 0, 16);
         ImGuiTheme::ApplyTheme(themeMap[idx]);
+        applyModernStyling();
     }
 
     void renderSettingsTab(SettingsState& s)
