@@ -76,6 +76,10 @@ namespace shoecomp
         std::string imageSaveProgressPath;
         std::thread imageSaveThread;
 
+        // Custom fonts
+        ImFont* defaultFont = nullptr;   // Montserrat-Regular
+        ImFont* monoFont = nullptr;      // Inconsolata
+
         // App-wide settings
         SettingsState settings;
     };

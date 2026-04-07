@@ -2,6 +2,7 @@
 #include "ui/imageCanvas.h"
 #include "ui/alignDialog.h"
 #include "ui/uiHelpers.h"
+#include "ui/splash.h"
 #include "formats/png.h"
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
@@ -15,59 +16,6 @@
 namespace shoecomp
 {
     namespace fs = std::filesystem;
-
-    static void runSplash(double duration)
-    {
-        double startTime = 0.0;
-
-        HelloImGui::RunnerParams params;
-        params.appWindowParams.windowTitle = "ShoeComp";
-        params.appWindowParams.windowGeometry.size = {640, 360};
-        params.appWindowParams.borderless = true;
-        params.appWindowParams.borderlessMovable = false;
-        params.appWindowParams.borderlessResizable = false;
-        params.appWindowParams.borderlessClosable = false;
-        params.appWindowParams.resizable = false;
-        params.appWindowParams.windowGeometry.positionMode =
-            HelloImGui::WindowPositionMode::MonitorCenter;
-        params.imGuiWindowParams.defaultImGuiWindowType =
-            HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
-        params.callbacks.PostInit = []()
-        { ImGui::GetIO().FontGlobalScale = 2.5f; };
-        params.callbacks.ShowGui = [&startTime, duration]()
-        {
-            if (startTime == 0.0) startTime = ImGui::GetTime();
-
-            double elapsed = ImGui::GetTime() - startTime;
-
-            ImVec2 winSize = ImGui::GetWindowSize();
-
-            const char* title = "ShoeComp";
-            ImVec2 titleSize = ImGui::CalcTextSize(title);
-            ImGui::SetCursorPos(
-                ImVec2((winSize.x - titleSize.x) * 0.5f,
-                       (winSize.y - titleSize.y) * 0.5f - 30.0f));
-            ImGui::Text("%s", title);
-
-            // Animated dots: cycle 1-3
-            int dots = (int)(elapsed / 0.4) % 3 + 1;
-            char subtitle[16];
-            snprintf(subtitle, sizeof(subtitle), "Loading%.*s", dots,
-                     "...");
-            // Use fixed width so text doesn't shift
-            const char* widest = "Loading...";
-            ImVec2 wSize = ImGui::CalcTextSize(widest);
-            ImGui::SetCursorPos(
-                ImVec2((winSize.x - wSize.x) * 0.5f,
-                       (winSize.y - wSize.y) * 0.5f + 30.0f));
-            ImGui::Text("%s", subtitle);
-
-            if (elapsed >= duration)
-                HelloImGui::GetRunnerParams()->appShallExit = true;
-        };
-
-        HelloImGui::Run(params);
-    }
 
     static void renderSettings(AppState& state)
     {
@@ -93,19 +41,7 @@ namespace shoecomp
 
     static void renderFilesAndSettings(AppState& state)
     {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        float settingsH = avail.y * (2.0f / 3.0f);
-        float imagesH = avail.y - settingsH;
-
-        ImGui::BeginChild("SettingsPane", ImVec2(avail.x, settingsH),
-                          ImGuiChildFlags_Borders);
         renderSettingsTab(state.settings);
-        ImGui::EndChild();
-
-        ImGui::BeginChild("LoadedImagesPane", ImVec2(avail.x, imagesH),
-                          ImGuiChildFlags_Borders);
-        renderSettings(state);
-        ImGui::EndChild();
     }
 
     static void renderLockToggle(bool& locked)
@@ -471,7 +407,32 @@ namespace shoecomp
         }
 
         if (state.images.empty())
-            ImGui::Text("Use Load Image to add images");
+        {
+            // Centered, faded message when no images are loaded
+            ImVec2 regionAvail = ImGui::GetContentRegionAvail();
+            const char* msg = "Load images to begin";
+
+            // Calculate font size to occupy 60% of available width
+            float targetWidth = regionAvail.x * 0.6f;
+            ImVec2 baseSize = ImGui::CalcTextSize(msg);
+            float scale = targetWidth / baseSize.x;
+
+            ImGui::SetWindowFontScale(scale);
+            ImVec2 textSize = ImGui::CalcTextSize(msg);
+            ImGui::SetWindowFontScale(1.0f);
+
+            // Center the text
+            float posX = (regionAvail.x - textSize.x) * 0.5f;
+            float posY = (regionAvail.y - textSize.y) * 0.5f;
+
+            ImGui::SetCursorPos(ImVec2(posX, posY));
+            ImGui::PushStyleColor(ImGuiCol_Text,
+                ImVec4(0.5f, 0.5f, 0.5f, 0.4f));  // Faded gray
+            ImGui::SetWindowFontScale(scale);
+            ImGui::TextUnformatted(msg);
+            ImGui::SetWindowFontScale(1.0f);
+            ImGui::PopStyleColor();
+        }
 
         ImGui::EndChild();
 
@@ -521,7 +482,7 @@ namespace shoecomp
         ImGui::EndDisabled();
     }
 
-    static void renderAbout()
+    static void renderAbout(AppState& state)
     {
         static std::string aboutText;
         if (aboutText.empty())
@@ -535,9 +496,11 @@ namespace shoecomp
         }
 
         ImVec2 avail = ImGui::GetContentRegionAvail();
+        if (state.monoFont) ImGui::PushFont(state.monoFont);
         ImGui::InputTextMultiline(
             "##about", const_cast<char*>(aboutText.c_str()),
             aboutText.size() + 1, avail, ImGuiInputTextFlags_ReadOnly);
+        if (state.monoFont) ImGui::PopFont();
     }
 
     static void renderImageSaveProgressPopup(AppState& state)
@@ -712,7 +675,7 @@ namespace shoecomp
             }
             if (ImGui::BeginTabItem("About"))
             {
-                renderAbout();
+                renderAbout(state);
                 ImGui::EndTabItem();
             }
             ImGui::EndTabBar();
@@ -876,9 +839,19 @@ namespace shoecomp
         state.images.clear();
     }
 
+    static void loadFonts(AppState& state)
+    {
+        state.defaultFont = HelloImGui::LoadFont(
+            "fonts/Montserrat-Regular.ttf", 16.0f);
+        state.monoFont = HelloImGui::LoadFont(
+            "fonts/Inconsolata-Regular.ttf", 16.0f);
+    }
+
     void submain(void)
     {
-        runSplash(1.0);
+        SplashResult splashResult = runSplash(1.0, 5);
+        if (splashResult.cancelled)
+            return;
 
         AppState state;
 
@@ -914,9 +887,16 @@ namespace shoecomp
             HelloImGui::FullScreenMode::FullMonitorWorkArea;
         params.imGuiWindowParams.defaultImGuiWindowType =
             HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
-        params.callbacks.PostInit = []()
-        { ImGui::GetIO().FontGlobalScale = 2.5f; };
-        params.callbacks.ShowGui = [&state]() { renderGui(state); };
+        params.callbacks.LoadAdditionalFonts = [&state]() { loadFonts(state); };
+        params.callbacks.PostInit = [&state]()
+        {
+            ImGui::GetIO().FontGlobalScale = 2.5f;
+            applyTheme(state.settings.themeIdx);
+        };
+        params.callbacks.ShowGui = [&state]() { 
+            applyTheme(state.settings.themeIdx);
+            renderGui(state); }
+        ;
         params.callbacks.BeforeExit = [&state]()
         { onBeforeExit(state); };
 

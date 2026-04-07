@@ -6,7 +6,7 @@ namespace shoecomp
     struct SettingsState
     {
         // App
-        int themeIdx = 1;
+        int themeIdx = 3;  // Material Flat
         bool fullscreen = true;
         float fontScale = 2.5f;
 
@@ -27,6 +27,7 @@ namespace shoecomp
     };
 
     void renderSettingsTab(SettingsState& s);
+    void applyTheme(int themeIdx);
 }  // namespace shoecomp
 
 #endif
