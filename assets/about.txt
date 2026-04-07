@@ -34,3 +34,11 @@ Third-party dependencies:
 
   whereami (MIT, bundled in Hello ImGui)
   https://github.com/gpakosz/whereami
+
+Fonts Used:
+
+  Inconsolata (SIL Open Font License)
+  https://fonts.google.com/specimen/Inconsolata/
+
+  Montserrat (SIL Open Font License)
+  https://fonts.google.com/specimen/Montserrat
