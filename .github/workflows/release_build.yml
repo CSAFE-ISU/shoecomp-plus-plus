@@ -35,7 +35,7 @@ jobs:
       run: |
         New-Item -ItemType Directory -Path staging/shoecomp | Out-Null
         Copy-Item build/Release/shoecomp.exe staging/shoecomp/
-        Copy-Item -Recurse build/Release/assets staging/shoecomp/assets
+        Copy-Item -Recurse build/assets staging/shoecomp/assets
 
     - name: Stage shoecomp folder (ubuntu)
       if: ${{ matrix.platform == 'ubuntu-latest' }}
