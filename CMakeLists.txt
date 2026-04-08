@@ -110,6 +110,7 @@ set(SC_SRCS
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
     src/formats/annotationIo.cpp
+    src/formats/platforms.cpp
     src/main.cpp
 )
 hello_imgui_add_app(shoecomp ${SC_SRCS})

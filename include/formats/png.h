@@ -14,6 +14,9 @@ namespace shoecomp
                       const unsigned char* rgbaData, int width,
                       int height);
 
+    ImTextureID createTextureRGBA(const unsigned char* rgba, int width,
+                                  int height);
+
     void freeTexture(ImTextureID textureId);
 } /* namespace shoecomp */
 
