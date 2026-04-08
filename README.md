@@ -8,3 +8,8 @@ repo][hello2].
 MIT License. The goal is to explore how one can implement a minimal, fast,
 cross-platform C++ GUI application to visualize for shoeprint image alignment
 and comparisons.
+
+[shoecomp]: https://github.com/CSAFE-ISU/shoecomp
+[imgui]: https://github.com/ocornut/imgui
+[hello1]: https://github.com/pthom/hello_imgui/
+[hello2]: https://github.com/pthom/hello_imgui_template/
