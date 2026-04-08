@@ -1,0 +1,51 @@
+name: "Release Build"
+
+# Manual-dispatch build that publishes the shoecomp binary as an artifact
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: "Release Build"
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-latest, ubuntu-latest]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: apt install xorg-dev  libglfw3-dev (ubuntu only)
+      if: ${{ matrix.platform == 'ubuntu-latest' }}
+      run: sudo apt-get update && sudo apt-get install -y xorg-dev  libglfw3-dev
+
+    - name: Build on ${{ matrix.platform }}
+      run: |
+        cmake -S . -B build -DHELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED=ON -DHELLOIMGUI_MACOS_CREATE_APP_BUNDLE=ON -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+
+    - name: Upload shoecomp binary (windows)
+      if: ${{ matrix.platform == 'windows-latest' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: shoecomp-${{ matrix.platform }}
+        path: build/Release/shoecomp.exe
+
+    - name: Upload shoecomp binary (macos)
+      if: ${{ matrix.platform == 'macos-latest' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: shoecomp-${{ matrix.platform }}
+        path: build/shoecomp.app
+
+    - name: Upload shoecomp binary (ubuntu)
+      if: ${{ matrix.platform == 'ubuntu-latest' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: shoecomp-${{ matrix.platform }}
+        path: build/shoecomp
