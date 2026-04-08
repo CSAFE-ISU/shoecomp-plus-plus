@@ -4,6 +4,7 @@
 #include "hello_imgui/hello_imgui.h"
 #include "hello_imgui/imgui_theme.h"
 #include "formats/png.h"
+#include "ui/embeddedAssets.h"
 #include "imgui.h"
 #include "stb_image.h"
 
@@ -34,26 +35,27 @@ namespace shoecomp
             HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
         params.callbacks.LoadAdditionalFonts = [&]()
         {
-            titleFont = HelloImGui::LoadFont(
-                "fonts/Montserrat-SemiBold.ttf", 24.0f);
-            smallFont = HelloImGui::LoadFont(
-                "fonts/Inconsolata-Regular.ttf", 14.0f);
+            ImGuiIO& io = ImGui::GetIO();
+            float dpi = HelloImGui::DpiFontLoadingFactor();
+            titleFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+                MontserratSemiBold_compressed_data,
+                (int)MontserratSemiBold_compressed_size, 24.0f * dpi);
+            smallFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+                InconsolataRegular_compressed_data,
+                (int)InconsolataRegular_compressed_size, 14.0f * dpi);
         };
         params.callbacks.PostInit = [&]()
         {
             ImGui::GetIO().FontGlobalScale = 2.5f;
             applyTheme(2);  // Material Flat
 
-            // Load icon from internal assets
-            auto iconData =
-                HelloImGui::LoadAssetFileData("fonts/icon.png");
-            if (iconData.data)
+            // Decode embedded icon PNG (stored uncompressed in the
+            // binary so stb_image can read the bytes directly).
             {
                 int w = 0, h = 0, channels = 0;
                 unsigned char* imageData = stbi_load_from_memory(
-                    (const unsigned char*)iconData.data,
-                    (int)iconData.dataSize, &w, &h, &channels, 4);
-
+                    ShoeCompIcon_data, (int)ShoeCompIcon_size, &w, &h,
+                    &channels, 4);
                 if (imageData)
                 {
                     iconTexture = createTextureRGBA(imageData, w, h);
@@ -61,8 +63,6 @@ namespace shoecomp
                     iconHeight = h;
                     stbi_image_free(imageData);
                 }
-
-                HelloImGui::FreeAssetFileData(&iconData);
             }
         };
         params.callbacks.ShowGui = [&]()

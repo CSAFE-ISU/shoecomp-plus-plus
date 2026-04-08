@@ -36,31 +36,30 @@ jobs:
         cmake -S . -B build -DHELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED=ON -DHELLOIMGUI_MACOS_CREATE_APP_BUNDLE=ON -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
 
-    - name: Stage shoecomp folder (windows)
+    - name: Stage shoecomp binary (windows)
       if: ${{ matrix.platform == 'windows-latest' }}
       shell: pwsh
       run: |
-        New-Item -ItemType Directory -Path staging/shoecomp | Out-Null
-        Copy-Item build/Release/shoecomp.exe staging/shoecomp/
-        Copy-Item -Recurse build/assets staging/shoecomp/assets
-        cd staging
-        Compress-Archive -Path ./shoecomp/* -DestinationPath shoecomp-${{ matrix.platform }}.zip
+        Copy-Item build/Release/shoecomp.exe shoecomp-${{ matrix.platform }}.exe
 
-    - name: Stage shoecomp folder (ubuntu)
+    - name: Stage shoecomp binary (ubuntu)
       if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
       run: |
-        mkdir -p staging/shoecomp
-        cp build/shoecomp staging/shoecomp/
-        cp -r build/assets staging/shoecomp/assets
-        cd staging
-        zip -r shoecomp-${{ matrix.platform }}.zip shoecomp/
+        cp build/shoecomp shoecomp-${{ matrix.platform }}
 
-    - name: Upload shoecomp folder (windows)
+    - name: Upload shoecomp binary (windows)
       if: ${{ matrix.platform == 'windows-latest' }}
       uses: softprops/action-gh-release@v2
       with:
         prerelease: true
-        files: shoecomp-${{ matrix.platform }}.zip
+        files: shoecomp-${{ matrix.platform }}.exe
+
+    - name: Upload shoecomp binary (ubuntu)
+      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        files: shoecomp-${{ matrix.platform }}
 
     - name: Stage shoecomp.app (macos)
       if: ${{ startsWith(matrix.platform, 'macos') }}
@@ -70,13 +69,6 @@ jobs:
 
     - name: Upload shoecomp bundle (macos)
       if: ${{ startsWith(matrix.platform, 'macos') }}
-      uses: softprops/action-gh-release@v2
-      with:
-        prerelease: true
-        files: shoecomp-${{ matrix.platform }}.zip
-
-    - name: Upload shoecomp folder (ubuntu)
-      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
       uses: softprops/action-gh-release@v2
       with:
         prerelease: true

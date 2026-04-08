@@ -112,5 +112,53 @@ set(SC_SRCS
     src/formats/platforms.cpp
     src/main.cpp
 )
+# =====================================================================
+# 7. Embedded static assets (generated via binary_to_compressed_c)
+# =====================================================================
+add_executable(binary_to_compressed_c
+    third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
+set_target_properties(binary_to_compressed_c PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
+file(MAKE_DIRECTORY ${SC_GENERATED_ASSETS_DIR})
+
+set(SC_ASSET_SPECS
+    "assets/fonts/Montserrat-Regular.ttf|MontserratRegular|compress"
+    "assets/fonts/Montserrat-SemiBold.ttf|MontserratSemiBold|compress"
+    "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
+    "assets/fonts/icon.png|ShoeCompIcon|raw"
+)
+set(SC_GENERATED_ASSET_SRCS)
+foreach(spec IN LISTS SC_ASSET_SPECS)
+    string(REPLACE "|" ";" parts ${spec})
+    list(GET parts 0 src_rel)
+    list(GET parts 1 sym)
+    list(GET parts 2 mode)
+    set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.c)
+    set(extra_flags "")
+    set(post_command "")
+    if(mode STREQUAL "raw")
+        set(extra_flags "-nocompress")
+        set(post_command
+            COMMAND ${CMAKE_COMMAND}
+                    -DFILE=${out_c}
+                    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
+    endif()
+    add_custom_command(
+        OUTPUT ${out_c}
+        COMMAND binary_to_compressed_c -nostatic ${extra_flags}
+                ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel} ${sym}
+                > ${out_c}
+        ${post_command}
+        DEPENDS binary_to_compressed_c
+                ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake
+        VERBATIM
+    )
+    list(APPEND SC_GENERATED_ASSET_SRCS ${out_c})
+endforeach()
+list(APPEND SC_SRCS ${SC_GENERATED_ASSET_SRCS})
+
 hello_imgui_add_app(shoecomp ${SC_SRCS})
 target_link_libraries(shoecomp PRIVATE json aligncalc png_static)

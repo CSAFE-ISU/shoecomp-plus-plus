@@ -3,6 +3,7 @@
 #include "ui/alignDialog.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
+#include "ui/embeddedAssets.h"
 #include "formats/png.h"
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
@@ -915,14 +916,19 @@ namespace shoecomp
         state.images.clear();
     }
 
-    static void loadFonts(AppState& state)
+    static void loadStaticAssets(AppState& state)
     {
-        state.defaultFont =
-            HelloImGui::LoadFont("fonts/Montserrat-Regular.ttf", 16.0f);
-        state.boldFont = HelloImGui::LoadFont(
-            "fonts/Montserrat-SemiBold.ttf", 16.0f);
-        state.monoFont = HelloImGui::LoadFont(
-            "fonts/Inconsolata-Regular.ttf", 16.0f);
+        ImGuiIO& io = ImGui::GetIO();
+        float dpi = HelloImGui::DpiFontLoadingFactor();
+        state.defaultFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+            MontserratRegular_compressed_data,
+            (int)MontserratRegular_compressed_size, 16.0f * dpi);
+        state.boldFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+            MontserratSemiBold_compressed_data,
+            (int)MontserratSemiBold_compressed_size, 16.0f * dpi);
+        state.monoFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+            InconsolataRegular_compressed_data,
+            (int)InconsolataRegular_compressed_size, 16.0f * dpi);
     }
 
     void submain(void)
@@ -969,7 +975,7 @@ namespace shoecomp
         params.imGuiWindowParams.defaultImGuiWindowType =
             HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
         params.callbacks.LoadAdditionalFonts = [&state]()
-        { loadFonts(state); };
+        { loadStaticAssets(state); };
         params.callbacks.PostInit = [&state]()
         {
             registerSettingsHandler(state.settings);
