@@ -177,7 +177,7 @@ namespace shoecomp
     static void renderLockedCursorIndicators0(
         AppState& state, AlignState& align, ImageCanvas& src,
         std::vector<jt::Json>& srcPoints, ImageCanvas& dst,
-        std::vector<jt::Json>& dstPoints, bool srcIsLeft,
+    std::vector<jt::Json>& dstPoints, bool srcIsLeft,
         const SettingsState& settings)
     {
         // Visual constants (from settings)
@@ -215,6 +215,11 @@ namespace shoecomp
         char coordText[64];
         char transformedText[64];
         char matchedText[64];
+        float srcX, srcY;
+        ImVec2 srcScreenPos;
+        float dstX, dstY;
+        ImVec2 dstScreenPos;
+        float dist;
         //
 
         auto& srcView = src.viewState;
@@ -229,27 +234,31 @@ namespace shoecomp
             srcView.pan, srcView.zoom, srcView.baseScale,
             srcView.rotation, srcImg->width, srcImg->height);
 
-        // Always draw cyan circle at cursor
-        dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
-        dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12,
-                      1.5f);
-
         // Draw pixel coordinates src
-        snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
-                 imgCoord.x, imgCoord.y);
-        ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
-                       io.MousePos.y - primaryRadius);
-        dl->AddText(textPos, primaryFill, coordText);
+        if (srcView.contains(io.MousePos))
+        {
+            dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
+            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12,
+                          1.5f);
+            snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
+                     imgCoord.x, imgCoord.y);
+            ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
+                           io.MousePos.y - primaryRadius);
+            dl->AddText(textPos, primaryFill, coordText);
+        }
 
         // apply transformation in image coordinates
         if (srcIsLeft)
         {
             transformed = align.transformLeft2Right(imgCoord);
         }
-        else { transformed = align.transformRight2Left(imgCoord); }
+        else
+        {  // src is Right-side image
+            transformed = align.transformRight2Left(imgCoord);
+        }
 
         // Convert to screen coordinates
-        ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
+        dstScreenPos = ImageCanvas::imageToScreenCoord(
             transformed.x, transformed.y, dstView.centerX,
             dstView.centerY, dstView.renderScale,
             dstView.rotation,
@@ -277,19 +286,16 @@ namespace shoecomp
         // Find if cursor is near any matched point
         for (size_t i = 0; i < N; ++i)
         {
-            float srcX = srcPoints[i]["x"].getFloat();
-            float srcY = srcPoints[i]["y"].getFloat();
-
-            // Convert src point to screen coordinates
-            ImVec2 srcScreenPos = ImageCanvas::imageToScreenCoord(
+            srcX = srcPoints[i]["x"].getFloat();
+            srcY = srcPoints[i]["y"].getFloat();
+            srcScreenPos = ImageCanvas::imageToScreenCoord(
                 srcX, srcY, srcView.centerX, srcView.centerY,
                 srcView.renderScale, srcView.rotation,
                 srcImg->width, srcImg->height);
 
-            float dstX = dstPoints[i]["x"].getFloat();
-            float dstY = dstPoints[i]["y"].getFloat();
-
-            ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
+            dstX = dstPoints[i]["x"].getFloat();
+            dstY = dstPoints[i]["y"].getFloat();
+            dstScreenPos = ImageCanvas::imageToScreenCoord(
                 dstX, dstY, dstView.centerX, dstView.centerY,
                 dstView.renderScale, dstView.rotation,
                 dstImg->width,
@@ -312,7 +318,7 @@ namespace shoecomp
 
             // Check if cursor is near this point
             ImVec2 d = io.MousePos - srcScreenPos;
-            float dist = sqrtf(d.x * d.x + d.y * d.y);
+            dist = sqrtf(d.x * d.x + d.y * d.y);
 
             if (dist < hoverThreshold)
             {
@@ -333,26 +339,11 @@ namespace shoecomp
 
         auto& leftView = state.viewerLeft.viewState;
         auto& rightView = state.viewerRight.viewState;
-
-        if (!leftView.isHovered && !rightView.isHovered) { return; }
-
         auto& leftImg = state.viewerLeft.image;
         auto& rightImg = state.viewerRight.image;
         if (!leftImg || !rightImg) { return; }
 
         auto& align = state.viewerAlignments[state.viewerAlignmentIdx];
-
-        // Debug: print transformation parameters (only once)
-        static bool printed = false;
-        if (!printed)
-        {
-            printf(
-                "Align params: rot=%.2f, tx=%.2f, ty=%.2f, "
-                "scale=%.4f\n",
-                align.rotation, align.dx, align.dy,
-                align.scale);
-            printed = true;
-        }
 
         // Guard against division by zero in inverse transformation
         if (align.scale < 0.001f) { return; }
@@ -367,22 +358,12 @@ namespace shoecomp
 
         auto& leftPoints = align.info["leftPoints"].getArray();
         auto& rightPoints = align.info["rightPoints"].getArray();
-        if (leftPoints.size() == 0 ||
-            leftPoints.size() != rightPoints.size())
+        if (leftPoints.size() != rightPoints.size())
         {
             return;
         }
 
-        if (leftView.isHovered)
-        {
-            renderLockedCursorIndicators0(state, align,
-                                          /*src=*/state.viewerLeft,
-                                          /*srcPoints=*/leftPoints,
-                                          /*dst=*/state.viewerRight,
-                                          /*dstPoints=*/rightPoints,
-                                          true, settings);
-        }
-        else if (rightView.isHovered)
+        if (rightView.isHovered)
         {
             renderLockedCursorIndicators0(state, align,
                                           /*src=*/state.viewerRight,
@@ -390,6 +371,15 @@ namespace shoecomp
                                           /*dst=*/state.viewerLeft,
                                           /*dstPoints=*/leftPoints,
                                           false, settings);
+        }
+        else
+        {
+            renderLockedCursorIndicators0(state, align,
+                                          /*src=*/state.viewerLeft,
+                                          /*srcPoints=*/leftPoints,
+                                          /*dst=*/state.viewerRight,
+                                          /*dstPoints=*/rightPoints,
+                                          true, settings);
         }
     }
 
