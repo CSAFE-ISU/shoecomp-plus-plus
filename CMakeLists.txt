@@ -81,7 +81,6 @@ endif()
 # =====================================================================
 # 5. AlignCalc (alignment calculations)
 # =====================================================================
-add_subdirectory(third_party/eigen EXCLUDE_FROM_ALL)
 add_subdirectory(third_party/aligncalc EXCLUDE_FROM_ALL)
 
 # =====================================================================
