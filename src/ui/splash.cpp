@@ -45,7 +45,7 @@ namespace shoecomp
             applyTheme(3);  // Material Flat
 
             // Load icon from internal assets
-            auto iconData = HelloImGui::LoadAssetFileData("icon.png");
+            auto iconData = HelloImGui::LoadAssetFileData("fonts/icon.png");
             if (iconData.data)
             {
                 int w = 0, h = 0, channels = 0;

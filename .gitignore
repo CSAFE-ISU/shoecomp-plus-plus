@@ -1,4 +1,5 @@
 *.png
+!assets/fonts/icon.png
 *.json
 build*/
 cmake-build-*/
