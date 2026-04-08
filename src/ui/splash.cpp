@@ -2,7 +2,6 @@
 #include "ui/settings.h"
 #include "ui/uiHelpers.h"
 #include "hello_imgui/hello_imgui.h"
-#include "hello_imgui/hello_imgui_include_opengl.h"
 #include "hello_imgui/imgui_theme.h"
 #include "formats/png.h"
 #include "imgui.h"
@@ -56,19 +55,10 @@ namespace shoecomp
 
                 if (imageData)
                 {
-                    GLuint tex = 0;
-                    glGenTextures(1, &tex);
-                    glBindTexture(GL_TEXTURE_2D, tex);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-                    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA,
-                                GL_UNSIGNED_BYTE, imageData);
-
-                    stbi_image_free(imageData);
-
-                    iconTexture = (ImTextureID)(intptr_t)tex;
+                    iconTexture = createTextureRGBA(imageData, w, h);
                     iconWidth = w;
                     iconHeight = h;
+                    stbi_image_free(imageData);
                 }
 
                 HelloImGui::FreeAssetFileData(&iconData);
