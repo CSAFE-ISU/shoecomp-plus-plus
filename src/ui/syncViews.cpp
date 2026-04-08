@@ -277,14 +277,38 @@ namespace shoecomp
         // Find if cursor is near any matched point
         for (size_t i = 0; i < N; ++i)
         {
-            float lx = srcPoints[i]["x"].getFloat();
-            float ly = srcPoints[i]["y"].getFloat();
+            float srcX = srcPoints[i]["x"].getFloat();
+            float srcY = srcPoints[i]["y"].getFloat();
 
             // Convert src point to screen coordinates
             ImVec2 srcScreenPos = ImageCanvas::imageToScreenCoord(
-                lx, ly, srcView.centerX, srcView.centerY,
+                srcX, srcY, srcView.centerX, srcView.centerY,
                 srcView.renderScale, srcView.rotation,
                 srcImg->width, srcImg->height);
+
+            float dstX = dstPoints[i]["x"].getFloat();
+            float dstY = dstPoints[i]["y"].getFloat();
+
+            ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
+                dstX, dstY, dstView.centerX, dstView.centerY,
+                dstView.renderScale, dstView.rotation,
+                dstImg->width,
+                dstImg->height);
+
+            if(!srcView.contains(srcScreenPos)) continue;
+            if(!dstView.contains(dstScreenPos)) continue;
+
+            // draw circle for src
+            dl->AddCircleFilled(srcScreenPos, secondaryRadius,
+                                correspondingColor);
+            dl->AddCircle(srcScreenPos, secondaryRadius,
+                          primaryOutline, 12, 2.5f);
+
+            // draw corresponding circle on dst
+            dl->AddCircleFilled(dstScreenPos, secondaryRadius,
+                                correspondingColor);
+            dl->AddCircle(dstScreenPos, secondaryRadius,
+                          primaryOutline, 12, 2.5f);
 
             // Check if cursor is near this point
             ImVec2 d = io.MousePos - srcScreenPos;
@@ -292,30 +316,9 @@ namespace shoecomp
 
             if (dist < hoverThreshold)
             {
-                // Draw corresponding circle on dst
-                float rx = dstPoints[i]["x"].getFloat();
-                float ry = dstPoints[i]["y"].getFloat();
-
-                ImVec2 dstScreenPos = ImageCanvas::imageToScreenCoord(
-                    rx, ry, dstView.centerX, dstView.centerY,
-                    dstView.renderScale, dstView.rotation,
-                    dstImg->width,
-                    dstImg->height);
-
-                dl->AddCircleFilled(dstScreenPos, secondaryRadius,
-                                    correspondingColor);
-                dl->AddCircle(dstScreenPos, secondaryRadius,
-                              primaryOutline, 12, 2.5f);
-
-                // Draw coordinate text below green circle
-                snprintf(matchedText, sizeof(matchedText),
-                         "(%.1f, %.1f)", rx, ry);
-                ImVec2 matchedTextPos(
-                    dstScreenPos.x - 30.0f,
-                    dstScreenPos.y + secondaryRadius + 5.0f);
-                dl->AddText(matchedTextPos, correspondingColor,
-                            matchedText);
-                break;  // Only show first matching point
+                // Draw line connecting the matched points
+                dl->AddLine(srcScreenPos, dstScreenPos, correspondingColor,
+                                g_annotationStyle.boundsLineThickness);
             }
         }
     }
