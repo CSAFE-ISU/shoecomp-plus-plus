@@ -17,5 +17,5 @@
 	path = third_party/jtjson
 	url = https://github.com/jart/json.cpp
 [submodule "third_party/eigen"]
-	path = third_party/eigen
+	path = third_party/aligncalc/eigen
 	url = https://gitlab.com/libeigen/eigen
