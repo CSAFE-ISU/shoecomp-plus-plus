@@ -23,8 +23,8 @@ namespace shoecomp
         rv.rotationTarget = lv.rotationTarget + a.rotation;
 
         // Use each viewer's canvas center as reference point
-        ImVec2 leftRefScreen = lv.center();
-        ImVec2 rightRefScreen = rv.center();
+        ImVec2 leftRefScreen = lv.canvasCenter();
+        ImVec2 rightRefScreen = rv.canvasCenter();
 
         // Convert left reference to image coordinates
         ImVec2 leftImgPt = viewerLeft.getImageCoord(leftRefScreen);
@@ -37,7 +37,7 @@ namespace shoecomp
 
         // Compute right viewer rendering state
         float rightRenderScale = rv.baseScale * rv.zoomTarget;
-        ImVec2 rightCenter = rv.center() + rv.panTarget;
+        ImVec2 rightCenter = rv.canvasCenter() + rv.panTarget;
 
         // Convert right image point back to screen coordinates
         ImVec2 rightScreen = ImageCanvas::imageToScreenCoord(
@@ -69,7 +69,7 @@ namespace shoecomp
         srcImgPt = src.getImageCoord(cursor);
 
         oldDstScale = dstView.baseScale * zoom0;
-        oldDstCenter = dstView.center() + pan0;
+        oldDstCenter = dstView.canvasCenter() + pan0;
 
         if (srcIsLeft)
         {
@@ -94,7 +94,7 @@ namespace shoecomp
             dst.image->height);
         //
         newDstScale = dstView.baseScale * dstView.zoomTarget;
-        newDstCenter = dstView.center() + pan0;
+        newDstCenter = dstView.canvasCenter() + pan0;
         newDstScreen = ImageCanvas::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y, newDstScale,
             dstView.rotationTarget,

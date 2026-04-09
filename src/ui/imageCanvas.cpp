@@ -26,7 +26,7 @@ namespace shoecomp
                 (pt.y < (this->canvasPos.y + this->canvasSize.y)));
     }
 
-    ImVec2 ImageViewState::center() const
+    ImVec2 ImageViewState::canvasCenter() const
     {
         ImVec2 result(canvasPos.x + canvasSize.x * 0.5f,
                       canvasPos.y + canvasSize.y * 0.5f);
@@ -633,7 +633,7 @@ namespace shoecomp
 
         float dialR = frameH * 0.5f;
         ImVec2 cursor = ImGui::GetCursorScreenPos();
-        ImVec2 center(cursor.x + dialR, cursor.y + dialR);
+        ImVec2 dialCenter(cursor.x + dialR, cursor.y + dialR);
         ImGui::InvisibleButton("##dial",
                                ImVec2(dialR * 2.0f, dialR * 2.0f));
         bool dialHov = ImGui::IsItemHovered();
@@ -642,8 +642,8 @@ namespace shoecomp
         if (dialAct)
         {
             ImGuiIO& dio = ImGui::GetIO();
-            float angle = atan2f(dio.MousePos.y - center.y,
-                                 dio.MousePos.x - center.x);
+            float angle = atan2f(dio.MousePos.y - dialCenter.y,
+                                 dio.MousePos.x - dialCenter.x);
             viewState.rotationTarget = angle;
             viewState.rotation = angle;
         }
@@ -652,10 +652,10 @@ namespace shoecomp
         ImU32 ringCol = dialHov || dialAct
                             ? IM_COL32(200, 200, 200, 255)
                             : IM_COL32(150, 150, 150, 200);
-        dl->AddCircle(center, dialR, ringCol, 24, 2.0f);
+        dl->AddCircle(dialCenter, dialR, ringCol, 24, 2.0f);
 
-        ImVec2 ind = center + (direction(viewState.rotation) * dialR);
-        dl->AddLine(center, ind, IM_COL32(255, 180, 50, 255), 2.0f);
+        ImVec2 ind = dialCenter + (direction(viewState.rotation) * dialR);
+        dl->AddLine(dialCenter, ind, IM_COL32(255, 180, 50, 255), 2.0f);
         dl->AddCircleFilled(ind, 3.0f, IM_COL32(255, 180, 50, 255));
 
         ImGui::SameLine();
