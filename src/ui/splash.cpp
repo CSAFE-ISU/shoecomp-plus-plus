@@ -41,7 +41,7 @@ namespace shoecomp
         params.callbacks.PostInit = [&]()
         {
             ImGui::GetIO().FontGlobalScale = 2.5f;
-            applyTheme(3);  // Material Flat
+            applyTheme(2);  // Material Flat
 
             // Load icon from internal assets
             auto iconData = HelloImGui::LoadAssetFileData("fonts/icon.png");
