@@ -47,6 +47,10 @@ namespace shoecomp
         return ImVec2(lhs.x / s, lhs.y / s);
     }
 
+    inline ImVec2 min(const ImVec2 &lhs, const ImVec2 &rhs) {
+        return ImVec2(std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y));
+    }
+
     inline ImVec2 max(const ImVec2 &lhs, const ImVec2 &rhs) {
         return ImVec2(std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y));
     }

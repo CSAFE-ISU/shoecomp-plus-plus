@@ -18,7 +18,8 @@ namespace shoecomp
         }
     }
 
-    bool ImageViewState::contains(const ImVec2& pt) const {
+    bool ImageViewState::contains(const ImVec2& pt) const
+    {
         return ((pt.x >= this->canvasPos.x) &&
                 (pt.x < (this->canvasPos.x + this->canvasSize.x)) &&
                 (pt.y >= this->canvasPos.y) &&
@@ -56,14 +57,12 @@ namespace shoecomp
                                            float rotation, int imgW,
                                            int imgH)
     {
-        float cx = canvasPos.x + avail.x * 0.5f + pan.x;
-        float cy = canvasPos.y + avail.y * 0.5f + pan.y;
-        float dx = sp.x - cx;
-        float dy = sp.y - cy;
+        ImVec2 c = canvasPos + (avail * 0.5f) + pan;
+        ImVec2 d = sp - c;
         float cosR = cosf(-rotation);
         float sinR = sinf(-rotation);
-        float lx = dx * cosR - dy * sinR;
-        float ly = dx * sinR + dy * cosR;
+        float lx = d.x * cosR - d.y * sinR;
+        float ly = d.x * sinR + d.y * cosR;
         float scale = baseScale * zoom;
         return ImVec2(lx / scale + imgW * 0.5f,
                       ly / scale + imgH * 0.5f);
@@ -71,8 +70,8 @@ namespace shoecomp
 
     ImVec2 ImageCanvas::imageToScreenCoord(float ix, float iy, float cx,
                                            float cy, float scale,
-                                           float rotation,
-                                           int imgW, int imgH)
+                                           float rotation, int imgW,
+                                           int imgH)
     {
         float cosR = cosf(rotation);
         float sinR = sinf(rotation);
@@ -131,8 +130,7 @@ namespace shoecomp
         while (t < len)
         {
             float t1 = std::min(t + dashLen, len);
-            dl->AddLine(p0 + nd * t,
-                        p0 + nd * t1,
+            dl->AddLine(p0 + nd * t, p0 + nd * t1,
                         IM_COL32(50, 255, 50, 120), 1.5f);
             t = t1 + gapLen;
         }
@@ -149,22 +147,21 @@ namespace shoecomp
         float viewRatio = availSize / dispSize;
         float barLen = availSize * viewRatio;
         float t = (limSize - panVal) / (2.0f * limSize);
-        float barX, barY;
+        ImVec2 bar;
         ImVec2 bMin, bMax;
         if (isVertical)
         {
-            barX = canvasPos.x + avail.x - barThick - barPad;
-            barY = canvasPos.y + t * (availSize - barLen);
-            bMin = ImVec2(barX, barY);
-            bMax = ImVec2(barX + barThick, barY + barLen);
+            bar = ImVec2(canvasPos.x + avail.x - barThick - barPad,
+                         canvasPos.y + t * (availSize - barLen));
         }
         else
         {
-            barX = canvasPos.x + t * (availSize - barLen);
-            barY = canvasPos.y + avail.y - barThick - barPad;
-            bMin = ImVec2(barX, barY);
-            bMax = ImVec2(barX + barLen, barY + barThick);
+            bar = ImVec2(canvasPos.x + t * (availSize - barLen),
+                         canvasPos.y + avail.y - barThick - barPad);
         }
+        bMin = bar;
+        bMax = ImVec2(bar.x + barThick, bar.y + barLen);
+        //
         ImVec2 mpos = io.MousePos;
         bool barHov = mpos.x >= bMin.x && mpos.x <= bMax.x &&
                       mpos.y >= bMin.y && mpos.y <= bMax.y;
@@ -204,54 +201,49 @@ namespace shoecomp
     static void renderBoundsDimming(ImDrawList* dl,
                                     jt::Json& annotations, float cx,
                                     float cy, float annScale,
-                                    float rotation, int imgW,
-                                    int imgH, ImVec2 canvasPos,
-                                    ImVec2 avail, ImVec2 tl, ImVec2 tr,
-                                    ImVec2 br, ImVec2 bl)
+                                    float rotation, int imgW, int imgH,
+                                    ImVec2 canvasPos, ImVec2 avail,
+                                    ImVec2 tl, ImVec2 tr, ImVec2 br,
+                                    ImVec2 bl)
     {
+        ImVec2 oMin = canvasPos;
+        ImVec2 oMax = canvasPos + avail;
+        ImVec2 imgCorners[4] = {tl, tr, br, bl};
+        float pad = 10.0f;
+        for (auto& ic : imgCorners)
+        {
+            oMin = min(oMin, ic);
+            oMax = max(oMax, ic);
+        }
+        //
         auto& bnd = annotations["bounds"].getArray();
         std::vector<ImVec2> screenBnd;
         screenBnd.reserve(bnd.size());
         for (auto& v : bnd)
         {
-            screenBnd.push_back(ImageCanvas::imageToScreenCoord(
+            ImVec2 sp = ImageCanvas::imageToScreenCoord(
                 v["x"].getFloat(), v["y"].getFloat(), cx, cy, annScale,
-                rotation, imgW, imgH));
+                rotation, imgW, imgH);
+            screenBnd.push_back(sp);
+            oMin = min(oMin, sp);
+            oMax = max(oMax, sp);
         }
-        float oMinX = canvasPos.x;
-        float oMinY = canvasPos.y;
-        float oMaxX = canvasPos.x + avail.x;
-        float oMaxY = canvasPos.y + avail.y;
-        for (auto& sp : screenBnd)
-        {
-            oMinX = std::min(oMinX, sp.x);
-            oMinY = std::min(oMinY, sp.y);
-            oMaxX = std::max(oMaxX, sp.x);
-            oMaxY = std::max(oMaxY, sp.y);
-        }
-        ImVec2 imgCorners[4] = {tl, tr, br, bl};
-        for (auto& ic : imgCorners)
-        {
-            oMinX = std::min(oMinX, ic.x);
-            oMinY = std::min(oMinY, ic.y);
-            oMaxX = std::max(oMaxX, ic.x);
-            oMaxY = std::max(oMaxY, ic.y);
-        }
-        float pad = 10.0f;
-        oMinX -= pad;
-        oMinY -= pad;
-        oMaxX += pad;
-        oMaxY += pad;
-        ImVec2 cTL(oMinX, oMinY);
-        ImVec2 cTR(oMaxX, oMinY);
-        ImVec2 cBR(oMaxX, oMaxY);
-        ImVec2 cBL(oMinX, oMaxY);
+        //
+        oMin.x -= pad;
+        oMin.y -= pad;
+        oMax.x += pad;
+        oMax.y += pad;
+        ImVec2 cTL(oMin.x, oMin.y);
+        ImVec2 cTR(oMax.x, oMin.y);
+        ImVec2 cBR(oMax.x, oMax.y);
+        ImVec2 cBL(oMin.x, oMax.y);
         int maxXIdx = 0;
         for (int si = 1; si < (int)screenBnd.size(); ++si)
         {
             if (screenBnd[si].x > screenBnd[maxXIdx].x) maxXIdx = si;
         }
-        ImVec2 bridge(oMaxX, screenBnd[maxXIdx].y);
+        ImVec2 bridge(oMax.x, screenBnd[maxXIdx].y);
+        //
         int n = (int)screenBnd.size();
         float signedArea = 0.0f;
         for (int si = 0; si < n; ++si)
@@ -281,8 +273,7 @@ namespace shoecomp
 
     void ImageCanvas::renderAnnotations(ImDrawList* dl, float cx,
                                         float cy, float annScale,
-                                        float rotation,
-                                        bool hovered,
+                                        float rotation, bool hovered,
                                         AnnotationMode mode,
                                         const ImGuiIO& io)
     {
@@ -365,8 +356,8 @@ namespace shoecomp
             {
                 ImVec2 last = imageToScreenCoord(
                     bnd.back()["x"].getFloat(),
-                    bnd.back()["y"].getFloat(), cx, cy, annScale, rotation,
-                    imgW, imgH);
+                    bnd.back()["y"].getFloat(), cx, cy, annScale,
+                    rotation, imgW, imgH);
                 ImVec2 first = imageToScreenCoord(
                     bnd[0]["x"].getFloat(), bnd[0]["y"].getFloat(), cx,
                     cy, annScale, rotation, imgW, imgH);
@@ -557,13 +548,12 @@ namespace shoecomp
         speed = std::clamp(speed, 0.0f, 1.0f);
         viewState.zoom +=
             (viewState.zoomTarget - viewState.zoom) * speed;
-        viewState.pan +=
-            (viewState.panTarget - viewState.pan) * speed;
+        viewState.pan += (viewState.panTarget - viewState.pan) * speed;
         viewState.rotation +=
             (viewState.rotationTarget - viewState.rotation) * speed;
 
         ImVec2 disp(image->width * baseScale * viewState.zoom,
-                image->height * baseScale * viewState.zoom);
+                    image->height * baseScale * viewState.zoom);
 
         ImVec2 lim = max(avail, disp) * 0.5f;
 
@@ -571,9 +561,7 @@ namespace shoecomp
         viewState.pan = clamp(viewState.pan, lim);
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        dl->PushClipRect(
-            canvasPos,
-            canvasPos + avail, true);
+        dl->PushClipRect(canvasPos, canvasPos + avail, true);
 
         ImVec2 c = canvasPos + (0.5f * avail) + viewState.pan;
         viewState.centerX = c.x;
@@ -599,14 +587,14 @@ namespace shoecomp
             image->annotations["bounds"].getArray().size() >= 3)
         {
             renderBoundsDimming(dl, image->annotations, c.x, c.y,
-                                annScale, viewState.rotation, image->width,
-                                image->height, canvasPos, avail, tl, tr,
-                                br, bl);
+                                annScale, viewState.rotation,
+                                image->width, image->height, canvasPos,
+                                avail, tl, tr, br, bl);
         }
 
         // Annotation overlays
-        renderAnnotations(dl, c.x, c.y, annScale, viewState.rotation, hovered,
-                          mode, io);
+        renderAnnotations(dl, c.x, c.y, annScale, viewState.rotation,
+                          hovered, mode, io);
 
         // Scrollbars
         float barThick = 8.0f;
@@ -617,10 +605,10 @@ namespace shoecomp
                         viewState.pan.x, viewState.panTarget.x,
                         canvasPos, avail, io, barThick, barPad, barCol,
                         barColHov, viewState, linked);
-        renderScrollbar(dl, true, disp.y, avail.y, lim.y, viewState.pan.y,
-                        viewState.panTarget.y, canvasPos, avail, io,
-                        barThick, barPad, barCol, barColHov, viewState,
-                        linked);
+        renderScrollbar(dl, true, disp.y, avail.y, lim.y,
+                        viewState.pan.y, viewState.panTarget.y,
+                        canvasPos, avail, io, barThick, barPad, barCol,
+                        barColHov, viewState, linked);
 
         viewState.panTarget = clamp(viewState.panTarget, lim);
         viewState.pan = clamp(viewState.pan, lim);
@@ -696,14 +684,11 @@ namespace shoecomp
         dl->AddCircle(center, dialR, ringCol, 24, 2.0f);
 
         ImVec2 ind = center + (direction(viewState.rotation) * dialR);
-        dl->AddLine(center, ind,
-                    IM_COL32(255, 180, 50, 255), 2.0f);
-        dl->AddCircleFilled(ind, 3.0f,
-                            IM_COL32(255, 180, 50, 255));
+        dl->AddLine(center, ind, IM_COL32(255, 180, 50, 255), 2.0f);
+        dl->AddCircleFilled(ind, 3.0f, IM_COL32(255, 180, 50, 255));
 
         ImGui::SameLine();
-        ImGui::Text("%.0f deg",
-                    viewState.rotation / kDegToRad);
+        ImGui::Text("%.0f deg", viewState.rotation / kDegToRad);
 
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)
