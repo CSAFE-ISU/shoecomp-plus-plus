@@ -18,11 +18,10 @@ namespace shoecomp
 
         {
             char pathBuf[512];
-            snprintf(pathBuf, sizeof(pathBuf), "%s",
-                     browseDir.c_str());
-            bool entered = ImGui::InputText(
-                "Path", pathBuf, sizeof(pathBuf),
-                ImGuiInputTextFlags_EnterReturnsTrue);
+            snprintf(pathBuf, sizeof(pathBuf), "%s", browseDir.c_str());
+            bool entered =
+                ImGui::InputText("Path", pathBuf, sizeof(pathBuf),
+                                 ImGuiInputTextFlags_EnterReturnsTrue);
             browseDir = pathBuf;
             if (entered)
             {
@@ -40,9 +39,8 @@ namespace shoecomp
 
         if (!extensionChoices.empty())
         {
-            auto labelFor = [](const std::string& e) {
-                return e.empty() ? std::string("(all files)") : e;
-            };
+            auto labelFor = [](const std::string& e)
+            { return e.empty() ? std::string("(all files)") : e; };
             std::string preview = labelFor(extension);
             if (ImGui::BeginCombo("Extension", preview.c_str()))
             {
@@ -88,8 +86,8 @@ namespace shoecomp
                         }
                         else
                         {
-                            std::string dirName = entry.substr(
-                                0, entry.size() - 1);
+                            std::string dirName =
+                                entry.substr(0, entry.size() - 1);
                             navigateDir(browseDir, dirName,
                                         dirNeedsRefresh);
                         }
@@ -106,7 +104,8 @@ namespace shoecomp
                         contextLabel.c_str());
         }
 
-        auto finalize = [&]() {
+        auto finalize = [&]()
+        {
             std::string finalName = fileName;
             if (!extension.empty() &&
                 fs::path(finalName).extension() != extension)
@@ -142,10 +141,7 @@ namespace shoecomp
             }
         }
 
-        if (ImGui::Button("OK"))
-        {
-            finalize();
-        }
+        if (ImGui::Button("OK")) { finalize(); }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
 

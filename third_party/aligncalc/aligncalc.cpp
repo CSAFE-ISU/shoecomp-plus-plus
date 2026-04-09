@@ -155,8 +155,8 @@ namespace AlignCalc
                 const clqmtch::Vertex& v = G.vertices[c];
                 match.left_pts.row(i) = left_pts.row(v.ind1);
                 match.right_pts.row(i) = right_pts.row(v.ind2);
-                std::cout << c << ": " << 
-                    match.left_pts.row(i) << "<--->" << match.right_pts.row(i) << "\n";
+                std::cout << c << ": " << match.left_pts.row(i)
+                          << "<--->" << match.right_pts.row(i) << "\n";
                 ++i;
             }
             printf("\n\n");

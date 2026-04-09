@@ -9,6 +9,6 @@ namespace shoecomp
     };
 
     SplashResult runSplash(double duration, int progressSteps = 5);
-}
+}  // namespace shoecomp
 
 #endif

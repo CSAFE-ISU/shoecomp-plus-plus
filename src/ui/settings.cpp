@@ -226,14 +226,15 @@ namespace shoecomp
     }
 
     static void settingsReadLine(ImGuiContext*,
-                                 ImGuiSettingsHandler* handler,
-                                 void*, const char* line)
+                                 ImGuiSettingsHandler* handler, void*,
+                                 const char* line)
     {
         auto* s = (SettingsState*)handler->UserData;
         if (!s) return;
         int i;
         float f;
-        if (sscanf(line, "themeIdx=%d", &i) == 1) s->themeIdx = i;
+        if (sscanf(line, "themeIdx=%d", &i) == 1)
+            s->themeIdx = i;
         else if (sscanf(line, "fontScale=%f", &f) == 1)
             s->fontScale = f;
         else if (sscanf(line, "windowWidth=%d", &i) == 1)
@@ -249,8 +250,8 @@ namespace shoecomp
         else
         {
             float a, b, c, d;
-            if (sscanf(line, "activeImageColor=%f,%f,%f,%f", &a, &b,
-                       &c, &d) == 4)
+            if (sscanf(line, "activeImageColor=%f,%f,%f,%f", &a, &b, &c,
+                       &d) == 4)
             {
                 s->activeImageColor[0] = a;
                 s->activeImageColor[1] = b;

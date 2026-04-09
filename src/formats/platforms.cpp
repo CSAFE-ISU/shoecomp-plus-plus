@@ -53,8 +53,7 @@ namespace shoecomp
                                         height:height
                                      mipmapped:NO];
         desc.usage = MTLTextureUsageShaderRead;
-        id<MTLTexture> tex =
-            [device newTextureWithDescriptor:desc];
+        id<MTLTexture> tex = [device newTextureWithDescriptor:desc];
         [tex replaceRegion:MTLRegionMake2D(0, 0, width, height)
                mipmapLevel:0
                  withBytes:rgba
@@ -77,8 +76,7 @@ namespace shoecomp
     ImTextureID createTextureRGBA(const unsigned char* rgba, int width,
                                   int height)
     {
-        ID3D11Device* device =
-            HelloImGui::GetDx11Globals().pd3dDevice;
+        ID3D11Device* device = HelloImGui::GetDx11Globals().pd3dDevice;
         if (!device) return 0;
 
         D3D11_TEXTURE2D_DESC desc = {};

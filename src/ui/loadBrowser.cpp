@@ -17,9 +17,9 @@ namespace shoecomp
             char pathBuf[512];
             snprintf(pathBuf, sizeof(pathBuf), "%s",
                      currentDir.c_str());
-            bool entered = ImGui::InputText(
-                "Path", pathBuf, sizeof(pathBuf),
-                ImGuiInputTextFlags_EnterReturnsTrue);
+            bool entered =
+                ImGui::InputText("Path", pathBuf, sizeof(pathBuf),
+                                 ImGuiInputTextFlags_EnterReturnsTrue);
             currentDir = pathBuf;
             if (entered)
             {
@@ -48,9 +48,8 @@ namespace shoecomp
 
         if (!extensionChoices.empty())
         {
-            auto labelFor = [](const std::string& e) {
-                return e.empty() ? std::string("(all files)") : e;
-            };
+            auto labelFor = [](const std::string& e)
+            { return e.empty() ? std::string("(all files)") : e; };
             std::string preview = labelFor(extension);
             if (ImGui::BeginCombo("Extension", preview.c_str()))
             {

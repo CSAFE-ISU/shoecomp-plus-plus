@@ -9,27 +9,29 @@
 
 namespace shoecomp
 {
-    ImVec2 AlignState::transformRight2Left(const ImVec2 &pt) const {
+    ImVec2 AlignState::transformRight2Left(const ImVec2 &pt) const
+    {
         /* pt is in image coordinates */
         ImVec2 result;
         float cos_theta = cosf(this->rotation) * this->scale;
         float sin_theta = sinf(this->rotation) * this->scale;
-        result.x = pt.x * cos_theta - pt.y *sin_theta;
-        result.y = pt.x * sin_theta + pt.y *cos_theta;
+        result.x = pt.x * cos_theta - pt.y * sin_theta;
+        result.y = pt.x * sin_theta + pt.y * cos_theta;
         result.x += this->dx;
         result.y += this->dy;
         return result;
     }
 
-    ImVec2 AlignState::transformLeft2Right(const ImVec2 &pt) const {
+    ImVec2 AlignState::transformLeft2Right(const ImVec2 &pt) const
+    {
         /* pt is in image coordinates */
         ImVec2 result;
         float cos_theta = cosf(-this->rotation) / this->scale;
         float sin_theta = sinf(-this->rotation) / this->scale;
         float tempX = pt.x - this->dx;
         float tempY = pt.y - this->dy;
-        result.x = tempX * cos_theta - tempY *sin_theta;
-        result.y = tempX * sin_theta + tempY *cos_theta;
+        result.x = tempX * cos_theta - tempY * sin_theta;
+        result.y = tempX * sin_theta + tempY * cos_theta;
         return result;
     }
 
@@ -114,7 +116,7 @@ namespace shoecomp
 
             int maxPts = 256;
             auto countPts =
-                [](const std::shared_ptr<ImageData>& img) -> int
+                [](const std::shared_ptr<ImageData> &img) -> int
             {
                 if (!img) return 0;
                 if (!hasAnnotationArray(img->annotations, "points"))

@@ -177,16 +177,14 @@ namespace shoecomp
                     lv.zoomTarget = 1.0f;
                     lv.panTarget = ImVec2(0, 0);
                     lv.rotationTarget = 0.0f;
-                    applyAlignment(state.viewerLeft,
-                                   state.viewerRight, a,
-                                   state.viewerLocked);
+                    applyAlignment(state.viewerLeft, state.viewerRight,
+                                   a, state.viewerLocked);
                 }
                 else
                 {
-                    syncLockedViewers(state.viewerLeft,
-                                      state.viewerRight, a,
-                                      lZoom0, lPan0, lRot0,
-                                      rZoom0, rPan0, rRot0);
+                    syncLockedViewers(
+                        state.viewerLeft, state.viewerRight, a, lZoom0,
+                        lPan0, lRot0, rZoom0, rPan0, rRot0);
                 }
                 renderLockedCursorIndicators(state, state.settings);
             }
@@ -254,8 +252,7 @@ namespace shoecomp
                 {
                     state.viewerAlignmentIdx--;
                     applyAlignment(
-                        state.viewerLeft,
-                        state.viewerRight,
+                        state.viewerLeft, state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
                         state.viewerLocked);
@@ -269,8 +266,7 @@ namespace shoecomp
                 {
                     state.viewerAlignmentIdx++;
                     applyAlignment(
-                        state.viewerLeft,
-                        state.viewerRight,
+                        state.viewerLeft, state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
                         state.viewerLocked);
@@ -299,8 +295,7 @@ namespace shoecomp
                 if (idx >= (int)state.viewerAlignments.size())
                     idx = (int)state.viewerAlignments.size() - 1;
                 state.viewerAlignmentIdx = idx;
-                applyAlignment(state.viewerLeft,
-                               state.viewerRight,
+                applyAlignment(state.viewerLeft, state.viewerRight,
                                state.viewerAlignments[idx],
                                state.viewerLocked);
             }
@@ -395,11 +390,10 @@ namespace shoecomp
             {
                 ImVec2 wp = ImGui::GetWindowPos();
                 ImVec2 ws = ImGui::GetWindowSize();
-                ImVec2 clamped(
-                    std::clamp(wp.x, origin.x,
-                               origin.x + avail.x - ws.x),
-                    std::clamp(wp.y, origin.y,
-                               origin.y + galleryH - ws.y));
+                ImVec2 clamped(std::clamp(wp.x, origin.x,
+                                          origin.x + avail.x - ws.x),
+                               std::clamp(wp.y, origin.y,
+                                          origin.y + galleryH - ws.y));
                 if (clamped.x != wp.x || clamped.y != wp.y)
                     ImGui::SetWindowPos(clamped);
             }
@@ -465,7 +459,8 @@ namespace shoecomp
             float posY = (regionAvail.y - textSize.y) * 0.5f;
 
             ImGui::SetCursorPos(ImVec2(posX, posY));
-            ImGui::PushStyleColor(ImGuiCol_Text,
+            ImGui::PushStyleColor(
+                ImGuiCol_Text,
                 ImVec4(0.5f, 0.5f, 0.5f, 0.4f));  // Faded gray
             ImGui::SetWindowFontScale(scale);
             ImGui::TextUnformatted(msg);
@@ -515,8 +510,7 @@ namespace shoecomp
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
             {
-                auto& canvas =
-                    state.images[state.activeGalleryImage];
+                auto& canvas = state.images[state.activeGalleryImage];
                 state.annotationFileBrowser.contextLabel =
                     canvas.image ? canvas.image->name : std::string();
             }
@@ -637,16 +631,17 @@ namespace shoecomp
         {
             state.alignEditPopupVisible = true;
             bool changed = false;
-            float rotationDeg = state.alignEditState.rotation / kDegToRad;
-            changed |= ImGui::SliderFloat(
-                "Rotation (deg)", &rotationDeg,
-                -180.0f, 180.0f, "%.1f");
-            changed |= ImGui::SliderFloat(
-                "Translation X", &state.alignEditState.dx,
-                -2000.0f, 2000.0f, "%.1f");
-            changed |= ImGui::SliderFloat(
-                "Translation Y", &state.alignEditState.dy,
-                -2000.0f, 2000.0f, "%.1f");
+            float rotationDeg =
+                state.alignEditState.rotation / kDegToRad;
+            changed |=
+                ImGui::SliderFloat("Rotation (deg)", &rotationDeg,
+                                   -180.0f, 180.0f, "%.1f");
+            changed |= ImGui::SliderFloat("Translation X",
+                                          &state.alignEditState.dx,
+                                          -2000.0f, 2000.0f, "%.1f");
+            changed |= ImGui::SliderFloat("Translation Y",
+                                          &state.alignEditState.dy,
+                                          -2000.0f, 2000.0f, "%.1f");
             changed |=
                 ImGui::SliderFloat("Scale", &state.alignEditState.scale,
                                    0.1f, 10.0f, "%.2f");
@@ -654,8 +649,7 @@ namespace shoecomp
             if (changed)
             {
                 state.alignEditState.rotation = rotationDeg * kDegToRad;
-                applyAlignment(state.viewerLeft,
-                               state.viewerRight,
+                applyAlignment(state.viewerLeft, state.viewerRight,
                                state.alignEditState,
                                state.viewerLocked);
             }
@@ -665,11 +659,12 @@ namespace shoecomp
             if (ImGui::Button("Add"))
             {
                 state.viewerAlignments.push_back(state.alignEditState);
-                state.viewerAlignmentIdx = state.viewerAlignments.size() - 1;
-                applyAlignment(state.viewerLeft,
-                               state.viewerRight,
-                               state.viewerAlignments[state.viewerAlignmentIdx],
-                               state.viewerLocked);
+                state.viewerAlignmentIdx =
+                    state.viewerAlignments.size() - 1;
+                applyAlignment(
+                    state.viewerLeft, state.viewerRight,
+                    state.viewerAlignments[state.viewerAlignmentIdx],
+                    state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
@@ -677,8 +672,7 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditState;
-                applyAlignment(state.viewerLeft,
-                               state.viewerRight,
+                applyAlignment(state.viewerLeft, state.viewerRight,
                                state.alignEditState,
                                state.viewerLocked);
                 ImGui::CloseCurrentPopup();
@@ -688,8 +682,7 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditOriginal;
-                applyAlignment(state.viewerLeft,
-                               state.viewerRight,
+                applyAlignment(state.viewerLeft, state.viewerRight,
                                state.alignEditOriginal,
                                state.viewerLocked);
                 ImGui::CloseCurrentPopup();
@@ -728,10 +721,10 @@ namespace shoecomp
         ImVec2 rowStart = ImGui::GetCursorScreenPos();
         float availW = ImGui::GetContentRegionAvail().x;
         float pad = ImGui::GetStyle().FramePadding.x;
-        ImVec2 brandPos(rowStart.x + availW - brandSize.x - pad,
-                        rowStart.y +
-                            (ImGui::GetFrameHeight() - brandSize.y) *
-                                0.5f);
+        ImVec2 brandPos(
+            rowStart.x + availW - brandSize.x - pad,
+            rowStart.y +
+                (ImGui::GetFrameHeight() - brandSize.y) * 0.5f);
         ImGui::GetWindowDrawList()->AddText(
             brandFont, ImGui::GetFontSize(), brandPos,
             ImGui::GetColorU32(ImGuiCol_Text), brandLabel);
@@ -931,8 +924,8 @@ namespace shoecomp
 
     static void loadFonts(AppState& state)
     {
-        state.defaultFont = HelloImGui::LoadFont(
-            "fonts/Montserrat-Regular.ttf", 16.0f);
+        state.defaultFont =
+            HelloImGui::LoadFont("fonts/Montserrat-Regular.ttf", 16.0f);
         state.boldFont = HelloImGui::LoadFont(
             "fonts/Montserrat-SemiBold.ttf", 16.0f);
         state.monoFont = HelloImGui::LoadFont(
@@ -942,8 +935,7 @@ namespace shoecomp
     void submain(void)
     {
         SplashResult splashResult = runSplash(1.0, 5);
-        if (splashResult.cancelled)
-            return;
+        if (splashResult.cancelled) return;
 
         AppState state;
 
@@ -982,7 +974,8 @@ namespace shoecomp
         params.appWindowParams.windowGeometry.size = {1280, 800};
         params.imGuiWindowParams.defaultImGuiWindowType =
             HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
-        params.callbacks.LoadAdditionalFonts = [&state]() { loadFonts(state); };
+        params.callbacks.LoadAdditionalFonts = [&state]()
+        { loadFonts(state); };
         params.callbacks.PostInit = [&state]()
         {
             registerSettingsHandler(state.settings);
@@ -1015,10 +1008,11 @@ namespace shoecomp
                 state.settings.windowHeight = target[1];
             }
         };
-        params.callbacks.ShowGui = [&state]() { 
+        params.callbacks.ShowGui = [&state]()
+        {
             applyTheme(state.settings.themeIdx);
-            renderGui(state); }
-        ;
+            renderGui(state);
+        };
         params.callbacks.BeforeExit = [&state]()
         { onBeforeExit(state); };
 

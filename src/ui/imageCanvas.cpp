@@ -145,12 +145,14 @@ namespace shoecomp
         }
     }
 
-    static void renderScrollbar(
-        ImDrawList* dl, bool isVertical, float dispSize,
-        float availSize, float limSize, float panVal,
-        float panTargetVal, ImVec2 canvasPos, ImVec2 avail, ImGuiIO& io,
-        float barThick, float barPad, ImU32 barCol, ImU32 barColHov,
-        ImageViewState& vs)
+    static void renderScrollbar(ImDrawList* dl, bool isVertical,
+                                float dispSize, float availSize,
+                                float limSize, float panVal,
+                                float panTargetVal, ImVec2 canvasPos,
+                                ImVec2 avail, ImGuiIO& io,
+                                float barThick, float barPad,
+                                ImU32 barCol, ImU32 barColHov,
+                                ImageViewState& vs)
     {
         if (dispSize <= availSize) return;
         float viewRatio = availSize / dispSize;
@@ -221,8 +223,8 @@ namespace shoecomp
         for (auto& v : bnd)
         {
             ImVec2 sp = ImageCanvas::imageToScreenCoord(
-                v["x"].getNumber(), v["y"].getNumber(), cx, cy, annScale,
-                rotation, imgW, imgH);
+                v["x"].getNumber(), v["y"].getNumber(), cx, cy,
+                annScale, rotation, imgW, imgH);
             screenBnd.push_back(sp);
             oMin = min(oMin, sp);
             oMax = max(oMax, sp);
@@ -341,8 +343,9 @@ namespace shoecomp
                 for (size_t i = 0; i + 1 < bnd.size(); ++i)
                 {
                     ImVec2 a = imageToScreenCoord(
-                        bnd[i]["x"].getNumber(), bnd[i]["y"].getNumber(),
-                        cx, cy, annScale, rotation, imgW, imgH);
+                        bnd[i]["x"].getNumber(),
+                        bnd[i]["y"].getNumber(), cx, cy, annScale,
+                        rotation, imgW, imgH);
                     ImVec2 b = imageToScreenCoord(
                         bnd[i + 1]["x"].getNumber(),
                         bnd[i + 1]["y"].getNumber(), cx, cy, annScale,
@@ -358,8 +361,8 @@ namespace shoecomp
                     bnd.back()["y"].getNumber(), cx, cy, annScale,
                     rotation, imgW, imgH);
                 ImVec2 first = imageToScreenCoord(
-                    bnd[0]["x"].getNumber(), bnd[0]["y"].getNumber(), cx,
-                    cy, annScale, rotation, imgW, imgH);
+                    bnd[0]["x"].getNumber(), bnd[0]["y"].getNumber(),
+                    cx, cy, annScale, rotation, imgW, imgH);
                 if (!editing)
                 {
                     dl->AddLine(last, first, bndCol,
@@ -654,7 +657,8 @@ namespace shoecomp
                             : IM_COL32(150, 150, 150, 200);
         dl->AddCircle(dialCenter, dialR, ringCol, 24, 2.0f);
 
-        ImVec2 ind = dialCenter + (direction(viewState.rotation) * dialR);
+        ImVec2 ind =
+            dialCenter + (direction(viewState.rotation) * dialR);
         dl->AddLine(dialCenter, ind, IM_COL32(255, 180, 50, 255), 2.0f);
         dl->AddCircleFilled(ind, 3.0f, IM_COL32(255, 180, 50, 255));
 

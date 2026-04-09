@@ -10,7 +10,7 @@ namespace shoecomp
         // App
         int themeIdx = 2;  // Material Flat
         float fontScale = 2.5f;
-        int windowWidth = 0;   // 0 = uninitialized (use default)
+        int windowWidth = 0;  // 0 = uninitialized (use default)
         int windowHeight = 0;
 
         // Locked-viewer hover indicators

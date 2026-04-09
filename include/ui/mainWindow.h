@@ -77,9 +77,9 @@ namespace shoecomp
         std::thread imageSaveThread;
 
         // Custom fonts
-        ImFont* defaultFont = nullptr;   // Montserrat-Regular
-        ImFont* boldFont = nullptr;      // Montserrat-SemiBold
-        ImFont* monoFont = nullptr;      // Inconsolata
+        ImFont* defaultFont = nullptr;  // Montserrat-Regular
+        ImFont* boldFont = nullptr;     // Montserrat-SemiBold
+        ImFont* monoFont = nullptr;     // Inconsolata
 
         // App-wide settings
         SettingsState settings;
@@ -91,7 +91,8 @@ namespace shoecomp
                            const AlignState&,     //
                            float, ImVec2, float,  //
                            float, ImVec2, float);
-    void renderLockedCursorIndicators(const AppState&, const SettingsState&);
+    void renderLockedCursorIndicators(const AppState&,
+                                      const SettingsState&);
 
     //
     void submain(void);

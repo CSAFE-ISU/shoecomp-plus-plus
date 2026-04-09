@@ -27,7 +27,7 @@ namespace AlignCalc
     // The producer only advances write_pos after publishing.
     // Consumers race via CAS on read_pos; winner marks sequence.
     // ------------------------------------------------------------------
-    template<typename T>
+    template <typename T>
     struct Slot
     {
         T data{};

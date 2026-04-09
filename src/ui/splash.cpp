@@ -21,7 +21,8 @@ namespace shoecomp
 
         HelloImGui::RunnerParams params;
         params.appWindowParams.windowTitle = "shoecomp";
-        params.appWindowParams.windowGeometry.size = {576, 324};  // 10% smaller
+        params.appWindowParams.windowGeometry.size = {
+            576, 324};  // 10% smaller
         params.appWindowParams.borderless = true;
         params.appWindowParams.borderlessMovable = false;
         params.appWindowParams.borderlessResizable = false;
@@ -44,14 +45,14 @@ namespace shoecomp
             applyTheme(2);  // Material Flat
 
             // Load icon from internal assets
-            auto iconData = HelloImGui::LoadAssetFileData("fonts/icon.png");
+            auto iconData =
+                HelloImGui::LoadAssetFileData("fonts/icon.png");
             if (iconData.data)
             {
                 int w = 0, h = 0, channels = 0;
                 unsigned char* imageData = stbi_load_from_memory(
                     (const unsigned char*)iconData.data,
-                    (int)iconData.dataSize,
-                    &w, &h, &channels, 4);
+                    (int)iconData.dataSize, &w, &h, &channels, 4);
 
                 if (imageData)
                 {
@@ -72,7 +73,8 @@ namespace shoecomp
 
             ImVec2 winSize = ImGui::GetWindowSize();
             // Get base font size (before global scale is applied)
-            float fontSize = ImGui::GetFontSize() / ImGui::GetIO().FontGlobalScale;
+            float fontSize =
+                ImGui::GetFontSize() / ImGui::GetIO().FontGlobalScale;
 
             // Check for window close or ESC key
             if (ImGui::IsKeyPressed(ImGuiKey_Escape) ||
@@ -82,23 +84,31 @@ namespace shoecomp
                 HelloImGui::GetRunnerParams()->appShallExit = true;
             }
 
-            // X button in top-right corner - transparent background, visible on hover
-            ImVec4 buttonColor = ImVec4(0.0f, 0.0f, 0.0f, 0.0f);  // Fully transparent
-            ImVec4 buttonHovered = ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
+            // X button in top-right corner - transparent background,
+            // visible on hover
+            ImVec4 buttonColor =
+                ImVec4(0.0f, 0.0f, 0.0f, 0.0f);  // Fully transparent
+            ImVec4 buttonHovered =
+                ImGui::GetStyleColorVec4(ImGuiCol_ButtonHovered);
             buttonHovered.w = 0.4f;  // Semi-transparent on hover
-            ImVec4 buttonActive = ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
+            ImVec4 buttonActive =
+                ImGui::GetStyleColorVec4(ImGuiCol_ButtonActive);
             buttonActive.w = 0.6f;
 
             ImGui::PushStyleColor(ImGuiCol_Button, buttonColor);
-            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, buttonHovered);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered,
+                                  buttonHovered);
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, buttonActive);
             ImGui::PushStyleVar(ImGuiStyleVar_FrameBorderSize, 0.0f);
 
             // Button size relative to font
             float buttonSize = fontSize * kSplashButtonSize;
-            ImGui::SetCursorPos(ImVec2(winSize.x - buttonSize - fontSize * kSplashButtonOffsetX,
-                                      fontSize * kSplashButtonOffsetY));
-            if (ImGui::Button("x", ImVec2(buttonSize, buttonSize * 1.25f)))
+            ImGui::SetCursorPos(
+                ImVec2(winSize.x - buttonSize -
+                           fontSize * kSplashButtonOffsetX,
+                       fontSize * kSplashButtonOffsetY));
+            if (ImGui::Button("x",
+                              ImVec2(buttonSize, buttonSize * 1.25f)))
             {
                 result.cancelled = true;
                 HelloImGui::GetRunnerParams()->appShallExit = true;
@@ -127,10 +137,10 @@ namespace shoecomp
             // Icon to the left
             if (iconTexture)
             {
-                ImGui::SetCursorPos(
-                    ImVec2(leftMargin,
-                           centerY - iconDisplaySize * 0.5f));
-                ImGui::Image(iconTexture, ImVec2(iconDisplaySize, iconDisplaySize));
+                ImGui::SetCursorPos(ImVec2(
+                    leftMargin, centerY - iconDisplaySize * 0.5f));
+                ImGui::Image(iconTexture,
+                             ImVec2(iconDisplaySize, iconDisplaySize));
             }
 
             // Title - to the right of icon, left aligned
@@ -152,10 +162,13 @@ namespace shoecomp
             ImGui::SetCursorPos(
                 ImVec2(leftMargin + iconDisplaySize + iconSpacing,
                        centerY + fontSize * kSplashProgressOffsetY));
-            ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(0.2f, 0.2f, 0.2f, 0.8f));
-            ImGui::PushStyleColor(ImGuiCol_PlotHistogram, ImVec4(0.4f, 0.6f, 0.9f, 1.0f));
+            ImGui::PushStyleColor(ImGuiCol_FrameBg,
+                                  ImVec4(0.2f, 0.2f, 0.2f, 0.8f));
+            ImGui::PushStyleColor(ImGuiCol_PlotHistogram,
+                                  ImVec4(0.4f, 0.6f, 0.9f, 1.0f));
             ImGui::PushItemWidth(progressBarWidth);
-            ImGui::ProgressBar(progress, ImVec2(-1.0f, progressBarHeight), "");
+            ImGui::ProgressBar(progress,
+                               ImVec2(-1.0f, progressBarHeight), "");
             ImGui::PopItemWidth();
             ImGui::PopStyleColor(2);
 
@@ -179,4 +192,4 @@ namespace shoecomp
 
         return result;
     }
-}
+}  // namespace shoecomp

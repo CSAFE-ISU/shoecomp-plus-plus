@@ -4,7 +4,8 @@
 namespace AlignCalc
 {
 
-    void GraphInfo::reset() {
+    void GraphInfo::reset()
+    {
         N = 0;
         nodemap.clear();
         edges.clear();

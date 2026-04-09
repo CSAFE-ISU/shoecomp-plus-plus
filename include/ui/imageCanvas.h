@@ -12,7 +12,8 @@
 
 namespace shoecomp
 {
-    inline float length(const ImVec2 &v0) {
+    inline float length(const ImVec2& v0)
+    {
         return sqrtf(v0.x * v0.x + v0.y * v0.y);
     }
 
@@ -26,7 +27,8 @@ namespace shoecomp
         return ImVec2(lhs.x - rhs.x, lhs.y - rhs.y);
     }
 
-    inline ImVec2 operator+=(ImVec2 &lhs, const ImVec2 &rhs) {
+    inline ImVec2 operator+=(ImVec2& lhs, const ImVec2& rhs)
+    {
         lhs.x += rhs.x;
         lhs.y += rhs.y;
         return lhs;
@@ -47,20 +49,25 @@ namespace shoecomp
         return ImVec2(lhs.x / s, lhs.y / s);
     }
 
-    inline ImVec2 min(const ImVec2 &lhs, const ImVec2 &rhs) {
+    inline ImVec2 min(const ImVec2& lhs, const ImVec2& rhs)
+    {
         return ImVec2(std::min(lhs.x, rhs.x), std::min(lhs.y, rhs.y));
     }
 
-    inline ImVec2 max(const ImVec2 &lhs, const ImVec2 &rhs) {
+    inline ImVec2 max(const ImVec2& lhs, const ImVec2& rhs)
+    {
         return ImVec2(std::max(lhs.x, rhs.x), std::max(lhs.y, rhs.y));
     }
 
-    inline ImVec2 clamp(const ImVec2 &lhs, const ImVec2 &rhs) {
-        return ImVec2(std::clamp(lhs.x, -std::abs(rhs.x), std::abs(rhs.x)),
-                std::clamp(lhs.y, -std::abs(rhs.y), std::abs(rhs.y)));
+    inline ImVec2 clamp(const ImVec2& lhs, const ImVec2& rhs)
+    {
+        return ImVec2(
+            std::clamp(lhs.x, -std::abs(rhs.x), std::abs(rhs.x)),
+            std::clamp(lhs.y, -std::abs(rhs.y), std::abs(rhs.y)));
     }
 
-    inline ImVec2 direction(float theta) {
+    inline ImVec2 direction(float theta)
+    {
         return ImVec2(cosf(theta), sinf(theta));
     }
 
@@ -111,7 +118,7 @@ namespace shoecomp
         // button; consumed by the locked-viewer sync.
         bool homeRequested = false;
 
-        bool contains(const ImVec2 &pt) const;
+        bool contains(const ImVec2& pt) const;
         ImVec2 canvasCenter() const;
     };
 
@@ -148,8 +155,8 @@ namespace shoecomp
 
         static ImVec2 imageToScreenCoord(float ix, float iy, float cx,
                                          float cy, float scale,
-                                         float rotation,
-                                         int imgW, int imgH);
+                                         float rotation, int imgW,
+                                         int imgH);
 
         static bool pointInPolygon(float px, float py,
                                    const std::vector<jt::Json>& poly);

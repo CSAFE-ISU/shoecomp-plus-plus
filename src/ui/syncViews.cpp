@@ -166,10 +166,10 @@ namespace shoecomp
     }
 
     static void renderLockedCursorIndicators0(
-        const AppState& state, const AlignState& align, const ImageCanvas& src,
-        const std::vector<jt::Json>& srcPoints, const ImageCanvas& dst,
-        const std::vector<jt::Json>& dstPoints, bool srcIsLeft,
-        const SettingsState& settings)
+        const AppState& state, const AlignState& align,
+        const ImageCanvas& src, const std::vector<jt::Json>& srcPoints,
+        const ImageCanvas& dst, const std::vector<jt::Json>& dstPoints,
+        bool srcIsLeft, const SettingsState& settings)
     {
         // Visual constants (from settings)
         const float primaryRadius = settings.cursorRadius;
@@ -286,9 +286,9 @@ namespace shoecomp
             dstX = dstPoints[i]["x"].getNumber();
             dstY = dstPoints[i]["y"].getNumber();
             dstScreenPos = ImageCanvas::imageToScreenCoord(
-                dstX, dstY, dstAdjustCenter.x,
-                dstAdjustCenter.y, dstView.renderScale,
-                dstView.rotation, dstImg->width, dstImg->height);
+                dstX, dstY, dstAdjustCenter.x, dstAdjustCenter.y,
+                dstView.renderScale, dstView.rotation, dstImg->width,
+                dstImg->height);
 
             if (!srcView.contains(srcScreenPos)) continue;
             if (!dstView.contains(dstScreenPos)) continue;
