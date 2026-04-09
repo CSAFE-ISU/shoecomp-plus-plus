@@ -1,14 +1,17 @@
 #ifndef SHOECOMP_UI_SETTINGS_H
 #define SHOECOMP_UI_SETTINGS_H
 
+#include <string>
+
 namespace shoecomp
 {
     struct SettingsState
     {
         // App
         int themeIdx = 2;  // Material Flat
-        bool fullscreen = true;
         float fontScale = 2.5f;
+        int windowWidth = 0;   // 0 = uninitialized (use default)
+        int windowHeight = 0;
 
         // Locked-viewer hover indicators
         // Shared radius for source (cyan) and transformed (orange)
@@ -29,6 +32,7 @@ namespace shoecomp
     void renderSettingsTab(SettingsState& s);
     void applyTheme(int themeIdx);
     void applyModernStyling();
+    void registerSettingsHandler(SettingsState& s);
 }  // namespace shoecomp
 
 #endif
