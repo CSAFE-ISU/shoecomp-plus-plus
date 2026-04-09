@@ -141,7 +141,7 @@ namespace shoecomp
         float availSize, float limSize, float panVal,
         float panTargetVal, ImVec2 canvasPos, ImVec2 avail, ImGuiIO& io,
         float barThick, float barPad, ImU32 barCol, ImU32 barColHov,
-        ImageViewState& vs, ImageViewState* linked)
+        ImageViewState& vs)
     {
         if (dispSize <= availSize) return;
         float viewRatio = availSize / dispSize;
@@ -176,21 +176,11 @@ namespace shoecomp
             {
                 vs.pan.y += d;
                 vs.panTarget.y += d;
-                if (linked)
-                {
-                    linked->pan.y += d;
-                    linked->panTarget.y += d;
-                }
             }
             else
             {
                 vs.pan.x += d;
                 vs.panTarget.x += d;
-                if (linked)
-                {
-                    linked->pan.x += d;
-                    linked->panTarget.x += d;
-                }
             }
         }
         dl->AddRectFilled(bMin, bMax,
@@ -398,8 +388,7 @@ namespace shoecomp
                       c.y + lx * sinf(rotation) + ly * cosf(rotation));
     }
 
-    void ImageCanvas::renderCanvas(const char* canvasId,
-                                   ImageViewState* linked)
+    void ImageCanvas::renderCanvas(const char* canvasId)
     {
         AnnotationMode& mode = image->annotationMode;
         ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -437,17 +426,11 @@ namespace shoecomp
             viewState.panTarget =
                 (1.0f - ratio) * (mouse - avail * 0.5f) +
                 ratio * viewState.panTarget;
-            if (linked)
-            {
-                linked->zoomTarget = viewState.zoomTarget;
-                linked->panTarget = viewState.panTarget;
-            }
         }
 
         if (hovered && !io.KeyCtrl && io.MouseWheel != 0.0f)
         {
             viewState.panTarget.y += io.MouseWheel * 30.0f;
-            if (linked) linked->panTarget.y = viewState.panTarget.y;
         }
 
         if (active && io.KeyCtrl &&
@@ -455,11 +438,6 @@ namespace shoecomp
         {
             viewState.panTarget += io.MouseDelta;
             viewState.pan += io.MouseDelta;
-            if (linked)
-            {
-                linked->panTarget += io.MouseDelta;
-                linked->pan += io.MouseDelta;
-            }
         }
 
         if (hovered && ImGui::IsMouseClicked(ImGuiMouseButton_Left) &&
@@ -604,11 +582,11 @@ namespace shoecomp
         renderScrollbar(dl, false, disp.x, avail.x, lim.x,
                         viewState.pan.x, viewState.panTarget.x,
                         canvasPos, avail, io, barThick, barPad, barCol,
-                        barColHov, viewState, linked);
+                        barColHov, viewState);
         renderScrollbar(dl, true, disp.y, avail.y, lim.y,
                         viewState.pan.y, viewState.panTarget.y,
                         canvasPos, avail, io, barThick, barPad, barCol,
-                        barColHov, viewState, linked);
+                        barColHov, viewState);
 
         viewState.panTarget = clamp(viewState.panTarget, lim);
         viewState.pan = clamp(viewState.pan, lim);
@@ -616,8 +594,7 @@ namespace shoecomp
         dl->PopClipRect();
     }
 
-    void ImageCanvas::renderToolbar(const char* toolbarId,
-                                    ImageViewState* linked)
+    void ImageCanvas::renderToolbar(const char* toolbarId)
     {
         AnnotationMode& mode = image->annotationMode;
         ImGui::PushID(toolbarId);
@@ -630,12 +607,6 @@ namespace shoecomp
             viewState.panTarget = ImVec2(0, 0);
             viewState.rotationTarget = 0.0f;
             viewState.homeRequested = true;
-            if (linked)
-            {
-                linked->zoomTarget = 1.0f;
-                linked->panTarget = ImVec2(0, 0);
-                linked->rotationTarget = 0.0f;
-            }
         }
         ImGui::SameLine();
 
@@ -643,7 +614,6 @@ namespace shoecomp
         {
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget * 1.25f, 0.1f, 50.0f);
-            if (linked) linked->zoomTarget = viewState.zoomTarget;
         }
         ImGui::SameLine();
 
@@ -651,7 +621,6 @@ namespace shoecomp
         {
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget * 0.8f, 0.1f, 50.0f);
-            if (linked) linked->zoomTarget = viewState.zoomTarget;
         }
         ImGui::SameLine();
 
@@ -670,11 +639,6 @@ namespace shoecomp
                                  dio.MousePos.x - center.x);
             viewState.rotationTarget = angle;
             viewState.rotation = angle;
-            if (linked)
-            {
-                linked->rotationTarget = angle;
-                linked->rotation = angle;
-            }
         }
 
         ImDrawList* dl = ImGui::GetWindowDrawList();

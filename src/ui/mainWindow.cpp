@@ -51,8 +51,7 @@ namespace shoecomp
 
     static void renderSingleViewer(AppState& state, int& selectedIdx,
                                    int otherIdx, ImageCanvas& viewer,
-                                   const char* label,
-                                   ImageViewState* linked = nullptr)
+                                   const char* label)
     {
         const char* preview =
             (selectedIdx >= 0 && selectedIdx < (int)state.images.size())
@@ -100,13 +99,13 @@ namespace shoecomp
         {
             ImGui::BeginChild("##cvs", ImVec2(0, canvasH),
                               ImGuiChildFlags_None);
-            viewer.renderCanvas("##canvas", linked);
+            viewer.renderCanvas("##canvas");
             ImGui::EndChild();
         }
-        viewer.renderToolbar(label, linked);
+        viewer.renderToolbar(label);
     }
 
-    static void renderImageViewer(AppState& state)
+    static void renderImageComparison(AppState& state)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
         float dockH = ImGui::GetFrameHeightWithSpacing() +
@@ -676,7 +675,7 @@ namespace shoecomp
             }
             if (ImGui::BeginTabItem("Image Comparison"))
             {
-                renderImageViewer(state);
+                renderImageComparison(state);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Settings"))

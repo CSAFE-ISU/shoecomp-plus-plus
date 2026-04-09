@@ -162,11 +162,9 @@ namespace shoecomp
                                bool hovered, AnnotationMode mode,
                                const ImGuiIO& io);
 
-        void renderCanvas(const char* canvasId,
-                          ImageViewState* linked = nullptr);
+        void renderCanvas(const char* canvasId);
 
-        void renderToolbar(const char* toolbarId,
-                           ImageViewState* linked = nullptr);
+        void renderToolbar(const char* toolbarId);
     };
 }  // namespace shoecomp
 
