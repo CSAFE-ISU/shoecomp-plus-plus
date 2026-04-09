@@ -68,6 +68,13 @@ namespace shoecomp
                       ly / scale + imgH * 0.5f);
     }
 
+    ImVec2 ImageCanvas::getImageCoord(ImVec2 sp)
+    {
+        return ImageCanvas::screenToImageCoord(
+            sp, canvasPos, canvasSize, panTarget, zoomTarget, baseScale,
+            rotationTarget, image->width, image->height);
+    }
+
     ImVec2 ImageCanvas::imageToScreenCoord(float ix, float iy, float cx,
                                            float cy, float scale,
                                            float rotation, int imgW,

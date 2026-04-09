@@ -27,10 +27,7 @@ namespace shoecomp
         ImVec2 rightRefScreen = rv.center();
 
         // Convert left reference to image coordinates
-        ImVec2 leftImgPt = ImageCanvas::screenToImageCoord(
-            leftRefScreen, lv.canvasPos, lv.canvasSize, lv.panTarget,
-            lv.zoomTarget, lv.baseScale, lv.rotationTarget,
-            viewerLeft.image->width, viewerLeft.image->height);
+        ImVec2 leftImgPt = viewerLeft.getImageCoord(leftRefScreen);
 
         // Apply alignment transformation from left to right
         ImVec2 rightImgPt = a.transformLeft2Right(leftImgPt);
@@ -69,11 +66,7 @@ namespace shoecomp
         ImVec2 newDstCenter, newDstScreen;
 
         ImVec2 cursor = ImGui::GetIO().MousePos;
-        srcImgPt = ImageCanvas::screenToImageCoord(
-            cursor, srcView.canvasPos, srcView.canvasSize,
-            srcView.panTarget, srcView.zoomTarget, srcView.baseScale,
-            srcView.rotationTarget, src.image->width,
-            src.image->height);
+        srcImgPt = src.getImageCoord(cursor);
 
         oldDstScale = dstView.baseScale * zoom0;
         oldDstCenter = dstView.center() + pan0;
@@ -228,10 +221,7 @@ namespace shoecomp
         const size_t N = srcPoints.size();
 
         // Get cursor position in image coordinates
-        ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
-            io.MousePos, srcView.canvasPos, srcView.canvasSize,
-            srcView.pan, srcView.zoom, srcView.baseScale,
-            srcView.rotation, srcImg->width, srcImg->height);
+        ImVec2 imgCoord = src.getImageCoord(io.MousePos);
 
         // Draw pixel coordinates src
         if (srcView.contains(io.MousePos))

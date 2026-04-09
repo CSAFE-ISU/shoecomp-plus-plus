@@ -155,6 +155,8 @@ namespace shoecomp
                                    std::vector<jt::Json>& poly);
 
         // Instance methods
+        ImVec2 getImageCoord(ImVec2 sp);
+
         void removePointsOutsideBounds();
 
         void renderAnnotations(ImDrawList* dl, float cx, float cy,
