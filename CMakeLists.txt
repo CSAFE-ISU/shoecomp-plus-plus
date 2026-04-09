@@ -129,31 +129,27 @@ set(SC_ASSET_SPECS
     "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
     "assets/fonts/icon.png|ShoeCompIcon|raw"
 )
+set(SC_ASSET_SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
 set(SC_GENERATED_ASSET_SRCS)
 foreach(spec IN LISTS SC_ASSET_SPECS)
     string(REPLACE "|" ";" parts ${spec})
     list(GET parts 0 src_rel)
     list(GET parts 1 sym)
     list(GET parts 2 mode)
-    set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.c)
-    set(extra_flags "")
-    set(post_command "")
-    if(mode STREQUAL "raw")
-        set(extra_flags "-nocompress")
-        set(post_command
-            COMMAND ${CMAKE_COMMAND}
-                    -DFILE=${out_c}
-                    -P ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
-    endif()
+    set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.cpp)
     add_custom_command(
         OUTPUT ${out_c}
-        COMMAND binary_to_compressed_c -nostatic ${extra_flags}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel} ${sym}
-                > ${out_c}
-        ${post_command}
+        COMMAND ${CMAKE_COMMAND}
+                -DTOOL=$<TARGET_FILE:binary_to_compressed_c>
+                -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                -DSYMBOL=${sym}
+                -DOUTPUT=${out_c}
+                -DMODE=${mode}
+                -P ${SC_ASSET_SCRIPT}
         DEPENDS binary_to_compressed_c
                 ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
-                ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake
+                ${SC_ASSET_SCRIPT}
         VERBATIM
     )
     list(APPEND SC_GENERATED_ASSET_SRCS ${out_c})
