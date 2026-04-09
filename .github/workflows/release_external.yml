@@ -62,24 +62,21 @@ jobs:
         prerelease: true
         files: shoecomp-${{ matrix.platform }}.zip
 
-    - name: Upload shoecomp binary (macos)
-      if: ${{ matrix.platform == 'macos-latest' }}
-      uses: softprops/action-gh-release@v2
-      with:
-        prerelease: true
-        name: shoecomp-macos-arm64
-        files: build/shoecomp.app
+    - name: Stage shoecomp.app (macos)
+      if: ${{ startsWith(matrix.platform, 'macos') }}
+      run: |
+        cd build
+        ditto -c -k --sequesterRsrc --keepParent shoecomp.app ../shoecomp-${{ matrix.platform }}.zip
 
-    - name: Upload shoecomp binary (macos x86_64)
-      if: ${{ matrix.platform == 'macos-15-intel' }}
+    - name: Upload shoecomp bundle (macos)
+      if: ${{ startsWith(matrix.platform, 'macos') }}
       uses: softprops/action-gh-release@v2
       with:
         prerelease: true
-        name: shoecomp-macos-x86_64
-        files: build/shoecomp.app
+        files: shoecomp-${{ matrix.platform }}.zip
 
     - name: Upload shoecomp folder (ubuntu)
-      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm64' }}
+      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
       uses: softprops/action-gh-release@v2
       with:
         prerelease: true

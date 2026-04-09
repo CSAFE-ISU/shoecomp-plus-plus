@@ -17,7 +17,9 @@ namespace shoecomp
         "ImGui Light\0"
         "Material Flat\0"
         "Photoshop Style\0"
-        "Microsoft Style\0";
+        "Microsoft Style\0"
+        "ShoeComp Light\0"
+        "ShoeComp Dark\0";
 
     // Theme mapping
     static const ImGuiTheme::ImGuiTheme_ themeMap[] = {
@@ -27,6 +29,80 @@ namespace shoecomp
         ImGuiTheme::ImGuiTheme_PhotoshopStyle,
         ImGuiTheme::ImGuiTheme_MicrosoftStyle,
     };
+
+    static ImVec4 hex(uint32_t rgb, float a = 1.0f)
+    {
+        float r = ((rgb >> 16) & 0xFF) / 255.0f;
+        float g = ((rgb >> 8) & 0xFF) / 255.0f;
+        float b = (rgb & 0xFF) / 255.0f;
+        return ImVec4(r, g, b, a);
+    }
+
+    // ShoeComp palette accents (shared across light/dark)
+    // Primary: 1E7BC0, hover 40B4E5, active 003A70
+    // Success 00833E, Error CF0A2C, Warning FA8D29
+    static void applyShoeCompAccents(bool dark)
+    {
+        ImVec4* c = ImGui::GetStyle().Colors;
+        ImVec4 accent = hex(0x1E7BC0);
+        ImVec4 accentHover = hex(0x40B4E5);
+        ImVec4 accentActive = hex(0x003A70);
+        ImVec4 sep = dark ? hex(0x8A8A8D) : hex(0xBDBCBC);
+
+        c[ImGuiCol_CheckMark] = accent;
+        c[ImGuiCol_SliderGrab] = accent;
+        c[ImGuiCol_SliderGrabActive] = accentHover;
+        c[ImGuiCol_Button] = accent;
+        c[ImGuiCol_ButtonHovered] = accentHover;
+        c[ImGuiCol_ButtonActive] = accentActive;
+        c[ImGuiCol_Header] =
+            ImVec4(accent.x, accent.y, accent.z, 0.55f);
+        c[ImGuiCol_HeaderHovered] = accentHover;
+        c[ImGuiCol_HeaderActive] = accentActive;
+        c[ImGuiCol_Separator] = sep;
+        c[ImGuiCol_SeparatorHovered] = accentHover;
+        c[ImGuiCol_SeparatorActive] = accent;
+        c[ImGuiCol_Border] = sep;
+        c[ImGuiCol_Tab] = ImVec4(accent.x, accent.y, accent.z, 0.55f);
+        c[ImGuiCol_TabHovered] = accentHover;
+        c[ImGuiCol_TabActive] = accent;
+        c[ImGuiCol_TabUnfocused] =
+            ImVec4(accent.x, accent.y, accent.z, 0.35f);
+        c[ImGuiCol_TabUnfocusedActive] =
+            ImVec4(accent.x, accent.y, accent.z, 0.75f);
+        c[ImGuiCol_DockingPreview] =
+            ImVec4(accent.x, accent.y, accent.z, 0.7f);
+        c[ImGuiCol_PlotLines] = accent;
+        c[ImGuiCol_PlotLinesHovered] = hex(0xFA8D29);
+        c[ImGuiCol_PlotHistogram] = hex(0x00833E);
+        c[ImGuiCol_PlotHistogramHovered] = hex(0xCF0A2C);
+        c[ImGuiCol_TextSelectedBg] =
+            ImVec4(accent.x, accent.y, accent.z, 0.45f);
+        c[ImGuiCol_NavHighlight] = accentHover;
+        c[ImGuiCol_TitleBgActive] = accentActive;
+    }
+
+    static void applyShoeCompLight()
+    {
+        ImGui::StyleColorsLight();
+        ImVec4* c = ImGui::GetStyle().Colors;
+        c[ImGuiCol_Text] = hex(0x1A1A1A);
+        c[ImGuiCol_WindowBg] = hex(0xBDBCBC);
+        c[ImGuiCol_ChildBg] = hex(0xBDBCBC);
+        c[ImGuiCol_PopupBg] = hex(0xBDBCBC);
+        c[ImGuiCol_FrameBg] = hex(0xA3A2A2);
+        c[ImGuiCol_FrameBgHovered] = hex(0xE1ECF7);
+        c[ImGuiCol_FrameBgActive] = hex(0xD0E3F5);
+        c[ImGuiCol_TitleBg] = hex(0xBDBCBC);
+        applyShoeCompAccents(false);
+    }
+
+    static void applyShoeCompDark()
+    {
+        // Base on MaterialFlat (keeps its background palette),
+        // then overlay the ShoeComp accent chain on top.
+        applyShoeCompAccents(true);
+    }
 
     void applyModernStyling()
     {
@@ -83,8 +159,22 @@ namespace shoecomp
 
     void applyTheme(int themeIdx)
     {
-        int idx = std::clamp(themeIdx, 0, 4);
-        ImGuiTheme::ApplyTheme(themeMap[idx]);
+        int idx = std::clamp(themeIdx, 0, 6);
+        if (idx == 5)
+        {
+            ImGuiTheme::ApplyTheme(
+                ImGuiTheme::ImGuiTheme_ImGuiColorsLight);
+            applyShoeCompLight();
+        }
+        else if (idx == 6)
+        {
+            ImGuiTheme::ApplyTheme(ImGuiTheme::ImGuiTheme_MaterialFlat);
+            applyShoeCompDark();
+        }
+        else
+        {
+            ImGuiTheme::ApplyTheme(themeMap[idx]);
+        }
         applyModernStyling();
     }
 
@@ -237,10 +327,6 @@ namespace shoecomp
             s->themeIdx = i;
         else if (sscanf(line, "fontScale=%f", &f) == 1)
             s->fontScale = f;
-        else if (sscanf(line, "windowWidth=%d", &i) == 1)
-            s->windowWidth = i;
-        else if (sscanf(line, "windowHeight=%d", &i) == 1)
-            s->windowHeight = i;
         else if (sscanf(line, "cursorRadius=%f", &f) == 1)
             s->cursorRadius = f;
         else if (sscanf(line, "correspondingRadius=%f", &f) == 1)
@@ -270,8 +356,6 @@ namespace shoecomp
         buf->appendf("[%s][State]\n", handler->TypeName);
         buf->appendf("themeIdx=%d\n", s->themeIdx);
         buf->appendf("fontScale=%.4f\n", s->fontScale);
-        buf->appendf("windowWidth=%d\n", s->windowWidth);
-        buf->appendf("windowHeight=%d\n", s->windowHeight);
         buf->appendf("cursorRadius=%.4f\n", s->cursorRadius);
         buf->appendf("correspondingRadius=%.4f\n",
                      s->correspondingRadius);

@@ -8,10 +8,8 @@ namespace shoecomp
     struct SettingsState
     {
         // App
-        int themeIdx = 2;  // Material Flat
+        int themeIdx = 6;  // ShoeComp Dark
         float fontScale = 2.5f;
-        int windowWidth = 0;  // 0 = uninitialized (use default)
-        int windowHeight = 0;
 
         // Locked-viewer hover indicators
         // Shared radius for source (cyan) and transformed (orange)
@@ -29,7 +27,7 @@ namespace shoecomp
         float hoverThreshold = 15.0f;  // pixels
 
         // Gallery: highlight color for the active image window
-        float activeImageColor[4] = {1.0f, 0.65f, 0.0f, 1.0f};
+        float activeImageColor[4] = {0.75f, 0.49f, 0.0f, 1.0f};
     };
 
     void renderSettingsTab(SettingsState& s);

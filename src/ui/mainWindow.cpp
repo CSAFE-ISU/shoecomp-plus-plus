@@ -901,13 +901,6 @@ namespace shoecomp
 
     static void onBeforeExit(AppState& state)
     {
-        auto* rp = HelloImGui::GetRunnerParams();
-        if (rp)
-        {
-            auto sz = rp->appWindowParams.windowGeometry.size;
-            state.settings.windowWidth = sz[0];
-            state.settings.windowHeight = sz[1];
-        }
         if (const char* ini = ImGui::GetIO().IniFilename)
             ImGui::SaveIniSettingsToDisk(ini);
 
@@ -971,7 +964,8 @@ namespace shoecomp
         params.appWindowParams.windowTitle = "ShoeComp";
         params.appWindowParams.windowGeometry.fullScreenMode =
             HelloImGui::FullScreenMode::NoFullScreen;
-        params.appWindowParams.windowGeometry.size = {1280, 800};
+        params.appWindowParams.windowGeometry.windowSizeState =
+            HelloImGui::WindowSizeState::Maximized;
         params.imGuiWindowParams.defaultImGuiWindowType =
             HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
         params.callbacks.LoadAdditionalFonts = [&state]()
@@ -983,30 +977,6 @@ namespace shoecomp
                 ImGui::LoadIniSettingsFromDisk(ini);
             ImGui::GetIO().FontGlobalScale = state.settings.fontScale;
             applyTheme(state.settings.themeIdx);
-
-            HelloImGui::ScreenSize target = {0, 0};
-            if (state.settings.windowWidth > 0 &&
-                state.settings.windowHeight > 0)
-            {
-                target = {state.settings.windowWidth,
-                          state.settings.windowHeight};
-            }
-            else
-            {
-                auto& monitors = ImGui::GetPlatformIO().Monitors;
-                if (!monitors.empty())
-                {
-                    ImVec2 ms = monitors[0].WorkSize;
-                    target = {(int)(ms.x * 2.0f / 3.0f),
-                              (int)(ms.y * 2.0f / 3.0f)};
-                }
-            }
-            if (target[0] > 0 && target[1] > 0)
-            {
-                HelloImGui::ChangeWindowSize(target);
-                state.settings.windowWidth = target[0];
-                state.settings.windowHeight = target[1];
-            }
         };
         params.callbacks.ShowGui = [&state]()
         {
