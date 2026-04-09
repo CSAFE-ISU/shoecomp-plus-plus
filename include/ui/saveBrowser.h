@@ -15,7 +15,9 @@ namespace shoecomp
         bool dirNeedsRefresh = true;
         std::string fileName;
         std::string extension;
+        std::vector<std::string> extensionChoices;
         std::string title;
+        std::string contextLabel;
         std::function<void(const std::string& path)> onOk;
         void render();
     };

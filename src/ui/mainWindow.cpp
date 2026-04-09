@@ -461,6 +461,9 @@ namespace shoecomp
             state.annotationFileTarget = state.activeGalleryImage;
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
+            state.annotationFileBrowser.contextLabel.clear();
+            state.annotationFileBrowser.extensionChoices = {".json",
+                                                            ""};
             state.annotationFileBrowser.title = "Load Annotations";
         }
         ImGui::SameLine();
@@ -471,6 +474,13 @@ namespace shoecomp
             state.annotationFileTarget = state.activeGalleryImage;
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
+            {
+                auto& canvas =
+                    state.images[state.activeGalleryImage];
+                state.annotationFileBrowser.contextLabel =
+                    canvas.image ? canvas.image->name : std::string();
+            }
+            state.annotationFileBrowser.extensionChoices.clear();
             state.annotationFileBrowser.title = "Save Annotations";
         }
         ImGui::EndDisabled();
@@ -886,6 +896,8 @@ namespace shoecomp
         { onAlignmentSaveOk(state, p); };
 
         state.imageLoadBrowser.extension = ".png";
+        state.imageLoadBrowser.extensionChoices = {
+            ".png", ".PNG", ".jpg", ".JPG", ".jpeg", ".JPEG"};
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
             [&state](const std::string& p, const std::string& n)

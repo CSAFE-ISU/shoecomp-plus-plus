@@ -14,6 +14,7 @@ namespace shoecomp
         std::vector<std::string> dirEntries;
         bool dirNeedsRefresh = true;
         std::string extension = ".png";
+        std::vector<std::string> extensionChoices;
         std::string title = "Load Image";
         bool loadCorrespondingJson = true;
         std::function<void(const std::string& path,

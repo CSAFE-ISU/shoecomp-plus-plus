@@ -76,7 +76,8 @@ namespace shoecomp
                 std::string name = entry.path().filename().string();
                 if (entry.is_directory())
                     entries.push_back(name + "/");
-                else if (entry.path().extension() == extension)
+                else if (extension.empty() ||
+                         entry.path().extension() == extension)
                     entries.push_back(name);
             }
         }

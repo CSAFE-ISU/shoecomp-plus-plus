@@ -16,7 +16,50 @@ namespace shoecomp
         ImGui::Text("%s", title.c_str());
         ImGui::Separator();
 
-        ImGui::Text("Directory: %s", browseDir.c_str());
+        {
+            char pathBuf[512];
+            snprintf(pathBuf, sizeof(pathBuf), "%s",
+                     browseDir.c_str());
+            bool entered = ImGui::InputText(
+                "Path", pathBuf, sizeof(pathBuf),
+                ImGuiInputTextFlags_EnterReturnsTrue);
+            browseDir = pathBuf;
+            if (entered)
+            {
+                std::error_code ec;
+                fs::path p(browseDir);
+                if (fs::is_directory(p, ec))
+                {
+                    browseDir = fs::canonical(p, ec).string();
+                    dirNeedsRefresh = true;
+                }
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Refresh")) dirNeedsRefresh = true;
+
+        if (!extensionChoices.empty())
+        {
+            auto labelFor = [](const std::string& e) {
+                return e.empty() ? std::string("(all files)") : e;
+            };
+            std::string preview = labelFor(extension);
+            if (ImGui::BeginCombo("Extension", preview.c_str()))
+            {
+                for (auto& choice : extensionChoices)
+                {
+                    bool selected = choice == extension;
+                    std::string label = labelFor(choice);
+                    if (ImGui::Selectable(label.c_str(), selected))
+                    {
+                        extension = choice;
+                        dirNeedsRefresh = true;
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
+            }
+        }
 
         refreshDirEntries(browseDir, extension, dirEntries,
                           dirNeedsRefresh);
@@ -29,38 +72,79 @@ namespace shoecomp
         for (auto& entry : dirEntries)
         {
             bool isDir = entry == ".." || entry.back() == '/';
-            if (ImGui::Selectable(entry.c_str(), false))
+            if (ImGui::Selectable(
+                    entry.c_str(), false,
+                    ImGuiSelectableFlags_AllowDoubleClick))
             {
-                if (entry == "..")
+                if (isDir)
                 {
-                    navigateDir(browseDir, "..", dirNeedsRefresh);
-                }
-                else if (isDir)
-                {
-                    std::string dirName =
-                        entry.substr(0, entry.size() - 1);
-                    navigateDir(browseDir, dirName, dirNeedsRefresh);
+                    if (ImGui::IsMouseDoubleClicked(
+                            ImGuiMouseButton_Left))
+                    {
+                        if (entry == "..")
+                        {
+                            navigateDir(browseDir, "..",
+                                        dirNeedsRefresh);
+                        }
+                        else
+                        {
+                            std::string dirName = entry.substr(
+                                0, entry.size() - 1);
+                            navigateDir(browseDir, dirName,
+                                        dirNeedsRefresh);
+                        }
+                    }
                 }
                 else { fileName = entry; }
             }
         }
         ImGui::EndChild();
 
+        if (!contextLabel.empty())
+        {
+            ImGui::Text("Saving annotations for: %s",
+                        contextLabel.c_str());
+        }
+
+        auto finalize = [&]() {
+            std::string finalName = fileName;
+            if (!extension.empty() &&
+                fs::path(finalName).extension() != extension)
+                finalName += extension;
+            if (!finalName.empty() && onOk)
+            {
+                std::string fullPath = browseDir + "/" + finalName;
+                onOk(fullPath);
+            }
+            ImGui::CloseCurrentPopup();
+        };
+
         char fnBuf[256];
         snprintf(fnBuf, sizeof(fnBuf), "%s", fileName.c_str());
-        if (ImGui::InputText("Filename", fnBuf, sizeof(fnBuf)))
+        bool entered =
+            ImGui::InputText("Filename", fnBuf, sizeof(fnBuf),
+                             ImGuiInputTextFlags_EnterReturnsTrue);
+        fileName = fnBuf;
+        if (entered)
         {
-            fileName = fnBuf;
+            fs::path resolved = fs::path(browseDir) / fileName;
+            std::error_code ec;
+            if (fs::is_directory(resolved, ec))
+            {
+                navigateDir(browseDir, fileName, dirNeedsRefresh);
+                fileName.clear();
+            }
+            else
+            {
+                finalize();
+                ImGui::EndPopup();
+                return;
+            }
         }
 
         if (ImGui::Button("OK"))
         {
-            if (!fileName.empty() && onOk)
-            {
-                std::string fullPath = browseDir + "/" + fileName;
-                onOk(fullPath);
-            }
-            ImGui::CloseCurrentPopup();
+            finalize();
         }
         ImGui::SameLine();
         if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
