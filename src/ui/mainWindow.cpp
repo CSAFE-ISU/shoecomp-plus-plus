@@ -613,7 +613,18 @@ namespace shoecomp
 
             ImGui::Spacing();
             ImGui::Separator();
-            if (ImGui::Button("Save"))
+            if (ImGui::Button("Add"))
+            {
+                state.viewerAlignments.push_back(state.alignEditState);
+                state.viewerAlignmentIdx = state.viewerAlignments.size() - 1;
+                applyAlignment(state.viewerLeft,
+                               state.viewerRight,
+                               state.viewerAlignments[state.viewerAlignmentIdx],
+                               state.viewerLocked);
+                ImGui::CloseCurrentPopup();
+            }
+            ImGui::SameLine();
+            if (ImGui::Button("Replace"))
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditState;
