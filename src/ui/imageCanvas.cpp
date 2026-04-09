@@ -97,10 +97,10 @@ namespace shoecomp
         int n = (int)poly.size();
         for (int i = 0, j = n - 1; i < n; j = i++)
         {
-            float xi = poly[i]["x"].getFloat();
-            float yi = poly[i]["y"].getFloat();
-            float xj = poly[j]["x"].getFloat();
-            float yj = poly[j]["y"].getFloat();
+            float xi = poly[i]["x"].getNumber();
+            float yi = poly[i]["y"].getNumber();
+            float xj = poly[j]["x"].getNumber();
+            float yj = poly[j]["y"].getNumber();
             if (((yi > py) != (yj > py)) &&
                 (px < (xj - xi) * (py - yi) / (yj - yi) + xi))
                 inside = !inside;
@@ -119,8 +119,8 @@ namespace shoecomp
                                  [&bnd](jt::Json& p)
                                  {
                                      return !pointInPolygon(
-                                         p["x"].getFloat(),
-                                         p["y"].getFloat(), bnd);
+                                         p["x"].getNumber(),
+                                         p["y"].getNumber(), bnd);
                                  }),
                   pts.end());
     }
@@ -221,7 +221,7 @@ namespace shoecomp
         for (auto& v : bnd)
         {
             ImVec2 sp = ImageCanvas::imageToScreenCoord(
-                v["x"].getFloat(), v["y"].getFloat(), cx, cy, annScale,
+                v["x"].getNumber(), v["y"].getNumber(), cx, cy, annScale,
                 rotation, imgW, imgH);
             screenBnd.push_back(sp);
             oMin = min(oMin, sp);
@@ -287,7 +287,7 @@ namespace shoecomp
             for (auto& p : pts)
             {
                 ImVec2 sp = imageToScreenCoord(
-                    p["x"].getFloat(), p["y"].getFloat(), cx, cy,
+                    p["x"].getNumber(), p["y"].getNumber(), cx, cy,
                     annScale, rotation, imgW, imgH);
                 PointType pType = PointType::Corner;
                 if (p.contains("type") && p["type"].isString())
@@ -341,11 +341,11 @@ namespace shoecomp
                 for (size_t i = 0; i + 1 < bnd.size(); ++i)
                 {
                     ImVec2 a = imageToScreenCoord(
-                        bnd[i]["x"].getFloat(), bnd[i]["y"].getFloat(),
+                        bnd[i]["x"].getNumber(), bnd[i]["y"].getNumber(),
                         cx, cy, annScale, rotation, imgW, imgH);
                     ImVec2 b = imageToScreenCoord(
-                        bnd[i + 1]["x"].getFloat(),
-                        bnd[i + 1]["y"].getFloat(), cx, cy, annScale,
+                        bnd[i + 1]["x"].getNumber(),
+                        bnd[i + 1]["y"].getNumber(), cx, cy, annScale,
                         rotation, imgW, imgH);
                     dl->AddLine(a, b, bndCol,
                                 g_annotationStyle.boundsLineThickness);
@@ -354,11 +354,11 @@ namespace shoecomp
             if (bnd.size() >= 2)
             {
                 ImVec2 last = imageToScreenCoord(
-                    bnd.back()["x"].getFloat(),
-                    bnd.back()["y"].getFloat(), cx, cy, annScale,
+                    bnd.back()["x"].getNumber(),
+                    bnd.back()["y"].getNumber(), cx, cy, annScale,
                     rotation, imgW, imgH);
                 ImVec2 first = imageToScreenCoord(
-                    bnd[0]["x"].getFloat(), bnd[0]["y"].getFloat(), cx,
+                    bnd[0]["x"].getNumber(), bnd[0]["y"].getNumber(), cx,
                     cy, annScale, rotation, imgW, imgH);
                 if (!editing)
                 {
@@ -382,7 +382,7 @@ namespace shoecomp
             for (auto& v : bnd)
             {
                 ImVec2 sp = imageToScreenCoord(
-                    v["x"].getFloat(), v["y"].getFloat(), cx, cy,
+                    v["x"].getNumber(), v["y"].getNumber(), cx, cy,
                     annScale, rotation, imgW, imgH);
                 dl->AddCircleFilled(
                     sp, g_annotationStyle.pointRadius - 1.0f, bndCol);
@@ -469,8 +469,8 @@ namespace shoecomp
                 image->annotations["bounds"].getArray().size() >= 3)
             {
                 auto& bnd = image->annotations["bounds"].getArray();
-                float dx = bnd[0]["x"].getFloat() - ic.x;
-                float dy = bnd[0]["y"].getFloat() - ic.y;
+                float dx = bnd[0]["x"].getNumber() - ic.x;
+                float dy = bnd[0]["y"].getNumber() - ic.y;
                 if (dx * dx + dy * dy < thresh2)
                 {
                     mode = AnnotationMode::None;
@@ -491,8 +491,8 @@ namespace shoecomp
                     int bestIdx = -1;
                     for (int ai = 0; ai < (int)arr.size(); ++ai)
                     {
-                        float dx = arr[ai]["x"].getFloat() - ic.x;
-                        float dy = arr[ai]["y"].getFloat() - ic.y;
+                        float dx = arr[ai]["x"].getNumber() - ic.x;
+                        float dy = arr[ai]["y"].getNumber() - ic.y;
                         float d2 = dx * dx + dy * dy;
                         if (d2 < bestDist)
                         {

@@ -276,15 +276,15 @@ namespace shoecomp
         // Find if cursor is near any matched point
         for (size_t i = 0; i < N; ++i)
         {
-            srcX = srcPoints[i]["x"].getFloat();
-            srcY = srcPoints[i]["y"].getFloat();
+            srcX = srcPoints[i]["x"].getNumber();
+            srcY = srcPoints[i]["y"].getNumber();
             srcScreenPos = ImageCanvas::imageToScreenCoord(
                 srcX, srcY, srcAdjustCenter.x, srcAdjustCenter.y,
                 srcView.renderScale, srcView.rotation, srcImg->width,
                 srcImg->height);
 
-            dstX = dstPoints[i]["x"].getFloat();
-            dstY = dstPoints[i]["y"].getFloat();
+            dstX = dstPoints[i]["x"].getNumber();
+            dstY = dstPoints[i]["y"].getNumber();
             dstScreenPos = ImageCanvas::imageToScreenCoord(
                 dstX, dstY, dstAdjustCenter.x,
                 dstAdjustCenter.y, dstView.renderScale,
