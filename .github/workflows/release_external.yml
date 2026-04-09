@@ -3,7 +3,12 @@ name: "Release Build"
 # Manual-dispatch build that publishes the shoecomp binary as a release
 
 on:
+  push:
+    tags:
+      - v*
   workflow_dispatch:
+  release:
+    types: [created]
 
 jobs:
   build:
