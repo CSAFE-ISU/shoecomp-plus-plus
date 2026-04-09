@@ -4,10 +4,30 @@
 
 namespace shoecomp
 {
+    static void normalizeXYToFloat(jt::Json& node)
+    {
+        if (!node.isObject()) return;
+        for (const char* key : {"bounds", "points"})
+        {
+            if (!node.contains(key) || !node[key].isArray()) continue;
+            auto& arr = node[key].getArray();
+            for (auto& el : arr)
+            {
+                if (!el.isObject()) continue;
+                if (el.contains("x") && el["x"].isNumber())
+                    el["x"] = (float)el["x"].getNumber();
+                if (el.contains("y") && el["y"].isNumber())
+                    el["y"] = (float)el["y"].getNumber();
+            }
+        }
+    }
+
     int saveAnnotationsToFile(const std::string& filePath,
                               const jt::Json& annotations)
     {
-        std::string data = annotations.toStringPretty();
+        jt::Json copy = annotations;
+        normalizeXYToFloat(copy);
+        std::string data = copy.toStringPretty();
         std::ofstream ofs(filePath, std::ios::out | std::ios::trunc);
         if (!ofs.is_open()) return -1;
         ofs << data;

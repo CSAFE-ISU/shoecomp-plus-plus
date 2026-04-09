@@ -518,8 +518,8 @@ namespace shoecomp
                 {
                     jt::Json pt;
                     pt.setObject();
-                    pt["x"] = ic.x;
-                    pt["y"] = ic.y;
+                    pt["x"] = (float)ic.x;
+                    pt["y"] = (float)ic.y;
                     if (mode == AnnotationMode::AddPoint)
                     {
                         pt["type"] =
