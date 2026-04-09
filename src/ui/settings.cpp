@@ -209,6 +209,10 @@ namespace shoecomp
                                    &s.hoverThreshold, 1.0f, 100.0f,
                                    "%.1f");
 
+                settingsTableRow("Active Image Color");
+                ImGui::ColorEdit4("##ActiveImageColor",
+                                  s.activeImageColor);
+
                 ImGui::EndTable();
             }
         }
@@ -242,6 +246,18 @@ namespace shoecomp
             s->correspondingRadius = f;
         else if (sscanf(line, "hoverThreshold=%f", &f) == 1)
             s->hoverThreshold = f;
+        else
+        {
+            float a, b, c, d;
+            if (sscanf(line, "activeImageColor=%f,%f,%f,%f", &a, &b,
+                       &c, &d) == 4)
+            {
+                s->activeImageColor[0] = a;
+                s->activeImageColor[1] = b;
+                s->activeImageColor[2] = c;
+                s->activeImageColor[3] = d;
+            }
+        }
     }
 
     static void settingsWriteAll(ImGuiContext*,
@@ -259,6 +275,9 @@ namespace shoecomp
         buf->appendf("correspondingRadius=%.4f\n",
                      s->correspondingRadius);
         buf->appendf("hoverThreshold=%.4f\n", s->hoverThreshold);
+        buf->appendf("activeImageColor=%.4f,%.4f,%.4f,%.4f\n",
+                     s->activeImageColor[0], s->activeImageColor[1],
+                     s->activeImageColor[2], s->activeImageColor[3]);
         buf->append("\n");
     }
 

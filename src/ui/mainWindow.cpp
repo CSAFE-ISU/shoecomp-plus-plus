@@ -367,8 +367,43 @@ namespace shoecomp
             snprintf(canvasId, sizeof(canvasId), "##gcanvas_%d", i);
 
             bool open = true;
-            if (ImGui::Begin(winId, &open,
-                             ImGuiWindowFlags_NoSavedSettings))
+            bool isActive = (state.activeGalleryImage == i);
+            ImGui::SetNextWindowBgAlpha(1.0f);
+            ImGui::SetNextWindowSizeConstraints(
+                ImVec2(200.0f, titleH + 10.0f),
+                ImVec2(avail.x, galleryH));
+            if (canvas.minimized != canvas.lastMinimized)
+                ImGui::SetNextWindowCollapsed(canvas.minimized);
+            int styleColorsPushed = 0;
+            if (isActive)
+            {
+                ImVec4 c(state.settings.activeImageColor[0],
+                         state.settings.activeImageColor[1],
+                         state.settings.activeImageColor[2],
+                         state.settings.activeImageColor[3]);
+                ImGui::PushStyleColor(ImGuiCol_TitleBgActive, c);
+                ImGui::PushStyleColor(ImGuiCol_TitleBg, c);
+                ImGui::PushStyleColor(ImGuiCol_Border, c);
+                styleColorsPushed = 3;
+                ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize,
+                                    3.0f);
+            }
+            bool beginOpen = ImGui::Begin(
+                winId, &open, ImGuiWindowFlags_NoSavedSettings);
+            canvas.minimized = ImGui::IsWindowCollapsed();
+            canvas.lastMinimized = canvas.minimized;
+            {
+                ImVec2 wp = ImGui::GetWindowPos();
+                ImVec2 ws = ImGui::GetWindowSize();
+                ImVec2 clamped(
+                    std::clamp(wp.x, origin.x,
+                               origin.x + avail.x - ws.x),
+                    std::clamp(wp.y, origin.y,
+                               origin.y + galleryH - ws.y));
+                if (clamped.x != wp.x || clamped.y != wp.y)
+                    ImGui::SetWindowPos(clamped);
+            }
+            if (beginOpen)
             {
                 if (ImGui::IsWindowFocused(
                         ImGuiFocusedFlags_ChildWindows))
@@ -392,6 +427,11 @@ namespace shoecomp
                 canvas.renderToolbar(tbId);
             }
             ImGui::End();
+            if (styleColorsPushed)
+            {
+                ImGui::PopStyleColor(styleColorsPushed);
+                ImGui::PopStyleVar();
+            }
 
             if (!open) removeIdx = i;
         }

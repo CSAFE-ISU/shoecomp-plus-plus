@@ -133,6 +133,8 @@ namespace shoecomp
     {
         std::shared_ptr<ImageData> image;
         ImageViewState viewState;
+        bool minimized = false;
+        bool lastMinimized = false;
 
         ImageCanvas();
         explicit ImageCanvas(std::shared_ptr<ImageData> img);

@@ -659,7 +659,14 @@ namespace shoecomp
         dl->AddCircleFilled(ind, 3.0f, IM_COL32(255, 180, 50, 255));
 
         ImGui::SameLine();
-        ImGui::Text("%.0f deg", viewState.rotation / kDegToRad);
+        float degs = viewState.rotationTarget / kDegToRad;
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize("-360.0___").x);
+        if (ImGui::InputFloat("deg", &degs, 0.0f, 0.0f, "%.1f",
+                              ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            viewState.rotationTarget = degs * kDegToRad;
+            viewState.rotation = viewState.rotationTarget;
+        }
 
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)

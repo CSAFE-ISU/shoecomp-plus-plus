@@ -27,6 +27,9 @@ namespace shoecomp
                                        180 / 255.f};
 
         float hoverThreshold = 15.0f;  // pixels
+
+        // Gallery: highlight color for the active image window
+        float activeImageColor[4] = {1.0f, 0.65f, 0.0f, 1.0f};
     };
 
     void renderSettingsTab(SettingsState& s);
