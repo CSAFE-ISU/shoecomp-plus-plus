@@ -14,7 +14,7 @@ Third-party dependencies:
   FreeType 2.14.2 (FreeType License or GPLv2+)
   https://www.freetype.org/
 
-  jtjson 6ec4e44 (Apache-2.0)
+  json.cpp ccb9195e6a (Apache-2.0)
   https://github.com/jart/json.cpp
 
   libpng 1.6.55 (libpng/zlib License)
