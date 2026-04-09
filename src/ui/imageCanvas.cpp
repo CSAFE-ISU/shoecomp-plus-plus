@@ -68,7 +68,7 @@ namespace shoecomp
                       ly / scale + imgH * 0.5f);
     }
 
-    ImVec2 ImageCanvas::getImageCoord(ImVec2 sp)
+    ImVec2 ImageCanvas::getImageCoord(ImVec2 sp) const
     {
         return ImageCanvas::screenToImageCoord(
             sp, viewState.canvasPos, viewState.canvasSize,
@@ -91,7 +91,7 @@ namespace shoecomp
     }
 
     bool ImageCanvas::pointInPolygon(float px, float py,
-                                     std::vector<jt::Json>& poly)
+                                     const std::vector<jt::Json>& poly)
     {
         bool inside = false;
         int n = (int)poly.size();

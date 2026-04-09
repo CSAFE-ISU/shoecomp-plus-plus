@@ -66,7 +66,7 @@ namespace shoecomp
                             float hRatio, float xOff, float yOff);
 
     // Checks annotations[key] exists and is an array.
-    bool hasAnnotationArray(jt::Json& annotations, const char* key);
+    bool hasAnnotationArray(const jt::Json& annotations, const char* key);
 
     // Emits a settings table row: label in col 0,
     // skips col 1, advances to col 2 with full-width

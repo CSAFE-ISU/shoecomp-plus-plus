@@ -32,7 +32,7 @@ namespace shoecomp
         return true;
     }
 
-    bool hasAnnotationArray(jt::Json& annotations, const char* key)
+    bool hasAnnotationArray(const jt::Json& annotations, const char* key)
     {
         return annotations.isObject() && annotations.contains(key) &&
                annotations[key].isArray();

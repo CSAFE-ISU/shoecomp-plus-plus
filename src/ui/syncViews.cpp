@@ -166,9 +166,9 @@ namespace shoecomp
     }
 
     static void renderLockedCursorIndicators0(
-        AppState& state, AlignState& align, ImageCanvas& src,
-        std::vector<jt::Json>& srcPoints, ImageCanvas& dst,
-        std::vector<jt::Json>& dstPoints, bool srcIsLeft,
+        const AppState& state, const AlignState& align, const ImageCanvas& src,
+        const std::vector<jt::Json>& srcPoints, const ImageCanvas& dst,
+        const std::vector<jt::Json>& dstPoints, bool srcIsLeft,
         const SettingsState& settings)
     {
         // Visual constants (from settings)
@@ -319,7 +319,7 @@ namespace shoecomp
         }
     }
 
-    void renderLockedCursorIndicators(AppState& state,
+    void renderLockedCursorIndicators(const AppState& state,
                                       const SettingsState& settings)
     {
         if (state.viewerLeftIdx < 0 || state.viewerRightIdx < 0)

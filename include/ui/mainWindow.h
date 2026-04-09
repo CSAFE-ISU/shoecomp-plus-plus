@@ -91,7 +91,7 @@ namespace shoecomp
                            const AlignState&,     //
                            float, ImVec2, float,  //
                            float, ImVec2, float);
-    void renderLockedCursorIndicators(AppState&, const SettingsState&);
+    void renderLockedCursorIndicators(const AppState&, const SettingsState&);
 
     //
     void submain(void);

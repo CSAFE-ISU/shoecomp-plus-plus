@@ -152,10 +152,10 @@ namespace shoecomp
                                          int imgW, int imgH);
 
         static bool pointInPolygon(float px, float py,
-                                   std::vector<jt::Json>& poly);
+                                   const std::vector<jt::Json>& poly);
 
         // Instance methods
-        ImVec2 getImageCoord(ImVec2 sp);
+        ImVec2 getImageCoord(ImVec2 sp) const;
 
         void removePointsOutsideBounds();
 
