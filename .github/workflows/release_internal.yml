@@ -1,4 +1,4 @@
-name: "Release Build"
+name: "Release Internal"
 
 # Manual-dispatch build that publishes the shoecomp binary as an artifact
 
@@ -7,12 +7,12 @@ on:
 
 jobs:
   build:
-    name: "Release Build"
+    name: "Release Internal"
     runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows-latest, macos-15-intel, macos-latest, ubuntu-latest, ubuntu-24.04-arm]
+        platform: [windows-latest, macos-latest, ubuntu-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -21,7 +21,7 @@ jobs:
         fetch-depth: 0
 
     - name: apt install xorg-dev  libglfw3-dev (ubuntu only)
-      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
+      if: ${{ matrix.platform == 'ubuntu-latest' }}
       run: sudo apt-get update && sudo apt-get install -y xorg-dev  libglfw3-dev
 
     - name: Build on ${{ matrix.platform }}
@@ -58,23 +58,9 @@ jobs:
         name: shoecomp-macos-arm64
         path: build/shoecomp.app
 
-    - name: Upload shoecomp binary (macos x86_64)
-      if: ${{ matrix.platform == 'macos-15-intel' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: shoecomp-macos-x86_64
-        path: build/shoecomp.app
-
     - name: Upload shoecomp folder (ubuntu)
       if: ${{ matrix.platform == 'ubuntu-latest' }}
       uses: actions/upload-artifact@v4
       with:
         name: shoecomp-${{ matrix.platform }}
-        path: staging
-
-    - name: Upload shoecomp folder (ubuntu arm64)
-      if: ${{ matrix.platform == 'ubuntu-24.04-arm64' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: shoecomp-ubuntu-arm64
         path: staging

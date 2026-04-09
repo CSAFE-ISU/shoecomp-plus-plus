@@ -1,0 +1,81 @@
+name: "Release Build"
+
+# Manual-dispatch build that publishes the shoecomp binary as a release
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    name: "Release Build"
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [windows-latest, macos-15-intel, macos-latest, ubuntu-latest, ubuntu-24.04-arm]
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: apt install xorg-dev  libglfw3-dev (ubuntu only)
+      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
+      run: sudo apt-get update && sudo apt-get install -y xorg-dev  libglfw3-dev
+
+    - name: Build on ${{ matrix.platform }}
+      run: |
+        cmake -S . -B build -DHELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED=ON -DHELLOIMGUI_MACOS_CREATE_APP_BUNDLE=ON -DCMAKE_BUILD_TYPE=Release
+        cmake --build build --config Release
+
+    - name: Stage shoecomp folder (windows)
+      if: ${{ matrix.platform == 'windows-latest' }}
+      shell: pwsh
+      run: |
+        New-Item -ItemType Directory -Path staging/shoecomp | Out-Null
+        Copy-Item build/Release/shoecomp.exe staging/shoecomp/
+        Copy-Item -Recurse build/assets staging/shoecomp/assets
+        cd staging
+        Compress-Archive -Path ./shoecomp/* -DestinationPath shoecomp-${{ matrix.platform }}.zip
+
+    - name: Stage shoecomp folder (ubuntu)
+      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm' }}
+      run: |
+        mkdir -p staging/shoecomp
+        cp build/shoecomp staging/shoecomp/
+        cp -r build/assets staging/shoecomp/assets
+        cd staging
+        zip -r shoecomp-${{ matrix.platform }}.zip shoecomp/
+
+    - name: Upload shoecomp folder (windows)
+      if: ${{ matrix.platform == 'windows-latest' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        files: shoecomp-${{ matrix.platform }}.zip
+
+    - name: Upload shoecomp binary (macos)
+      if: ${{ matrix.platform == 'macos-latest' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        name: shoecomp-macos-arm64
+        files: build/shoecomp.app
+
+    - name: Upload shoecomp binary (macos x86_64)
+      if: ${{ matrix.platform == 'macos-15-intel' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        name: shoecomp-macos-x86_64
+        files: build/shoecomp.app
+
+    - name: Upload shoecomp folder (ubuntu)
+      if: ${{ matrix.platform == 'ubuntu-latest' || matrix.platform == 'ubuntu-24.04-arm64' }}
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        files: shoecomp-${{ matrix.platform }}.zip
