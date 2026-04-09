@@ -71,8 +71,10 @@ namespace shoecomp
     ImVec2 ImageCanvas::getImageCoord(ImVec2 sp)
     {
         return ImageCanvas::screenToImageCoord(
-            sp, canvasPos, canvasSize, panTarget, zoomTarget, baseScale,
-            rotationTarget, image->width, image->height);
+            sp, viewState.canvasPos, viewState.canvasSize,
+            viewState.panTarget, viewState.zoomTarget,
+            viewState.baseScale, viewState.rotationTarget, image->width,
+            image->height);
     }
 
     ImVec2 ImageCanvas::imageToScreenCoord(float ix, float iy, float cx,
@@ -549,8 +551,6 @@ namespace shoecomp
         dl->PushClipRect(canvasPos, canvasPos + avail, true);
 
         ImVec2 c = canvasPos + (0.5f * avail) + viewState.pan;
-        viewState.centerX = c.x;
-        viewState.centerY = c.y;
 
         //
         float hw = disp.x * 0.5f;

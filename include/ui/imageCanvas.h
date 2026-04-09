@@ -88,7 +88,7 @@ namespace shoecomp
         float boundsLineThickness = 2.0f;
         float boundsColor[4] = {0.2f, 1.0f, 0.2f, 0.86f};
     };
-    
+
     extern AnnotationStyle g_annotationStyle;
 
     struct ImageViewState
@@ -105,8 +105,6 @@ namespace shoecomp
         ImVec2 canvasPos = ImVec2(0, 0);
         ImVec2 canvasSize = ImVec2(0, 0);
         float baseScale = 1.0f;
-        float centerX = 0.0f;
-        float centerY = 0.0f;
         float renderScale = 1.0f;
 
         // One-shot flag set by the toolbar Home

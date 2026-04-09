@@ -42,8 +42,8 @@ namespace shoecomp
         // Convert right image point back to screen coordinates
         ImVec2 rightScreen = ImageCanvas::imageToScreenCoord(
             rightImgPt.x, rightImgPt.y, rightCenter.x, rightCenter.y,
-            rightRenderScale, rv.rotationTarget, viewerRight.image->width,
-            viewerRight.image->height);
+            rightRenderScale, rv.rotationTarget,
+            viewerRight.image->width, viewerRight.image->height);
 
         // Adjust pan so right image point appears at right canvas
         // center
@@ -89,16 +89,15 @@ namespace shoecomp
         }
 
         oldDstScreen = ImageCanvas::imageToScreenCoord(
-            dstImgPt.x, dstImgPt.y, oldDstCenter.x, oldDstCenter.y, oldDstScale,
-            rot0, dst.image->width,
-            dst.image->height);
+            dstImgPt.x, dstImgPt.y, oldDstCenter.x, oldDstCenter.y,
+            oldDstScale, rot0, dst.image->width, dst.image->height);
         //
         newDstScale = dstView.baseScale * dstView.zoomTarget;
         newDstCenter = dstView.canvasCenter() + pan0;
         newDstScreen = ImageCanvas::imageToScreenCoord(
-            dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y, newDstScale,
-            dstView.rotationTarget,
-            dst.image->width, dst.image->height);
+            dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y,
+            newDstScale, dstView.rotationTarget, dst.image->width,
+            dst.image->height);
 
         dstView.panTarget += (oldDstScreen - newDstScreen);
     }
@@ -169,7 +168,7 @@ namespace shoecomp
     static void renderLockedCursorIndicators0(
         AppState& state, AlignState& align, ImageCanvas& src,
         std::vector<jt::Json>& srcPoints, ImageCanvas& dst,
-    std::vector<jt::Json>& dstPoints, bool srcIsLeft,
+        std::vector<jt::Json>& dstPoints, bool srcIsLeft,
         const SettingsState& settings)
     {
         // Visual constants (from settings)
@@ -215,9 +214,11 @@ namespace shoecomp
         //
 
         auto& srcView = src.viewState;
+        ImVec2 srcAdjustCenter = srcView.canvasCenter() + srcView.pan;
         auto& srcImg = src.image;
         auto& dstView = dst.viewState;
         auto& dstImg = dst.image;
+        ImVec2 dstAdjustCenter = dstView.canvasCenter() + dstView.pan;
         const size_t N = srcPoints.size();
 
         // Get cursor position in image coordinates
@@ -226,9 +227,10 @@ namespace shoecomp
         // Draw pixel coordinates src
         if (srcView.contains(io.MousePos))
         {
-            dl->AddCircleFilled(io.MousePos, primaryRadius, primaryFill);
-            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline, 12,
-                          1.5f);
+            dl->AddCircleFilled(io.MousePos, primaryRadius,
+                                primaryFill);
+            dl->AddCircle(io.MousePos, primaryRadius, primaryOutline,
+                          12, 1.5f);
             snprintf(coordText, sizeof(coordText), "(%.1f, %.1f)",
                      imgCoord.x, imgCoord.y);
             ImVec2 textPos(io.MousePos.x + primaryRadius + 5.0f,
@@ -248,9 +250,8 @@ namespace shoecomp
 
         // Convert to screen coordinates
         dstScreenPos = ImageCanvas::imageToScreenCoord(
-            transformed.x, transformed.y, dstView.centerX,
-            dstView.centerY, dstView.renderScale,
-            dstView.rotation,
+            transformed.x, transformed.y, dstAdjustCenter.x,
+            dstAdjustCenter.y, dstView.renderScale, dstView.rotation,
             dstImg->width, dstImg->height);
 
         // Check if transformed position is within dst screen bounds
@@ -278,32 +279,31 @@ namespace shoecomp
             srcX = srcPoints[i]["x"].getFloat();
             srcY = srcPoints[i]["y"].getFloat();
             srcScreenPos = ImageCanvas::imageToScreenCoord(
-                srcX, srcY, srcView.centerX, srcView.centerY,
-                srcView.renderScale, srcView.rotation,
-                srcImg->width, srcImg->height);
+                srcX, srcY, srcAdjustCenter.x, srcAdjustCenter.y,
+                srcView.renderScale, srcView.rotation, srcImg->width,
+                srcImg->height);
 
             dstX = dstPoints[i]["x"].getFloat();
             dstY = dstPoints[i]["y"].getFloat();
             dstScreenPos = ImageCanvas::imageToScreenCoord(
-                dstX, dstY, dstView.centerX, dstView.centerY,
-                dstView.renderScale, dstView.rotation,
-                dstImg->width,
-                dstImg->height);
+                dstX, dstY, dstAdjustCenter.x,
+                dstAdjustCenter.y, dstView.renderScale,
+                dstView.rotation, dstImg->width, dstImg->height);
 
-            if(!srcView.contains(srcScreenPos)) continue;
-            if(!dstView.contains(dstScreenPos)) continue;
+            if (!srcView.contains(srcScreenPos)) continue;
+            if (!dstView.contains(dstScreenPos)) continue;
 
             // draw circle for src
             dl->AddCircleFilled(srcScreenPos, secondaryRadius,
                                 correspondingColor);
-            dl->AddCircle(srcScreenPos, secondaryRadius,
-                          primaryOutline, 12, 2.5f);
+            dl->AddCircle(srcScreenPos, secondaryRadius, primaryOutline,
+                          12, 2.5f);
 
             // draw corresponding circle on dst
             dl->AddCircleFilled(dstScreenPos, secondaryRadius,
                                 correspondingColor);
-            dl->AddCircle(dstScreenPos, secondaryRadius,
-                          primaryOutline, 12, 2.5f);
+            dl->AddCircle(dstScreenPos, secondaryRadius, primaryOutline,
+                          12, 2.5f);
 
             // Check if cursor is near this point
             ImVec2 d = io.MousePos - srcScreenPos;
@@ -312,8 +312,9 @@ namespace shoecomp
             if (dist < hoverThreshold)
             {
                 // Draw line connecting the matched points
-                dl->AddLine(srcScreenPos, dstScreenPos, correspondingColor,
-                                g_annotationStyle.boundsLineThickness);
+                dl->AddLine(srcScreenPos, dstScreenPos,
+                            correspondingColor,
+                            g_annotationStyle.boundsLineThickness);
             }
         }
     }
@@ -347,10 +348,7 @@ namespace shoecomp
 
         auto& leftPoints = align.info["leftPoints"].getArray();
         auto& rightPoints = align.info["rightPoints"].getArray();
-        if (leftPoints.size() != rightPoints.size())
-        {
-            return;
-        }
+        if (leftPoints.size() != rightPoints.size()) { return; }
 
         if (rightView.isHovered)
         {
