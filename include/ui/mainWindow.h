@@ -78,6 +78,7 @@ namespace shoecomp
 
         // Custom fonts
         ImFont* defaultFont = nullptr;   // Montserrat-Regular
+        ImFont* boldFont = nullptr;      // Montserrat-SemiBold
         ImFont* monoFont = nullptr;      // Inconsolata
 
         // App-wide settings

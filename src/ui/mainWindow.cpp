@@ -716,6 +716,26 @@ namespace shoecomp
         consumeAlignResults(state);
         renderAlignEditPopup(state);
 
+        const char* brandLabel = "shoecomp";
+        ImVec2 brandSize;
+        ImFont* brandFont =
+            state.boldFont ? state.boldFont : ImGui::GetFont();
+        {
+            ImGui::PushFont(brandFont);
+            brandSize = ImGui::CalcTextSize(brandLabel);
+            ImGui::PopFont();
+        }
+        ImVec2 rowStart = ImGui::GetCursorScreenPos();
+        float availW = ImGui::GetContentRegionAvail().x;
+        float pad = ImGui::GetStyle().FramePadding.x;
+        ImVec2 brandPos(rowStart.x + availW - brandSize.x - pad,
+                        rowStart.y +
+                            (ImGui::GetFrameHeight() - brandSize.y) *
+                                0.5f);
+        ImGui::GetWindowDrawList()->AddText(
+            brandFont, ImGui::GetFontSize(), brandPos,
+            ImGui::GetColorU32(ImGuiCol_Text), brandLabel);
+
         if (ImGui::BeginTabBar("MainTabs"))
         {
             if (ImGui::BeginTabItem("Image Viewer"))
@@ -913,6 +933,8 @@ namespace shoecomp
     {
         state.defaultFont = HelloImGui::LoadFont(
             "fonts/Montserrat-Regular.ttf", 16.0f);
+        state.boldFont = HelloImGui::LoadFont(
+            "fonts/Montserrat-SemiBold.ttf", 16.0f);
         state.monoFont = HelloImGui::LoadFont(
             "fonts/Inconsolata-Regular.ttf", 16.0f);
     }
