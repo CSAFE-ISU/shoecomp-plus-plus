@@ -19,8 +19,8 @@ namespace shoecomp
         }
 
         locked = false;
-        rv.zoom = rv.zoomTarget = lv.zoomTarget * a.scale;
-        rv.rotation = rv.rotationTarget = lv.rotationTarget + a.rotation;
+        rv.zoomTarget = lv.zoomTarget * a.scale;
+        rv.rotationTarget = lv.rotationTarget + a.rotation;
 
         // Use each viewer's canvas center as reference point
         ImVec2 leftRefScreen = lv.center();
@@ -36,7 +36,7 @@ namespace shoecomp
         ImVec2 rightImgPt = a.transformLeft2Right(leftImgPt);
 
         // Start with same pan as left, then compute adjustment
-        rv.pan = rv.panTarget = lv.panTarget;
+        rv.panTarget = lv.panTarget;
 
         // Compute right viewer rendering state
         float rightRenderScale = rv.baseScale * rv.zoomTarget;
@@ -51,7 +51,6 @@ namespace shoecomp
         // Adjust pan so right image point appears at right canvas
         // center
         rv.panTarget = rightRefScreen - rightScreen;
-        rv.pan = rv.panTarget;
 
         locked = true;
     }
