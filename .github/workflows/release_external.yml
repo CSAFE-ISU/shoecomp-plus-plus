@@ -92,7 +92,10 @@ jobs:
     - name: Build with emscripten
       run: |
         source ~/emsdk/emsdk_env.sh
-        emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release
+        emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS="-pthread" \
+          -DCMAKE_CXX_FLAGS="-pthread" \
+          -DCMAKE_EXE_LINKER_FLAGS="-pthread -sPROXY_TO_PTHREAD"
         cmake --build build-emscripten
 
     - name: Stage emscripten build
@@ -101,9 +104,9 @@ jobs:
         cp build-emscripten/shoecomp.html shoecomp-emscripten/
         cp build-emscripten/shoecomp.js shoecomp-emscripten/
         cp build-emscripten/shoecomp.wasm shoecomp-emscripten/
-        if [ -f build-emscripten/shoecomp.data ]; then
-          cp build-emscripten/shoecomp.data shoecomp-emscripten/
-        fi
+        for f in build-emscripten/shoecomp.data build-emscripten/shoecomp.worker.js; do
+          [ -f "$f" ] && cp "$f" shoecomp-emscripten/
+        done
         zip -r shoecomp-emscripten.zip shoecomp-emscripten/
 
     - name: Upload emscripten build

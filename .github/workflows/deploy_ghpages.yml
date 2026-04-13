@@ -34,6 +34,12 @@ jobs:
         mv shoecomp.html index.html
         rm -rf shoecomp-emscripten shoecomp-emscripten.zip
 
+    - name: Add coi-serviceworker for COOP/COEP headers
+      run: |
+        curl -fsSL https://raw.githubusercontent.com/nicbarker/coi-serviceworker/main/coi-serviceworker.min.js \
+          -o coi-serviceworker.js
+        sed -i '/<head>/a\    <script src="coi-serviceworker.js"></script>' index.html
+
     - name: Commit and push
       run: |
         git config user.name "github-actions[bot]"
