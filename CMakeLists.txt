@@ -112,13 +112,28 @@ set(SC_SRCS
     src/formats/platforms.cpp
     src/main.cpp
 )
+
 # =====================================================================
 # 7. Embedded static assets (generated via binary_to_compressed_c)
 # =====================================================================
-add_executable(binary_to_compressed_c
-    third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
-set_target_properties(binary_to_compressed_c PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+if (NOT EMSCRIPTEN)
+    add_executable(binary_to_compressed_c
+        third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
+    set_target_properties(binary_to_compressed_c PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+else()
+    # Optional: Force build a native tool first
+    ExternalProject_Add(binary_to_compressed_c
+        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+        BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c
+        CMAKE_ARGS -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
+        CONFIGURE_COMMAND ""
+        BUILD_COMMAND ${CMAKE_CXX_COMPILER} 
+                  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp" 
+                  -o "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c"
+        INSTALL_COMMAND ""
+    )
+endif()
 
 set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
 file(MAKE_DIRECTORY ${SC_GENERATED_ASSETS_DIR})
