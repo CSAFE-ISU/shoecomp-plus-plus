@@ -1,0 +1,43 @@
+name: "Deploy to GitHub Pages"
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to deploy (e.g. v1.0.0)"
+        required: true
+
+jobs:
+  deploy:
+    permissions:
+      contents: write
+    name: "Deploy Emscripten build"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: gh-pages
+
+    - name: Download emscripten release artifact
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        gh release download "${{ github.event.inputs.tag }}" \
+          --pattern "shoecomp-emscripten.zip" \
+          --dir .
+
+    - name: Extract and stage files
+      run: |
+        unzip -o shoecomp-emscripten.zip
+        cp shoecomp-emscripten/* .
+        mv shoecomp.html index.html
+        rm -rf shoecomp-emscripten shoecomp-emscripten.zip
+
+    - name: Commit and push
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add -A
+        git commit -m "Deploy emscripten build from ${{ github.event.inputs.tag }}" || echo "No changes to commit"
+        git push
