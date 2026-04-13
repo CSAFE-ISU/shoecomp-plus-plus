@@ -159,7 +159,7 @@ foreach(spec IN LISTS SC_ASSET_SPECS)
     add_custom_command(
         OUTPUT ${out_c}
         COMMAND ${CMAKE_COMMAND}
-                -DTOOL=$<TARGET_FILE:binary_to_compressed_c>
+                -DTOOL=${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c
                 -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
                 -DSYMBOL=${sym}
                 -DOUTPUT=${out_c}
