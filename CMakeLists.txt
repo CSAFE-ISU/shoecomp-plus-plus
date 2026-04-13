@@ -134,6 +134,7 @@ else()
                   "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp" 
                   -o "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c"
         INSTALL_COMMAND ""
+        BUILD_BYPRODUCTS <BINARY_DIR>/binary_to_compressed_c
     )
 endif()
 

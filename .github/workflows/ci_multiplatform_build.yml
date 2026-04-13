@@ -33,3 +33,37 @@ jobs:
       run: |
         cmake -S . -B build -DHELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED=ON -DCMAKE_BUILD_TYPE=Release
         cmake --build build --config Release
+
+
+  build-emscripten:
+    name: "Build Emscripten"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Install emscripten
+      run: ./third_party/hello_imgui/tools/emscripten/install_emscripten.sh
+
+    - name: Build with emscripten
+      run: |
+        source ~/emsdk/emsdk_env.sh
+        emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS="-pthread" \
+          -DCMAKE_CXX_FLAGS="-pthread" \
+          -DCMAKE_EXE_LINKER_FLAGS="-pthread -sPROXY_TO_PTHREAD"
+        cmake --build build-emscripten
+
+    - name: Stage emscripten build
+      run: |
+        mkdir -p shoecomp-emscripten
+        cp build-emscripten/shoecomp.html shoecomp-emscripten/
+        cp build-emscripten/shoecomp.js shoecomp-emscripten/
+        cp build-emscripten/shoecomp.wasm shoecomp-emscripten/
+        for f in build-emscripten/shoecomp.data build-emscripten/shoecomp.worker.js; do
+          [ -f "$f" ] && cp "$f" shoecomp-emscripten/
+        done
+        zip -r shoecomp-emscripten.zip shoecomp-emscripten/
