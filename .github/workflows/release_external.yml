@@ -73,3 +73,41 @@ jobs:
       with:
         prerelease: true
         files: shoecomp-${{ matrix.platform }}.zip
+
+  build-emscripten:
+    permissions:
+      contents: write
+    name: "Release Build (Emscripten)"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Install emscripten
+      run: ./third_party/hello_imgui/tools/emscripten/install_emscripten.sh
+
+    - name: Build with emscripten
+      run: |
+        source ~/emsdk/emsdk_env.sh
+        emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release
+        cmake --build build-emscripten
+
+    - name: Stage emscripten build
+      run: |
+        mkdir -p shoecomp-emscripten
+        cp build-emscripten/shoecomp.html shoecomp-emscripten/
+        cp build-emscripten/shoecomp.js shoecomp-emscripten/
+        cp build-emscripten/shoecomp.wasm shoecomp-emscripten/
+        if [ -f build-emscripten/shoecomp.data ]; then
+          cp build-emscripten/shoecomp.data shoecomp-emscripten/
+        fi
+        zip -r shoecomp-emscripten.zip shoecomp-emscripten/
+
+    - name: Upload emscripten build
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        files: shoecomp-emscripten.zip
