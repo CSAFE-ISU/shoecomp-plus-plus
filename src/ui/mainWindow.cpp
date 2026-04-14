@@ -7,7 +7,6 @@
 #include "formats/png.h"
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
-#include "hello_imgui/hello_imgui_include_opengl.h"
 #include "hello_imgui/imgui_theme.h"
 #include <algorithm>
 #include <cmath>
@@ -769,10 +768,8 @@ namespace shoecomp
         int h = img->height;
         auto buffer =
             std::make_shared<std::vector<unsigned char>>(w * h * 4);
-        GLuint tex = (GLuint)(intptr_t)img->textureId;
-        glBindTexture(GL_TEXTURE_2D, tex);
-        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE,
-                      buffer->data());
+        if (!saveTextureRGBA(img->textureId, w, h, buffer->data()))
+            return;
 
         state.imageSaveInProgress = true;
         state.imageSaveDone = false;

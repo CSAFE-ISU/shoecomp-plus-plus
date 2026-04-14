@@ -38,6 +38,16 @@ namespace shoecomp
         if (tex != 0) glDeleteTextures(1, &tex);
     }
 
+    bool saveTextureRGBA(ImTextureID textureId, int width, int height,
+                         unsigned char* out)
+    {
+        GLuint tex = (GLuint)(intptr_t)textureId;
+        if (tex == 0) return false;
+        glBindTexture(GL_TEXTURE_2D, tex);
+        glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, out);
+        return true;
+    }
+
 #elif defined(HELLOIMGUI_HAS_METAL)
     // ---------------------------------------------------------------
     // Metal backend (macOS)
@@ -67,6 +77,18 @@ namespace shoecomp
         id<MTLTexture> tex =
             (__bridge_transfer id<MTLTexture>)(void*)textureId;
         (void)tex;  // ARC releases at end of scope
+    }
+
+    bool saveTextureRGBA(ImTextureID textureId, int width, int height,
+                         unsigned char* out)
+    {
+        if (textureId == 0) return false;
+        id<MTLTexture> tex = (__bridge id<MTLTexture>)(void*)textureId;
+        [tex getBytes:out
+            bytesPerRow:(NSUInteger)(width * 4)
+             fromRegion:MTLRegionMake2D(0, 0, width, height)
+            mipmapLevel:0];
+        return true;
     }
 
 #elif defined(HELLOIMGUI_HAS_DIRECTX11)
@@ -114,6 +136,65 @@ namespace shoecomp
         ID3D11ShaderResourceView* srv =
             (ID3D11ShaderResourceView*)textureId;
         srv->Release();
+    }
+
+    bool saveTextureRGBA(ImTextureID textureId, int width, int height,
+                         unsigned char* out)
+    {
+        if (textureId == 0) return false;
+        ID3D11ShaderResourceView* srv =
+            (ID3D11ShaderResourceView*)textureId;
+
+        ID3D11Resource* res = nullptr;
+        srv->GetResource(&res);
+        if (!res) return false;
+
+        ID3D11Texture2D* tex = nullptr;
+        res->QueryInterface(__uuidof(ID3D11Texture2D), (void**)&tex);
+        res->Release();
+        if (!tex) return false;
+
+        ID3D11Device* device = nullptr;
+        tex->GetDevice(&device);
+        ID3D11DeviceContext* ctx = nullptr;
+        device->GetImmediateContext(&ctx);
+
+        D3D11_TEXTURE2D_DESC desc = {};
+        tex->GetDesc(&desc);
+        desc.Usage = D3D11_USAGE_STAGING;
+        desc.BindFlags = 0;
+        desc.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+        desc.MiscFlags = 0;
+
+        ID3D11Texture2D* staging = nullptr;
+        if (FAILED(device->CreateTexture2D(&desc, nullptr, &staging)))
+        {
+            ctx->Release();
+            device->Release();
+            tex->Release();
+            return false;
+        }
+
+        ctx->CopyResource(staging, tex);
+
+        D3D11_MAPPED_SUBRESOURCE mapped = {};
+        bool ok = false;
+        if (SUCCEEDED(ctx->Map(staging, 0, D3D11_MAP_READ, 0, &mapped)))
+        {
+            const unsigned char* src =
+                (const unsigned char*)mapped.pData;
+            for (int y = 0; y < height; ++y)
+                memcpy(out + y * width * 4, src + y * mapped.RowPitch,
+                       width * 4);
+            ctx->Unmap(staging, 0);
+            ok = true;
+        }
+
+        staging->Release();
+        ctx->Release();
+        device->Release();
+        tex->Release();
+        return ok;
     }
 
 #else

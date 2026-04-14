@@ -18,6 +18,12 @@ namespace shoecomp
                                   int height);
 
     void freeTexture(ImTextureID textureId);
+
+    // Read back RGBA pixels from a GPU texture into |out|.
+    // |out| must point to at least width*height*4 bytes.
+    // Returns true on success.
+    bool saveTextureRGBA(ImTextureID textureId, int width, int height,
+                         unsigned char* out);
 } /* namespace shoecomp */
 
 #endif
