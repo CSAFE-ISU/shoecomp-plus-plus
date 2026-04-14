@@ -41,11 +41,15 @@ namespace shoecomp
     bool saveTextureRGBA(ImTextureID textureId, int width, int height,
                          unsigned char* out)
     {
+#ifndef __EMSCRIPTEN__
         GLuint tex = (GLuint)(intptr_t)textureId;
         if (tex == 0) return false;
         glBindTexture(GL_TEXTURE_2D, tex);
         glGetTexImage(GL_TEXTURE_2D, 0, GL_RGBA, GL_UNSIGNED_BYTE, out);
         return true;
+#else
+        return false; /* TODO: do we need saving on web? */
+#endif
     }
 
 #elif defined(HELLOIMGUI_HAS_METAL)
