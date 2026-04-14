@@ -99,7 +99,7 @@ jobs:
         zip -r shoecomp-emscripten.zip shoecomp-emscripten/
 
     - name: Upload emscripten build
-      uses: softprops/action-gh-release@v2
+      uses: actions/upload-artifact@v4
       with:
-        prerelease: true
-        files: shoecomp-emscripten.zip
+        name: shoecomp-emscripten
+        path: shoecomp-emscripten
