@@ -123,6 +123,8 @@ if (NOT EMSCRIPTEN)
         third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
     set_target_properties(binary_to_compressed_c PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    set(B2CC_TOOL $<TARGET_FILE:binary_to_compressed_c>)
+    set(B2CC_DEP  binary_to_compressed_c)
 else()
     # Build a native host tool even when cross-compiling for Emscripten
     find_program(HOST_CXX NAMES c++ g++ clang++)
@@ -142,13 +144,9 @@ else()
         COMMENT "Building native binary_to_compressed_c"
         VERBATIM
     )
-    add_custom_target(binary_to_compressed_c_build
-        DEPENDS ${_B2CC_BIN})
-    add_executable(binary_to_compressed_c IMPORTED GLOBAL)
-    set_target_properties(binary_to_compressed_c PROPERTIES
-        IMPORTED_LOCATION ${_B2CC_BIN})
-    add_dependencies(binary_to_compressed_c
-        binary_to_compressed_c_build)
+    add_custom_target(binary_to_compressed_c DEPENDS ${_B2CC_BIN})
+    set(B2CC_TOOL ${_B2CC_BIN})
+    set(B2CC_DEP  binary_to_compressed_c)
 endif()
 
 set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
@@ -172,13 +170,13 @@ foreach(spec IN LISTS SC_ASSET_SPECS)
     add_custom_command(
         OUTPUT ${out_c}
         COMMAND ${CMAKE_COMMAND}
-                -DTOOL=$<TARGET_FILE:binary_to_compressed_c>
+                -DTOOL=${B2CC_TOOL}
                 -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
                 -DSYMBOL=${sym}
                 -DOUTPUT=${out_c}
                 -DMODE=${mode}
                 -P ${SC_ASSET_SCRIPT}
-        DEPENDS binary_to_compressed_c
+        DEPENDS ${B2CC_DEP}
                 ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
                 ${SC_ASSET_SCRIPT}
         VERBATIM
