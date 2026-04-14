@@ -124,18 +124,31 @@ if (NOT EMSCRIPTEN)
     set_target_properties(binary_to_compressed_c PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 else()
-    # Optional: Force build a native tool first
-    ExternalProject_Add(binary_to_compressed_c
-        SOURCE_DIR ${CMAKE_CURRENT_SOURCE_DIR}
-        BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c
-        CMAKE_ARGS -DCMAKE_C_COMPILER=gcc -DCMAKE_CXX_COMPILER=g++
-        CONFIGURE_COMMAND ""
-        BUILD_COMMAND ${CMAKE_CXX_COMPILER} 
-                  "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp" 
-                  -o "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c"
-        INSTALL_COMMAND ""
-        BUILD_BYPRODUCTS <BINARY_DIR>/binary_to_compressed_c
+    # Build a native host tool even when cross-compiling for Emscripten
+    find_program(HOST_CXX NAMES c++ g++ clang++)
+    if(NOT HOST_CXX)
+        message(FATAL_ERROR
+            "No native C++ compiler found for host tool build. "
+            "Set HOST_CXX to a native compiler path.")
+    endif()
+    set(_B2CC_SRC
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp")
+    set(_B2CC_BIN
+        "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c")
+    add_custom_command(
+        OUTPUT  ${_B2CC_BIN}
+        COMMAND ${HOST_CXX} ${_B2CC_SRC} -o ${_B2CC_BIN}
+        DEPENDS ${_B2CC_SRC}
+        COMMENT "Building native binary_to_compressed_c"
+        VERBATIM
     )
+    add_custom_target(binary_to_compressed_c_build
+        DEPENDS ${_B2CC_BIN})
+    add_executable(binary_to_compressed_c IMPORTED GLOBAL)
+    set_target_properties(binary_to_compressed_c PROPERTIES
+        IMPORTED_LOCATION ${_B2CC_BIN})
+    add_dependencies(binary_to_compressed_c
+        binary_to_compressed_c_build)
 endif()
 
 set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
