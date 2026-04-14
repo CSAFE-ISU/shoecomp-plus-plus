@@ -95,7 +95,7 @@ jobs:
         emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release \
           -DCMAKE_C_FLAGS="-pthread" \
           -DCMAKE_CXX_FLAGS="-pthread" \
-          -DCMAKE_EXE_LINKER_FLAGS="-pthread -sPROXY_TO_PTHREAD"
+          -DCMAKE_EXE_LINKER_FLAGS="-pthread -sPROXY_TO_PTHREAD -sUSE_WEBGL2=1 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2"
         cmake --build build-emscripten
 
     - name: Stage emscripten build
