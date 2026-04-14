@@ -7,7 +7,7 @@ on:
 
 jobs:
   build:
-    name: "Release Internal"
+    name: "Internal Build"
     runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
@@ -64,3 +64,42 @@ jobs:
       with:
         name: shoecomp-${{ matrix.platform }}
         path: staging
+
+  build-emscripten:
+    name: "Internal Build (Emscripten)"
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+        fetch-depth: 0
+
+    - name: Install emscripten
+      run: ./third_party/hello_imgui/tools/emscripten/install_emscripten.sh
+
+    - name: Build with emscripten
+      run: |
+        source ~/emsdk/emsdk_env.sh
+        emcmake cmake -S . -B build-emscripten -DCMAKE_BUILD_TYPE=Release \
+          -DCMAKE_C_FLAGS="-pthread" \
+          -DCMAKE_CXX_FLAGS="-pthread" \
+          -DCMAKE_EXE_LINKER_FLAGS="-pthread -sPROXY_TO_PTHREAD -sUSE_WEBGL2=1 -sMIN_WEBGL_VERSION=2 -sMAX_WEBGL_VERSION=2"
+        cmake --build build-emscripten
+
+    - name: Stage emscripten build
+      run: |
+        mkdir -p shoecomp-emscripten
+        cp build-emscripten/shoecomp.html shoecomp-emscripten/
+        cp build-emscripten/shoecomp.js shoecomp-emscripten/
+        cp build-emscripten/shoecomp.wasm shoecomp-emscripten/
+        for f in build-emscripten/shoecomp.data build-emscripten/shoecomp.worker.js; do
+          [ -f "$f" ] && cp "$f" shoecomp-emscripten/
+        done
+        zip -r shoecomp-emscripten.zip shoecomp-emscripten/
+
+    - name: Upload emscripten build
+      uses: softprops/action-gh-release@v2
+      with:
+        prerelease: true
+        files: shoecomp-emscripten.zip
