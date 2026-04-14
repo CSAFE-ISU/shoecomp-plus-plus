@@ -93,7 +93,16 @@ namespace shoecomp
                            float, ImVec2, float);
     void renderLockedCursorIndicators(const AppState&,
                                       const SettingsState&);
-
+    //
+    void renderAbout(AppState& state);
+    void renderImageComparison(AppState& state);
+    void renderSingleViewer(AppState& state, int& selectedIdx,
+                            int otherIdx, ImageCanvas& viewer,
+                            const char* label);
+    void renderLockToggle(bool& locked);
+    void renderImageGallery(AppState& state);
+    void renderFilesAndSettings(AppState& state);
+    void renderSettings(AppState& state);
     //
     void submain(void);
 } /* namespace shoecomp */

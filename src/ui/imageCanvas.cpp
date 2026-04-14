@@ -139,8 +139,8 @@ namespace shoecomp
         while (t < len)
         {
             float t1 = std::min(t + dashLen, len);
-            dl->AddLine(p0 + nd * t, p0 + nd * t1,
-                        IM_COL32(50, 255, 50, 120), 1.5f);
+            dl->AddLine(p0 + nd * t, p0 + nd * t1, kColorBoundsEditDash,
+                        1.5f);
             t = t1 + gapLen;
         }
     }
@@ -269,7 +269,7 @@ namespace shoecomp
         frame.push_back(cBR);
         frame.push_back(cBL);
         dl->AddConcavePolyFilled(frame.data(), (int)frame.size(),
-                                 IM_COL32(0, 0, 0, 120));
+                                 kColorBoundsDimOverlay);
     }
 
     void ImageCanvas::renderAnnotations(ImDrawList* dl, float cx,
@@ -299,23 +299,16 @@ namespace shoecomp
                 if (pType == PointType::Center)
                 {
                     ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                        ImVec4(g_annotationStyle.centerColor[0],
-                               g_annotationStyle.centerColor[1],
-                               g_annotationStyle.centerColor[2],
-                               g_annotationStyle.centerColor[3]));
+                        g_annotationStyle.centerColor);
                     dl->AddCircleFilled(
                         sp, g_annotationStyle.pointRadius, cCol);
                     dl->AddCircle(sp, g_annotationStyle.pointRadius,
-                                  IM_COL32(255, 255, 255, 200), 12,
-                                  1.5f);
+                                  kColorPointOutline, 12, 1.5f);
                 }
                 else
                 {
                     ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                        ImVec4(g_annotationStyle.cornerColor[0],
-                               g_annotationStyle.cornerColor[1],
-                               g_annotationStyle.cornerColor[2],
-                               g_annotationStyle.cornerColor[3]));
+                        g_annotationStyle.cornerColor);
                     float d = g_annotationStyle.pointRadius;
                     ImVec2 top(sp.x, sp.y - d);
                     ImVec2 right(sp.x + d, sp.y);
@@ -323,8 +316,7 @@ namespace shoecomp
                     ImVec2 left(sp.x - d, sp.y);
                     ImVec2 diamond[4] = {top, right, bot, left};
                     dl->AddConvexPolyFilled(diamond, 4, cCol);
-                    dl->AddPolyline(diamond, 4,
-                                    IM_COL32(255, 255, 255, 200),
+                    dl->AddPolyline(diamond, 4, kColorPointOutline,
                                     ImDrawFlags_Closed, 1.5f);
                 }
             }
@@ -334,10 +326,7 @@ namespace shoecomp
             auto& bnd = image->annotations["bounds"].getArray();
             bool editing = (mode == AnnotationMode::AddBounds);
             ImU32 bndCol = ImGui::ColorConvertFloat4ToU32(
-                ImVec4(g_annotationStyle.boundsColor[0],
-                       g_annotationStyle.boundsColor[1],
-                       g_annotationStyle.boundsColor[2],
-                       g_annotationStyle.boundsColor[3]));
+                g_annotationStyle.boundsColor);
             if (bnd.size() >= 2)
             {
                 for (size_t i = 0; i + 1 < bnd.size(); ++i)
@@ -564,7 +553,7 @@ namespace shoecomp
         ImVec2 bl = getRotatedVec2(c, viewState.rotation, -hw, hh);
         dl->AddImageQuad(image->textureId, tl, tr, br, bl, ImVec2(0, 0),
                          ImVec2(1, 0), ImVec2(1, 1), ImVec2(0, 1));
-        dl->AddQuad(tl, tr, br, bl, IM_COL32(180, 180, 180, 200));
+        dl->AddQuad(tl, tr, br, bl, kColorImageQuadOutline);
 
         // Dim area outside bounds when not editing
         float annScale = baseScale * viewState.zoom;
@@ -587,8 +576,8 @@ namespace shoecomp
         // Scrollbars
         float barThick = 8.0f;
         float barPad = 2.0f;
-        ImU32 barCol = IM_COL32(200, 200, 200, 100);
-        ImU32 barColHov = IM_COL32(200, 200, 200, 180);
+        ImU32 barCol = kColorScrollbar;
+        ImU32 barColHov = kColorScrollbarHover;
         renderScrollbar(dl, false, disp.x, avail.x, lim.x,
                         viewState.pan.x, viewState.panTarget.x,
                         canvasPos, avail, io, barThick, barPad, barCol,
@@ -652,15 +641,14 @@ namespace shoecomp
         }
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
-        ImU32 ringCol = dialHov || dialAct
-                            ? IM_COL32(200, 200, 200, 255)
-                            : IM_COL32(150, 150, 150, 200);
+        ImU32 ringCol =
+            dialHov || dialAct ? kColorDialRingHover : kColorDialRing;
         dl->AddCircle(dialCenter, dialR, ringCol, 24, 2.0f);
 
         ImVec2 ind =
             dialCenter + (direction(viewState.rotation) * dialR);
-        dl->AddLine(dialCenter, ind, IM_COL32(255, 180, 50, 255), 2.0f);
-        dl->AddCircleFilled(ind, 3.0f, IM_COL32(255, 180, 50, 255));
+        dl->AddLine(dialCenter, ind, kColorDialIndicator, 2.0f);
+        dl->AddCircleFilled(ind, 3.0f, kColorDialIndicator);
 
         ImGui::SameLine();
         float degs = viewState.rotationTarget / kDegToRad;

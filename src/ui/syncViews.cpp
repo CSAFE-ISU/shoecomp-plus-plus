@@ -1,4 +1,5 @@
 #include "ui/mainWindow.h"
+#include "ui/uiHelpers.h"
 
 namespace shoecomp
 {
@@ -173,32 +174,24 @@ namespace shoecomp
     {
         // Visual constants (from settings)
         const float primaryRadius = settings.cursorRadius;
-        const ImU32 primaryFill = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(settings.cursorColor[0], settings.cursorColor[1],
-                   settings.cursorColor[2], settings.cursorColor[3]));
-        const ImU32 primaryOutline = IM_COL32(255, 255, 255, 255);
+        const ImU32 primaryFill =
+            ImGui::ColorConvertFloat4ToU32(settings.cursorColor);
+        const ImU32 primaryOutline = kColorCursorOutline;
         const float secondaryRadius = settings.correspondingRadius;
-        const ImU32 correspondingColor = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(settings.correspondingColor[0],
-                   settings.correspondingColor[1],
-                   settings.correspondingColor[2],
-                   settings.correspondingColor[3]));
+        const ImU32 correspondingColor =
+            ImGui::ColorConvertFloat4ToU32(settings.correspondingColor);
         const float hoverThreshold = settings.hoverThreshold;
 
         // Transformed cursor indicator constants
         const float transformedRadius = settings.cursorRadius;
-        const ImU32 transformedFill = ImGui::ColorConvertFloat4ToU32(
-            ImVec4(settings.transformedColor[0],
-                   settings.transformedColor[1],
-                   settings.transformedColor[2],
-                   settings.transformedColor[3]));
-        const ImU32 transformedOutline =
-            IM_COL32(255, 255, 255, 255);  // White
+        const ImU32 transformedFill =
+            ImGui::ColorConvertFloat4ToU32(settings.transformedColor);
+        const ImU32 transformedOutline = kColorCursorOutline;  // White
         const ImU32 transformedTextColor =
             ImGui::ColorConvertFloat4ToU32(
-                ImVec4(settings.transformedColor[0],
-                       settings.transformedColor[1],
-                       settings.transformedColor[2], 1.0f));
+                ImVec4(settings.transformedColor.x,
+                       settings.transformedColor.y,
+                       settings.transformedColor.z, 1.0f));
 
         ImGuiIO& io = ImGui::GetIO();
         ImDrawList* dl = ImGui::GetForegroundDrawList();

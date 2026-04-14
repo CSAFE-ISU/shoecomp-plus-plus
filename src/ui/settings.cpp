@@ -171,10 +171,7 @@ namespace shoecomp
             ImGuiTheme::ApplyTheme(ImGuiTheme::ImGuiTheme_MaterialFlat);
             applyShoeCompDark();
         }
-        else
-        {
-            ImGuiTheme::ApplyTheme(themeMap[idx]);
-        }
+        else { ImGuiTheme::ApplyTheme(themeMap[idx]); }
         applyModernStyling();
     }
 
@@ -239,11 +236,11 @@ namespace shoecomp
 
                 settingsTableRow("Corner Color");
                 ImGui::ColorEdit4("##CornerColor",
-                                  g_annotationStyle.cornerColor);
+                                  &g_annotationStyle.cornerColor.x);
 
                 settingsTableRow("Center Color");
                 ImGui::ColorEdit4("##CenterColor",
-                                  g_annotationStyle.centerColor);
+                                  &g_annotationStyle.centerColor.x);
 
                 settingsTableRow("Bounds Thickness");
                 ImGui::SliderFloat(
@@ -253,7 +250,7 @@ namespace shoecomp
 
                 settingsTableRow("Bounds Color");
                 ImGui::ColorEdit4("##BoundsColor",
-                                  g_annotationStyle.boundsColor);
+                                  &g_annotationStyle.boundsColor.x);
 
                 ImGui::EndTable();
             }
@@ -279,11 +276,11 @@ namespace shoecomp
                                    2.0f, 20.0f, "%.1f");
 
                 settingsTableRow("Cursor Color");
-                ImGui::ColorEdit4("##CursorColor", s.cursorColor);
+                ImGui::ColorEdit4("##CursorColor", &s.cursorColor.x);
 
                 settingsTableRow("Transformed Cursor Color");
                 ImGui::ColorEdit4("##TransformedColor",
-                                  s.transformedColor);
+                                  &s.transformedColor.x);
 
                 settingsTableRow("Corresponding Radius");
                 ImGui::SliderFloat("##CorrespondingRadius",
@@ -292,7 +289,7 @@ namespace shoecomp
 
                 settingsTableRow("Corresponding Color");
                 ImGui::ColorEdit4("##CorrespondingColor",
-                                  s.correspondingColor);
+                                  &s.correspondingColor.x);
 
                 settingsTableRow("Hover Threshold (px)");
                 ImGui::SliderFloat("##HoverThreshold",
@@ -301,7 +298,7 @@ namespace shoecomp
 
                 settingsTableRow("Active Image Color");
                 ImGui::ColorEdit4("##ActiveImageColor",
-                                  s.activeImageColor);
+                                  &s.activeImageColor.x);
 
                 ImGui::EndTable();
             }
@@ -339,10 +336,10 @@ namespace shoecomp
             if (sscanf(line, "activeImageColor=%f,%f,%f,%f", &a, &b, &c,
                        &d) == 4)
             {
-                s->activeImageColor[0] = a;
-                s->activeImageColor[1] = b;
-                s->activeImageColor[2] = c;
-                s->activeImageColor[3] = d;
+                s->activeImageColor.x = a;
+                s->activeImageColor.y = b;
+                s->activeImageColor.z = c;
+                s->activeImageColor.w = d;
             }
         }
     }
@@ -361,8 +358,8 @@ namespace shoecomp
                      s->correspondingRadius);
         buf->appendf("hoverThreshold=%.4f\n", s->hoverThreshold);
         buf->appendf("activeImageColor=%.4f,%.4f,%.4f,%.4f\n",
-                     s->activeImageColor[0], s->activeImageColor[1],
-                     s->activeImageColor[2], s->activeImageColor[3]);
+                     s->activeImageColor.x, s->activeImageColor.y,
+                     s->activeImageColor.z, s->activeImageColor.w);
         buf->append("\n");
     }
 

@@ -98,6 +98,10 @@ set(SC_SRCS
     src/ui/imageCanvas.cpp
     src/ui/uiHelpers.cpp
     src/ui/settings.cpp
+    src/ui/tabImageViewer.cpp
+    src/ui/tabImageComparison.cpp
+    src/ui/tabSettings.cpp
+    src/ui/tabAbout.cpp
     src/ui/errorPopup.cpp
     src/ui/loadBrowser.cpp
     src/ui/saveBrowser.cpp

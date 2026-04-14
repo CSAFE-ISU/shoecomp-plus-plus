@@ -58,6 +58,31 @@ namespace shoecomp
     static constexpr float kSplashProgressOffsetY = 0.5f;
     static constexpr float kSplashStepTextOffsetY = 1.0f;
 
+    // Annotation/drawing colors
+    static const ImU32 kColorBoundsEditDash =
+        IM_COL32(50, 255, 50, 120);
+    static const ImU32 kColorBoundsDimOverlay = IM_COL32(0, 0, 0, 120);
+    static const ImU32 kColorPointOutline =
+        IM_COL32(255, 255, 255, 200);
+    static const ImU32 kColorImageQuadOutline =
+        IM_COL32(180, 180, 180, 200);
+
+    // Scrollbar colors
+    static const ImU32 kColorScrollbar = IM_COL32(200, 200, 200, 100);
+    static const ImU32 kColorScrollbarHover =
+        IM_COL32(200, 200, 200, 180);
+
+    // Rotation dial colors
+    static const ImU32 kColorDialRing = IM_COL32(150, 150, 150, 200);
+    static const ImU32 kColorDialRingHover =
+        IM_COL32(200, 200, 200, 255);
+    static const ImU32 kColorDialIndicator =
+        IM_COL32(255, 180, 50, 255);
+
+    // Cursor indicator outlines
+    static const ImU32 kColorCursorOutline =
+        IM_COL32(255, 255, 255, 255);
+
     // Opens a sized/positioned modal popup triggered by a
     // show-then-hide flag. Returns false if popup isn't
     // open (caller should return). Caller still calls

@@ -90,10 +90,10 @@ namespace shoecomp
     struct AnnotationStyle
     {
         float pointRadius = 5.0f;
-        float cornerColor[4] = {1.0f, 0.2f, 0.2f, 0.86f};
-        float centerColor[4] = {0.2f, 0.39f, 1.0f, 0.86f};
+        ImVec4 cornerColor = ImVec4(1.0f, 0.2f, 0.2f, 0.86f);
+        ImVec4 centerColor = ImVec4(0.2f, 0.39f, 1.0f, 0.86f);
         float boundsLineThickness = 2.0f;
-        float boundsColor[4] = {0.2f, 1.0f, 0.2f, 0.86f};
+        ImVec4 boundsColor = ImVec4(0.2f, 1.0f, 0.2f, 0.86f);
     };
 
     extern AnnotationStyle g_annotationStyle;
