@@ -36,7 +36,7 @@ jobs:
 
     - name: Add coi-serviceworker for COOP/COEP headers
       run: |
-        curl -fsSL https://raw.githubusercontent.com/nicbarker/coi-serviceworker/main/coi-serviceworker.min.js \
+        curl -fsSL https://raw.githubusercontent.com/gzuidhof/coi-serviceworker/refs/heads/master/coi-serviceworker.min.js \
           -o coi-serviceworker.js
         sed -i '/<head>/a\    <script src="coi-serviceworker.js"></script>' index.html
 
