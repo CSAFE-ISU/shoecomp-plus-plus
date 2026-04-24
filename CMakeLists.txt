@@ -102,6 +102,7 @@ set(SC_SRCS
     src/ui/tabImageComparison.cpp
     src/ui/tabSettings.cpp
     src/ui/tabAbout.cpp
+    src/ui/licenseData.cpp
     src/ui/errorPopup.cpp
     src/ui/loadBrowser.cpp
     src/ui/saveBrowser.cpp
@@ -161,6 +162,17 @@ set(SC_ASSET_SPECS
     "assets/fonts/Montserrat-SemiBold.ttf|MontserratSemiBold|compress"
     "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
     "assets/fonts/icon.png|ShoeCompIcon|raw"
+    "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
+    "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"
+    "third_party/aligncalc/eigen/COPYING.MPL2|LicEigen|raw"
+    "third_party/freetype/docs/FTL.TXT|LicFreetype|raw"
+    "third_party/jtjson/LICENSE|LicJsonCpp|raw"
+    "third_party/libpng/LICENSE|LicLibpng|raw"
+    "third_party/zlib/LICENSE|LicZlib|raw"
+    "third_party/libjpeg-turbo/LICENSE.md|LicLibjpegTurbo|raw"
+    "third_party/jtjson/double-conversion/LICENSE|LicDoubleConversion|raw"
+    "assets/fonts/Inconsolata-OFL.txt|LicInconsolata|raw"
+    "assets/fonts/Montserrat-OFL.txt|LicMontserrat|raw"
 )
 set(SC_ASSET_SCRIPT
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
@@ -187,6 +199,7 @@ foreach(spec IN LISTS SC_ASSET_SPECS)
     )
     list(APPEND SC_GENERATED_ASSET_SRCS ${out_c})
 endforeach()
+
 list(APPEND SC_SRCS ${SC_GENERATED_ASSET_SRCS})
 
 hello_imgui_add_app(shoecomp ${SC_SRCS})

@@ -1,27 +1,129 @@
 #include "ui/mainWindow.h"
-#include "hello_imgui/hello_imgui.h"
+#include "ui/licenseData.h"
+#include "imgui.h"
 
 namespace shoecomp
 {
     void renderAbout(AppState& state)
     {
-        static std::string aboutText;
-        if (aboutText.empty())
+        static int popupIdx = -1;
+        static std::string popupText;
+
+        const auto& licenses = getLicenses();
+
+        if (state.boldFont) ImGui::PushFont(state.boldFont);
+        ImGui::Text("ShoeComp");
+        if (state.boldFont) ImGui::PopFont();
+
+        ImGui::Spacing();
+        ImGui::Text("Third-party licenses:");
+        ImGui::Spacing();
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImGui::BeginChild("##licenseList", ImVec2(avail.x, avail.y),
+                          ImGuiChildFlags_None,
+                          ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+        for (int i = 0; i < (int)licenses.size(); ++i)
         {
-            auto data = HelloImGui::LoadAssetFileData("about.txt");
-            if (data.data)
+            const auto& lic = licenses[i];
+            ImGui::PushID(i);
+
+            float cardW = ImGui::GetContentRegionAvail().x;
+            float cardH = ImGui::GetTextLineHeight() * 3.0f +
+                          ImGui::GetStyle().FramePadding.y * 4.0f;
+
+            ImGui::PushStyleColor(
+                ImGuiCol_ChildBg,
+                ImGui::GetStyleColorVec4(ImGuiCol_FrameBg));
+            ImGui::BeginChild("##card", ImVec2(cardW, cardH),
+                              ImGuiChildFlags_Borders);
+
+            if (state.boldFont) ImGui::PushFont(state.boldFont);
+            ImGui::Text("%s", lic.name);
+            if (state.boldFont) ImGui::PopFont();
+
+            if (lic.version[0] != '\0')
             {
-                aboutText.assign((const char*)data.data, data.dataSize);
-                HelloImGui::FreeAssetFileData(&data);
+                ImGui::SameLine();
+                ImGui::TextDisabled("v%s", lic.version);
+            }
+
+            ImGui::TextDisabled("%s", lic.licenseType);
+
+            ImGui::EndChild();
+            ImGui::PopStyleColor();
+
+            if (ImGui::IsItemClicked())
+            {
+                popupIdx = i;
+                popupText.assign(
+                    reinterpret_cast<const char*>(lic.data), lic.size);
+                ImGui::OpenPopup("##licensePopup");
+            }
+
+            if (ImGui::IsItemHovered())
+            {
+                ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
+            }
+
+            ImGui::Spacing();
+            ImGui::PopID();
+        }
+
+        if (popupIdx >= 0 && popupIdx < (int)licenses.size())
+        {
+            ImVec2 center = ImGui::GetMainViewport()->GetCenter();
+            ImGui::SetNextWindowPos(center, ImGuiCond_Appearing,
+                                    ImVec2(0.5f, 0.5f));
+            ImVec2 displaySize = ImGui::GetMainViewport()->Size;
+            ImGui::SetNextWindowSize(
+                ImVec2(displaySize.x * 0.7f, displaySize.y * 0.7f),
+                ImGuiCond_Appearing);
+
+            const auto& lic = licenses[popupIdx];
+            if (ImGui::BeginPopupModal(
+                    "##licensePopup", nullptr,
+                    ImGuiWindowFlags_NoSavedSettings))
+            {
+                if (state.boldFont) ImGui::PushFont(state.boldFont);
+                ImGui::Text("%s", lic.name);
+                if (state.boldFont) ImGui::PopFont();
+
+                if (lic.version[0] != '\0')
+                {
+                    ImGui::SameLine();
+                    ImGui::TextDisabled("v%s", lic.version);
+                }
+
+                ImGui::TextDisabled("%s", lic.licenseType);
+                if (lic.url[0] != '\0')
+                {
+                    ImGui::TextDisabled("%s", lic.url);
+                }
+
+                ImGui::Separator();
+
+                ImVec2 textAvail = ImGui::GetContentRegionAvail();
+                textAvail.y -= ImGui::GetFrameHeightWithSpacing();
+
+                if (state.monoFont) ImGui::PushFont(state.monoFont);
+                ImGui::InputTextMultiline(
+                    "##licText", const_cast<char*>(popupText.c_str()),
+                    popupText.size() + 1, textAvail,
+                    ImGuiInputTextFlags_ReadOnly);
+                if (state.monoFont) ImGui::PopFont();
+
+                if (ImGui::Button("Close"))
+                {
+                    popupIdx = -1;
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
             }
         }
 
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        if (state.monoFont) ImGui::PushFont(state.monoFont);
-        ImGui::InputTextMultiline(
-            "##about", const_cast<char*>(aboutText.c_str()),
-            aboutText.size() + 1, avail, ImGuiInputTextFlags_ReadOnly);
-        if (state.monoFont) ImGui::PopFont();
+        ImGui::EndChild();
     }
 
 }  // namespace shoecomp
