@@ -83,6 +83,9 @@ namespace shoecomp
 
         // App-wide settings
         SettingsState settings;
+
+        // Preloaded license texts (filled during splash)
+        std::vector<std::string> licenseTexts;
     };
 
     void applyAlignment(ImageCanvas&, ImageCanvas&,  //

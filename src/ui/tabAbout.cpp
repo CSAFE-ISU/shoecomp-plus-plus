@@ -7,7 +7,6 @@ namespace shoecomp
     void renderAbout(AppState& state)
     {
         static int popupIdx = -1;
-        static std::string popupText;
 
         const auto& licenses = getLicenses();
 
@@ -54,12 +53,7 @@ namespace shoecomp
             ImGui::EndChild();
             ImGui::PopStyleColor();
 
-            if (ImGui::IsItemClicked())
-            {
-                popupIdx = i;
-                popupText.assign(
-                    reinterpret_cast<const char*>(lic.data), lic.size);
-            }
+            if (ImGui::IsItemClicked()) { popupIdx = i; }
 
             if (ImGui::IsItemHovered())
             {
@@ -70,7 +64,8 @@ namespace shoecomp
             ImGui::PopID();
         }
 
-        if (popupIdx >= 0 && popupIdx < (int)licenses.size())
+        if (popupIdx >= 0 && popupIdx < (int)licenses.size() &&
+            popupIdx < (int)state.licenseTexts.size())
         {
             ImGui::OpenPopup("##licensePopup");
             ImVec2 center = ImGui::GetMainViewport()->GetCenter();
@@ -82,6 +77,7 @@ namespace shoecomp
                 ImGuiCond_Appearing);
 
             const auto& lic = licenses[popupIdx];
+            auto& text = state.licenseTexts[popupIdx];
             if (ImGui::BeginPopupModal(
                     "##licensePopup", nullptr,
                     ImGuiWindowFlags_NoSavedSettings))
@@ -109,8 +105,8 @@ namespace shoecomp
 
                 if (state.monoFont) ImGui::PushFont(state.monoFont);
                 ImGui::InputTextMultiline(
-                    "##licText", const_cast<char*>(popupText.c_str()),
-                    popupText.size() + 1, textAvail,
+                    "##licText", const_cast<char*>(text.c_str()),
+                    text.size() + 1, textAvail,
                     ImGuiInputTextFlags_ReadOnly);
                 if (state.monoFont) ImGui::PopFont();
 

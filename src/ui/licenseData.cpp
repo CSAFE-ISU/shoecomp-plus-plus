@@ -1,5 +1,7 @@
 #include "ui/licenseData.h"
 #include "ui/embeddedAssets.h"
+#include "aligncalc/workerChannel.h"
+#include <cstdio>
 
 namespace shoecomp
 {
@@ -48,6 +50,36 @@ namespace shoecomp
         };
         // clang-format on
         return entries;
+    }
+
+    std::vector<std::string> preloadLicenseTexts(WorkerChannel& channel)
+    {
+        const auto& entries = getLicenses();
+        int n = (int)entries.size();
+        std::vector<std::string> texts;
+        texts.reserve(n);
+
+        channel.is_running.store(true);
+
+        for (int i = 0; i < n; ++i)
+        {
+            if (channel.should_cancel())
+            {
+                channel.cancelled();
+                return texts;
+            }
+            const auto& e = entries[i];
+            texts.emplace_back(reinterpret_cast<const char*>(e.data),
+                               e.size);
+
+            float p = (float)(i + 1) / (float)n;
+            char msg[120];
+            snprintf(msg, sizeof(msg), "Loading %s", e.name);
+            channel.report(p, msg);
+        }
+
+        channel.done();
+        return texts;
     }
 
 }  // namespace shoecomp

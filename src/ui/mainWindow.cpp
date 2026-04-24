@@ -401,10 +401,11 @@ namespace shoecomp
 
     void submain(void)
     {
-        SplashResult splashResult = runSplash(1.0, 5);
+        SplashResult splashResult = runSplash(1.0);
         if (splashResult.cancelled) return;
 
         AppState state;
+        state.licenseTexts = std::move(splashResult.licenseTexts);
 
         state.imageSaveError.title = "Image Save Error";
         state.annotationError.title = "Annotation Error";

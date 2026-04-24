@@ -1,16 +1,19 @@
 #include "ui/splash.h"
 #include "ui/settings.h"
 #include "ui/uiHelpers.h"
+#include "ui/licenseData.h"
 #include "hello_imgui/hello_imgui.h"
 #include "hello_imgui/imgui_theme.h"
 #include "formats/png.h"
 #include "ui/embeddedAssets.h"
+#include "aligncalc/workerChannel.h"
 #include "imgui.h"
 #include "stb_image.h"
+#include <thread>
 
 namespace shoecomp
 {
-    SplashResult runSplash(double duration, int progressSteps)
+    SplashResult runSplash(double duration)
     {
         SplashResult result;
         double startTime = 0.0;
@@ -19,6 +22,12 @@ namespace shoecomp
         ImTextureID iconTexture = 0;
         int iconWidth = 0;
         int iconHeight = 0;
+
+        WorkerChannel channel;
+        std::vector<std::string> loadedTexts;
+        std::thread worker(
+            [&channel, &loadedTexts]()
+            { loadedTexts = preloadLicenseTexts(channel); });
 
         HelloImGui::RunnerParams params;
         params.appWindowParams.windowTitle = "shoecomp";
@@ -71,6 +80,17 @@ namespace shoecomp
 
             double elapsed = ImGui::GetTime() - startTime;
 
+            // Drain channel messages (non-blocking)
+            std::string stepLabel;
+            while (auto msg = channel.messages.pop())
+            {
+                if (msg->kind == MsgKind::Progress ||
+                    msg->kind == MsgKind::Log)
+                {
+                    stepLabel = msg->text;
+                }
+            }
+
             ImVec2 winSize = ImGui::GetWindowSize();
             // Get base font size (before global scale is applied)
             float fontSize =
@@ -81,6 +101,7 @@ namespace shoecomp
                 HelloImGui::GetRunnerParams()->appShallExit)
             {
                 result.cancelled = true;
+                channel.cancel_requested.store(true);
                 HelloImGui::GetRunnerParams()->appShallExit = true;
             }
 
@@ -111,6 +132,7 @@ namespace shoecomp
                               ImVec2(buttonSize, buttonSize * 1.25f)))
             {
                 result.cancelled = true;
+                channel.cancel_requested.store(true);
                 HelloImGui::GetRunnerParams()->appShallExit = true;
             }
 
@@ -151,11 +173,12 @@ namespace shoecomp
             ImGui::Text("%s", title);
             if (titleFont) ImGui::PopFont();
 
-            // Progress bar - left aligned with title
-            float progress = (float)(elapsed / duration);
-            int currentStep = (int)(progress * progressSteps);
-            if (currentStep > progressSteps)
-                currentStep = progressSteps;
+            // Progress bar driven by worker + elapsed time
+            float workerProgress =
+                channel.progress.load(std::memory_order_relaxed);
+            float timeProgress = (float)(elapsed / duration);
+            float progress =
+                std::min(std::max(workerProgress, timeProgress), 1.0f);
 
             float progressBarHeight = fontSize * kSplashProgressHeight;
 
@@ -172,23 +195,28 @@ namespace shoecomp
             ImGui::PopItemWidth();
             ImGui::PopStyleColor(2);
 
-            // Step text below progress bar - left aligned
-            char stepText[32];
-            snprintf(stepText, sizeof(stepText), "Step %d/%d",
-                     currentStep, progressSteps);
-
+            // Step text below progress bar
             if (smallFont) ImGui::PushFont(smallFont);
             ImGui::SetCursorPos(
                 ImVec2(leftMargin + iconDisplaySize + iconSpacing,
                        centerY + fontSize * kSplashStepTextOffsetY));
-            ImGui::TextDisabled("%s", stepText);
+            if (!stepLabel.empty())
+                ImGui::TextDisabled("%s", stepLabel.c_str());
+            else
+                ImGui::TextDisabled("Starting...");
             if (smallFont) ImGui::PopFont();
 
-            if (elapsed >= duration)
+            // Exit once both the worker is done and minimum
+            // duration has elapsed
+            bool workerDone = !channel.is_running.load();
+            if (elapsed >= duration && workerDone)
                 HelloImGui::GetRunnerParams()->appShallExit = true;
         };
 
         HelloImGui::Run(params);
+
+        if (worker.joinable()) worker.join();
+        result.licenseTexts = std::move(loadedTexts);
 
         return result;
     }
