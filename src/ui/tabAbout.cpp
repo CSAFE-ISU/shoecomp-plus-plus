@@ -59,7 +59,6 @@ namespace shoecomp
                 popupIdx = i;
                 popupText.assign(
                     reinterpret_cast<const char*>(lic.data), lic.size);
-                ImGui::OpenPopup("##licensePopup");
             }
 
             if (ImGui::IsItemHovered())
@@ -73,6 +72,7 @@ namespace shoecomp
 
         if (popupIdx >= 0 && popupIdx < (int)licenses.size())
         {
+            ImGui::OpenPopup("##licensePopup");
             ImVec2 center = ImGui::GetMainViewport()->GetCenter();
             ImGui::SetNextWindowPos(center, ImGuiCond_Appearing,
                                     ImVec2(0.5f, 0.5f));
