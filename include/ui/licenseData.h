@@ -20,8 +20,10 @@ namespace shoecomp
 
     const std::vector<LicenseEntry>& getLicenses();
 
-    // Pre-convert all embedded license bytes to strings,
-    // reporting progress through the channel.
+    // Pre-convert all embedded license bytes to strings.
+    std::vector<std::string> preloadLicenseTexts();
+
+    // Overload that reports progress through a channel.
     std::vector<std::string> preloadLicenseTexts(
         WorkerChannel& channel);
 

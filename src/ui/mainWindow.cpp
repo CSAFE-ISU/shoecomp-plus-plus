@@ -3,6 +3,7 @@
 #include "ui/alignDialog.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
+#include "ui/licenseData.h"
 #include "ui/embeddedAssets.h"
 #include "formats/png.h"
 #include "formats/annotationIo.h"
@@ -401,11 +402,17 @@ namespace shoecomp
 
     void submain(void)
     {
+#ifndef __EMSCRIPTEN__
         SplashResult splashResult = runSplash(1.0);
         if (splashResult.cancelled) return;
+#endif
 
         AppState state;
+#ifndef __EMSCRIPTEN__
         state.licenseTexts = std::move(splashResult.licenseTexts);
+#else
+        state.licenseTexts = preloadLicenseTexts();
+#endif
 
         state.imageSaveError.title = "Image Save Error";
         state.annotationError.title = "Annotation Error";

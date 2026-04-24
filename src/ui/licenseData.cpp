@@ -52,6 +52,17 @@ namespace shoecomp
         return entries;
     }
 
+    std::vector<std::string> preloadLicenseTexts()
+    {
+        const auto& entries = getLicenses();
+        std::vector<std::string> texts;
+        texts.reserve(entries.size());
+        for (const auto& e : entries)
+            texts.emplace_back(reinterpret_cast<const char*>(e.data),
+                               e.size);
+        return texts;
+    }
+
     std::vector<std::string> preloadLicenseTexts(WorkerChannel& channel)
     {
         const auto& entries = getLicenses();
