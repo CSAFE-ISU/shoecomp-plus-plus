@@ -325,8 +325,12 @@ namespace shoecomp
                 pt.setObject();
                 pt["x"] = jt::Json(x);
                 pt["y"] = jt::Json(y);
-                pt["type"] = jt::Json(std::string("Corner"));
-                pt["EBTSType"] = jt::Json(std::string("minutia"));
+                std::string ptType = "Other";
+                if (mtype == "A")
+                    ptType = "RidgeEnding";
+                else if (mtype == "B")
+                    ptType = "Bifurcation";
+                pt["type"] = jt::Json(ptType);
                 pt["minutiaType"] = jt::Json(mtype);
                 pt["theta"] = jt::Json(theta);
                 points.getArray().push_back(std::move(pt));
@@ -362,8 +366,7 @@ namespace shoecomp
                 pt.setObject();
                 pt["x"] = jt::Json(x);
                 pt["y"] = jt::Json(y);
-                pt["type"] = jt::Json(std::string("Corner"));
-                pt["EBTSType"] = jt::Json(std::string("core"));
+                pt["type"] = jt::Json(std::string("Core"));
                 pt["direction"] = jt::Json(dir);
                 points.getArray().push_back(std::move(pt));
             }
@@ -398,8 +401,7 @@ namespace shoecomp
                 pt.setObject();
                 pt["x"] = jt::Json(x);
                 pt["y"] = jt::Json(y);
-                pt["type"] = jt::Json(std::string("Corner"));
-                pt["EBTSType"] = jt::Json(std::string("delta"));
+                pt["type"] = jt::Json(std::string("Delta"));
                 pt["deltaCode"] = jt::Json(deltaCode);
                 points.getArray().push_back(std::move(pt));
             }

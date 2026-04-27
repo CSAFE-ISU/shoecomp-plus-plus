@@ -81,7 +81,12 @@ namespace shoecomp
     enum class PointType : uint8_t
     {
         Corner = 0,
-        Center = 1
+        Center = 1,
+        RidgeEnding = 2,
+        Bifurcation = 3,
+        Other = 4,
+        Core = 5,
+        Delta = 6
     };
 
     const char* pointTypeToString(PointType t);
@@ -92,6 +97,11 @@ namespace shoecomp
         float pointRadius = 5.0f;
         ImVec4 cornerColor = ImVec4(1.0f, 0.2f, 0.2f, 0.86f);
         ImVec4 centerColor = ImVec4(0.2f, 0.39f, 1.0f, 0.86f);
+        ImVec4 ridgeEndingColor = ImVec4(1.0f, 0.85f, 0.0f, 0.86f);
+        ImVec4 bifurcationColor = ImVec4(1.0f, 0.55f, 0.0f, 0.86f);
+        ImVec4 otherColor = ImVec4(0.8f, 0.8f, 0.0f, 0.86f);
+        ImVec4 coreColor = ImVec4(0.0f, 0.85f, 0.85f, 0.86f);
+        ImVec4 deltaColor = ImVec4(0.85f, 0.0f, 0.85f, 0.86f);
         float boundsLineThickness = 2.0f;
         ImVec4 boundsColor = ImVec4(0.2f, 1.0f, 0.2f, 0.86f);
     };

@@ -12,6 +12,16 @@ namespace shoecomp
         {
             case PointType::Center:
                 return "Center";
+            case PointType::RidgeEnding:
+                return "RidgeEnding";
+            case PointType::Bifurcation:
+                return "Bifurcation";
+            case PointType::Other:
+                return "Other";
+            case PointType::Core:
+                return "Core";
+            case PointType::Delta:
+                return "Delta";
             case PointType::Corner:
             default:
                 return "Corner";
@@ -36,6 +46,11 @@ namespace shoecomp
     PointType stringToPointType(const std::string& s)
     {
         if (s == "Center") return PointType::Center;
+        if (s == "RidgeEnding") return PointType::RidgeEnding;
+        if (s == "Bifurcation") return PointType::Bifurcation;
+        if (s == "Other") return PointType::Other;
+        if (s == "Core") return PointType::Core;
+        if (s == "Delta") return PointType::Delta;
         return PointType::Corner;
     }
 
@@ -304,6 +319,44 @@ namespace shoecomp
                         sp, g_annotationStyle.pointRadius, cCol);
                     dl->AddCircle(sp, g_annotationStyle.pointRadius,
                                   kColorPointOutline, 12, 1.5f);
+                }
+                else if (pType == PointType::RidgeEnding ||
+                         pType == PointType::Bifurcation ||
+                         pType == PointType::Other)
+                {
+                    ImVec4 col =
+                        pType == PointType::RidgeEnding
+                            ? g_annotationStyle.ridgeEndingColor
+                        : pType == PointType::Bifurcation
+                            ? g_annotationStyle.bifurcationColor
+                            : g_annotationStyle.otherColor;
+                    ImU32 cCol = ImGui::ColorConvertFloat4ToU32(col);
+                    dl->AddCircleFilled(
+                        sp, g_annotationStyle.pointRadius, cCol);
+                    dl->AddCircle(sp, g_annotationStyle.pointRadius,
+                                  kColorPointOutline, 12, 1.5f);
+                }
+                else if (pType == PointType::Core)
+                {
+                    ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
+                        g_annotationStyle.coreColor);
+                    float r = g_annotationStyle.pointRadius;
+                    dl->AddCircleFilled(sp, r, cCol);
+                    dl->AddCircle(sp, r, kColorPointOutline, 12, 1.5f);
+                    dl->AddCircle(sp, r * 1.6f, cCol, 12, 1.5f);
+                }
+                else if (pType == PointType::Delta)
+                {
+                    ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
+                        g_annotationStyle.deltaColor);
+                    float d = g_annotationStyle.pointRadius;
+                    ImVec2 top(sp.x, sp.y - d);
+                    ImVec2 bl(sp.x - d, sp.y + d);
+                    ImVec2 br(sp.x + d, sp.y + d);
+                    ImVec2 tri[3] = {top, br, bl};
+                    dl->AddConvexPolyFilled(tri, 3, cCol);
+                    dl->AddPolyline(tri, 3, kColorPointOutline,
+                                    ImDrawFlags_Closed, 1.5f);
                 }
                 else
                 {
@@ -671,10 +724,12 @@ namespace shoecomp
 
         ImGui::SameLine();
         ImGui::BeginDisabled(!pointActive);
-        ImGui::SetNextItemWidth(ImGui::CalcTextSize("Corner__").x);
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize("RidgeEnding__").x);
         int cur = static_cast<int>(image->selectedPointType);
-        const char* items[] = {"Corner", "Center"};
-        if (ImGui::Combo("##ptType", &cur, items, 2))
+        const char* items[] = {"Corner",      "Center", "RidgeEnding",
+                               "Bifurcation", "Other",  "Core",
+                               "Delta"};
+        if (ImGui::Combo("##ptType", &cur, items, 7))
         {
             image->selectedPointType = static_cast<PointType>(cur);
         }

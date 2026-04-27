@@ -171,7 +171,10 @@ namespace shoecomp
             ImGuiTheme::ApplyTheme(ImGuiTheme::ImGuiTheme_MaterialFlat);
             applyShoeCompDark();
         }
-        else { ImGuiTheme::ApplyTheme(themeMap[idx]); }
+        else
+        {
+            ImGuiTheme::ApplyTheme(themeMap[idx]);
+        }
         applyModernStyling();
     }
 
@@ -241,6 +244,28 @@ namespace shoecomp
                 settingsTableRow("Center Color");
                 ImGui::ColorEdit4("##CenterColor",
                                   &g_annotationStyle.centerColor.x);
+
+                settingsTableRow("Ridge Ending Color");
+                ImGui::ColorEdit4(
+                    "##RidgeEndingColor",
+                    &g_annotationStyle.ridgeEndingColor.x);
+
+                settingsTableRow("Bifurcation Color");
+                ImGui::ColorEdit4(
+                    "##BifurcationColor",
+                    &g_annotationStyle.bifurcationColor.x);
+
+                settingsTableRow("Other Color");
+                ImGui::ColorEdit4("##OtherColor",
+                                  &g_annotationStyle.otherColor.x);
+
+                settingsTableRow("Core Color");
+                ImGui::ColorEdit4("##CoreColor",
+                                  &g_annotationStyle.coreColor.x);
+
+                settingsTableRow("Delta Color");
+                ImGui::ColorEdit4("##DeltaColor",
+                                  &g_annotationStyle.deltaColor.x);
 
                 settingsTableRow("Bounds Thickness");
                 ImGui::SliderFloat(
