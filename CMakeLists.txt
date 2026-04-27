@@ -115,6 +115,7 @@ set(SC_SRCS
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
+    src/formats/EBTSLoader.cpp
     src/formats/annotationIo.cpp
     src/formats/platforms.cpp
     src/main.cpp

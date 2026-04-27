@@ -6,6 +6,7 @@
 #include "ui/licenseData.h"
 #include "ui/embeddedAssets.h"
 #include "formats/png.h"
+#include "formats/ebts.h"
 #include "formats/annotationIo.h"
 #include "jtjson/json.h"
 #include "hello_imgui/imgui_theme.h"
@@ -324,6 +325,15 @@ namespace shoecomp
         }
     }
 
+    static bool isNistExtension(const std::string& path)
+    {
+        std::string ext = fs::path(path).extension().string();
+        // Convert to lowercase for comparison
+        for (auto& c : ext) c = (char)std::tolower(c);
+        return ext == ".an2" || ext == ".irr" || ext == ".lffs" ||
+               ext == ".ebts";
+    }
+
     static void onImageLoadSelect(AppState& state,
                                   const std::string& fullPath,
                                   const std::string& name)
@@ -332,6 +342,18 @@ namespace shoecomp
         {
             if (c.image->path == fullPath) return;
         }
+
+        if (isNistExtension(fullPath))
+        {
+            std::vector<ImageCanvas> canvases;
+            if (loadNistFromDisk(fullPath, canvases) > 0)
+            {
+                for (auto& c : canvases)
+                    state.images.push_back(std::move(c));
+            }
+            return;
+        }
+
         ImageCanvas canvas;
         canvas.image->name = name;
         canvas.image->path = fullPath;
@@ -436,7 +458,8 @@ namespace shoecomp
 
         state.imageLoadBrowser.extension = ".png";
         state.imageLoadBrowser.extensionChoices = {
-            ".png", ".PNG", ".jpg", ".JPG", ".jpeg", ".JPEG"};
+            ".png", ".PNG", ".jpg", ".JPG",  ".jpeg", ".JPEG",
+            ".an2", ".AN2", ".irr", ".lffs", ".ebts"};
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
             [&state](const std::string& p, const std::string& n)
