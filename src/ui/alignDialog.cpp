@@ -72,8 +72,17 @@ namespace shoecomp
         }
     }
 
+    static int countPts(const std::shared_ptr<ImageData> &img)
+    {
+        if (!img) return 0;
+        if (!hasAnnotationArray(img->annotations, "points")) return 0;
+        return static_cast<int>(
+            img->annotations["points"].getArray().size());
+    };
+
     void AlignDialog::render()
     {
+        static int maxPts = -1;
         if (show)
         {
             show = false;
@@ -85,7 +94,19 @@ namespace shoecomp
         // date even after the popup closes.
         drainMessages();
 
-        if (!open) return;
+        if (!open)
+        {
+            maxPts = -1;
+            return;
+        }
+        if (maxPts == -1)
+        {
+            maxPts = 256;
+            int lp = countPts(leftImage);
+            int rp = countPts(rightImage);
+            maxPts = std::max(3, std::min(lp, rp));
+            rtsParams.upperBound = maxPts;
+        }
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
         ImGui::SetNextWindowSize(ImVec2(ds.x * 0.5f, ds.y * 0.6f),
@@ -114,29 +135,14 @@ namespace shoecomp
                 rtsParams.numResults = static_cast<size_t>(nr);
             }
 
-            int maxPts = 256;
-            auto countPts =
-                [](const std::shared_ptr<ImageData> &img) -> int
-            {
-                if (!img) return 0;
-                if (!hasAnnotationArray(img->annotations, "points"))
-                    return 0;
-                return static_cast<int>(
-                    img->annotations["points"].getArray().size());
-            };
-            int lp = countPts(leftImage);
-            int rp = countPts(rightImage);
-            maxPts = std::max(3, std::min(lp, rp));
-            rtsParams.upperBound = maxPts;
-
             ImGui::SliderInt("Lower Bound", &rtsParams.lowerBound, 3,
                              maxPts);
             if (rtsParams.lowerBound < 3) rtsParams.lowerBound = 3;
+            if (rtsParams.upperBound < rtsParams.lowerBound)
+                rtsParams.upperBound = rtsParams.lowerBound;
 
             ImGui::SliderInt("Upper Bound", &rtsParams.upperBound,
                              rtsParams.lowerBound, maxPts);
-            if (rtsParams.upperBound < rtsParams.lowerBound)
-                rtsParams.upperBound = rtsParams.lowerBound;
 
             float delta = static_cast<float>(rtsParams.delta);
             if (ImGui::SliderFloat("Delta", &delta, 0.001f, 0.25f,
