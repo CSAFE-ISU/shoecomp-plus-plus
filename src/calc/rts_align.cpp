@@ -62,7 +62,7 @@ namespace shoecomp
             return;
         }
 
-        if (!AlignCalc::RTSAlignment(left_pts, right_pts, params,
+        if (!AlignCalc::getAlignment(left_pts, right_pts, params,
                                      channel, results))
         {
             channel.cancelled();

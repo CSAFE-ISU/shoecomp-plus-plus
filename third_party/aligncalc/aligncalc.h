@@ -45,7 +45,7 @@ namespace AlignCalc
         void estimate(const MatchedPoints &, bool);
     };
 
-    bool RTSAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
+    bool getAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
                       const RTSParams &, WorkerChannel &,
                       std::vector<MatchedPoints> &);
 

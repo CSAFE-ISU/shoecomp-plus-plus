@@ -10,6 +10,8 @@ add_library(aligncalc
     aligncalc.cpp
     clqmtch.cpp
     graphInfo.cpp
+    rtsFill.cpp
+    rtsUpdate.cpp
     rtsUtils.cpp
     transform.cpp
     triangle2d.cpp
