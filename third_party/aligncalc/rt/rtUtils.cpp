@@ -18,8 +18,9 @@ namespace AlignCalc
              * choose(n-x-1, 1) elements with start with x */
             for (x = 0; ii >= (n - x - 1); ++x) { ii -= (n - x - 1); }
 
-            /* now 0 <= ii < n-x-1, so y = ii solves for (x, y) */
-            y = ii;
+            /* now 0 <= ii < n-x-1, so y = x + ii + 1 solves for (x, y)
+             */
+            y = x + ii + 1;
         }
 
         void loadTaskInfo(int32_t ii1, int32_t N1, int32_t ii2,
@@ -43,7 +44,7 @@ namespace AlignCalc
 
             double low = d2 * (1 - epsilon);
             double hi = d2 * (1 + epsilon);
-            if (d1 >= low || d1 <= hi) { task.check = 1; }
+            if (d1 >= low && d1 <= hi) { task.check = 1; }
             return task.check == 1;
         }
 
