@@ -148,7 +148,8 @@ namespace shoecomp
                         state.viewerLeft, state.viewerRight, a, lZoom0,
                         lPan0, lRot0, rZoom0, rPan0, rRot0);
                 }
-                renderLockedCursorIndicators(state, state.settings);
+                if (!state.alignDialog.open)
+                    renderLockedCursorIndicators(state, state.settings);
             }
             lv.homeRequested = false;
             rv.homeRequested = false;
