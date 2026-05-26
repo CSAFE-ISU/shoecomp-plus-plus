@@ -40,7 +40,10 @@ namespace AlignCalc
             double d2 = std::hypot(
                 right_pts(task.i2, 0) - right_pts(task.j2, 0),
                 right_pts(task.i2, 1) - right_pts(task.j2, 1));
-            if (std::abs(d1 - d2) < epsilon) { task.check = 1; }
+
+            double low = d2 * (1 - epsilon);
+            double hi = d2 * (1 + epsilon);
+            if (d1 >= low || d1 <= hi) { task.check = 1; }
             return task.check == 1;
         }
 
