@@ -9,7 +9,7 @@
 
 namespace shoecomp
 {
-    ImVec2 AlignState::transformRight2Left(const ImVec2 &pt) const
+    ImVec2 AlignState::transformRight2Left(const ImVec2& pt) const
     {
         /* pt is in image coordinates */
         ImVec2 result;
@@ -22,7 +22,7 @@ namespace shoecomp
         return result;
     }
 
-    ImVec2 AlignState::transformLeft2Right(const ImVec2 &pt) const
+    ImVec2 AlignState::transformLeft2Right(const ImVec2& pt) const
     {
         /* pt is in image coordinates */
         ImVec2 result;
@@ -72,7 +72,7 @@ namespace shoecomp
         }
     }
 
-    static int countPts(const std::shared_ptr<ImageData> &img)
+    static int countPts(const std::shared_ptr<ImageData>& img)
     {
         if (!img) return 0;
         if (!hasAnnotationArray(img->annotations, "points")) return 0;
@@ -109,7 +109,7 @@ namespace shoecomp
         }
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
-        ImGui::SetNextWindowSize(ImVec2(ds.x * 0.5f, ds.y * 0.6f),
+        ImGui::SetNextWindowSize(ImVec2(ds.x * 0.5f, ds.y * 0.7f),
                                  ImGuiCond_Appearing);
         ImGui::SetNextWindowPos(ImVec2(ds.x * 0.25f, ds.y * 0.2f),
                                 ImGuiCond_Appearing);
@@ -154,6 +154,8 @@ namespace shoecomp
                                    "%.3f"))
                 rtsParams.epsilon = epsilon;
 
+            ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
+
             ImGui::Spacing();
             ImGui::Spacing();
 
@@ -181,7 +183,10 @@ namespace shoecomp
                     ImGui::TextWrapped("%s", statusText);
                     ImGui::PopStyleColor();
                 }
-                else { ImGui::TextWrapped("%s", statusText); }
+                else
+                {
+                    ImGui::TextWrapped("%s", statusText);
+                }
             }
 
             ImGui::Separator();
