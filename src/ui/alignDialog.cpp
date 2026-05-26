@@ -135,14 +135,19 @@ namespace shoecomp
                 rtsParams.numResults = static_cast<size_t>(nr);
             }
 
-            ImGui::SliderInt("Lower Bound", &rtsParams.lowerBound, 3,
-                             maxPts);
+            float halfW = (ImGui::GetContentRegionAvail().x -
+                           ImGui::GetStyle().ItemSpacing.x) *
+                          0.5f;
+            ImGui::SetNextItemWidth(halfW);
+            ImGui::SliderInt("##Lower", &rtsParams.lowerBound, 3,
+                             maxPts, "Min: %d");
             if (rtsParams.lowerBound < 3) rtsParams.lowerBound = 3;
             if (rtsParams.upperBound < rtsParams.lowerBound)
                 rtsParams.upperBound = rtsParams.lowerBound;
-
-            ImGui::SliderInt("Upper Bound", &rtsParams.upperBound,
-                             rtsParams.lowerBound, maxPts);
+            ImGui::SameLine();
+            ImGui::SetNextItemWidth(halfW);
+            ImGui::SliderInt("Bounds", &rtsParams.upperBound,
+                             rtsParams.lowerBound, maxPts, "Max: %d");
 
             if (!rtsParams.sameScale)
             {
