@@ -174,9 +174,26 @@ namespace shoecomp
         state.imageSaveBrowser.render();
         state.annotationFileBrowser.render();
         renderImageSaveProgressPopup(state);
-        state.imageListDialog.render(state.images, state.viewerLeftIdx,
-                                     state.viewerRightIdx,
-                                     state.activeGalleryImage);
+        {
+            int prevLeft = state.viewerLeftIdx;
+            int prevRight = state.viewerRightIdx;
+            state.imageListDialog.render(
+                state.images, state.viewerLeftIdx, state.viewerRightIdx,
+                state.activeGalleryImage);
+            if (prevLeft != state.viewerLeftIdx ||
+                prevRight != state.viewerRightIdx)
+            {
+                state.viewerLocked = false;
+                state.viewerAlignments = {AlignState{}};
+                state.viewerAlignmentIdx = 0;
+                state.alignEditOpen = false;
+                state.alignEditPopupVisible = false;
+                state.viewerLeftIdx = -1;
+                state.viewerRightIdx = -1;
+                state.viewerLeft = ImageCanvas{};
+                state.viewerRight = ImageCanvas{};
+            }
+        }
 
         state.alignDialog.render();
         consumeAlignResults(state);

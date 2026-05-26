@@ -123,6 +123,19 @@ namespace shoecomp
 
         if (removeIdx >= 0)
         {
+            if (removeIdx == state.viewerLeftIdx ||
+                removeIdx == state.viewerRightIdx)
+            {
+                state.viewerLocked = false;
+                state.viewerAlignments = {AlignState{}};
+                state.viewerAlignmentIdx = 0;
+                state.alignEditOpen = false;
+                state.alignEditPopupVisible = false;
+                state.viewerLeftIdx = -1;
+                state.viewerRightIdx = -1;
+                state.viewerLeft = ImageCanvas{};
+                state.viewerRight = ImageCanvas{};
+            }
             state.images.erase(state.images.begin() + removeIdx);
             clampViewerIndices(removeIdx, (int)state.images.size(),
                                state.viewerLeftIdx,
