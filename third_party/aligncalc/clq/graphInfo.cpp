@@ -1,4 +1,4 @@
-#include "graphInfo.internal.h"
+#include "clq/graphInfo.internal.h"
 #include <iostream>
 
 namespace AlignCalc

@@ -1,7 +1,7 @@
 #ifndef ALIGNCALC_RTSFILL_INTERNAL_H
 #define ALIGNCALC_RTSFILL_INTERNAL_H
 #include "aligncalc.h"
-#include "graphInfo.internal.h"
+#include "clq/graphInfo.internal.h"
 
 namespace AlignCalc
 {

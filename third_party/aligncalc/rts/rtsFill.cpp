@@ -1,5 +1,5 @@
 #include "aligncalc.internal.h"
-#include "clqmtch.h"
+#include "clq/clqmtch.h"
 #include <iostream>
 
 namespace AlignCalc
