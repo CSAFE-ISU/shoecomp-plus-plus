@@ -42,6 +42,7 @@ namespace AlignCalc
             return false;
         }
 
+        auto colsize = left_pts.cols();
         channel.report(0.75f, "fitting transforms...");
         for (const auto& clq : cliques)
         {
@@ -49,8 +50,8 @@ namespace AlignCalc
             results.push_back(MatchedPoints{});
             MatchedPoints& match = results.back();
             match.N = clq.size();
-            match.left_pts.resize(match.N, 3);
-            match.right_pts.resize(match.N, 3);
+            match.left_pts.resize(match.N, colsize);
+            match.right_pts.resize(match.N, colsize);
             //
             int i = 0;
             for (const i32& c : clq)

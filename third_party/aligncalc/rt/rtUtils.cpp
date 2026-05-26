@@ -31,16 +31,23 @@ namespace AlignCalc
             task.check = 0;
         }
 
+        static double l2dist(const DoubleMatrixR& pts, int32_t i,
+                             int32_t j, int32_t colsize)
+        {
+            double d =
+                (pts(Eigen::seq(i, i), Eigen::seq(0, colsize - 1)) -
+                 pts(Eigen::seq(j, j), Eigen::seq(0, colsize - 1)))
+                    .norm();
+            return d;
+        }
+
         bool processTaskInfo(const DoubleMatrixR& left_pts,
                              const DoubleMatrixR& right_pts,
                              TaskInfo& task, double epsilon)
         {
-            double d1 =
-                std::hypot(left_pts(task.i1, 0) - left_pts(task.j1, 0),
-                           left_pts(task.i1, 1) - left_pts(task.j1, 1));
-            double d2 = std::hypot(
-                right_pts(task.i2, 0) - right_pts(task.j2, 0),
-                right_pts(task.i2, 1) - right_pts(task.j2, 1));
+            auto colsize = left_pts.cols();
+            double d1 = l2dist(left_pts, task.i1, task.j1, colsize);
+            double d2 = l2dist(right_pts, task.i2, task.j2, colsize);
 
             double low = d2 * (1 - epsilon);
             double hi = d2 * (1 + epsilon);
