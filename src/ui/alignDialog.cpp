@@ -135,9 +135,11 @@ namespace shoecomp
                 rtsParams.numResults = static_cast<size_t>(nr);
             }
 
-            float halfW = (ImGui::GetContentRegionAvail().x -
-                           ImGui::GetStyle().ItemSpacing.x) *
-                          0.5f;
+            float labelW = ImGui::CalcTextSize("Bounds").x +
+                           ImGui::GetStyle().ItemInnerSpacing.x;
+            float widgetW = ImGui::CalcItemWidth() - labelW -
+                            ImGui::GetStyle().ItemSpacing.x;
+            float halfW = widgetW * 0.5f;
             ImGui::SetNextItemWidth(halfW);
             ImGui::SliderInt("##Lower", &rtsParams.lowerBound, 3,
                              maxPts, "Min: %d");
