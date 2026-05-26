@@ -43,7 +43,7 @@ namespace shoecomp
         WorkerChannel channel;
         std::thread workerThread;
         bool workerFinished = false;
-        AlignCalc::RTSParams rtsParams{0.05, 0.05, 2, 4, 3, 500};
+        AlignCalc::RTSParams rtsParams{0.05, 0.05, 2, 4, 3, 500, false};
         char statusText[120]{};
         bool statusIsError = false;
 

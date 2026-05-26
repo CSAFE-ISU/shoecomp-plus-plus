@@ -24,6 +24,7 @@ namespace AlignCalc
         size_t numResults;
         int32_t lowerBound;
         int32_t upperBound;
+        bool sameScale;
     };
 
     struct MatchedPoints

@@ -15,12 +15,24 @@ namespace AlignCalc
         clqmtch::Graph G;
         std::vector<std::unordered_set<int32_t>> cliques;
         g_info.reset();
-        //
-        if (!RTS::fillGraph(left_pts, right_pts, params, channel,
-                            g_info))
+
+        if (params.sameScale)
         {
-            channel.error("could not fill graph");
-            return false;
+            if (!RT::fillGraph(left_pts, right_pts, params, channel,
+                               g_info))
+            {
+                channel.error("could not fill graph");
+                return false;
+            }
+        }
+        else
+        {
+            if (!RTS::fillGraph(left_pts, right_pts, params, channel,
+                                g_info))
+            {
+                channel.error("could not fill graph");
+                return false;
+            }
         }
 
         if (!G.init(channel, g_info) ||

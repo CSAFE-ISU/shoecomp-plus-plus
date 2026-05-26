@@ -78,7 +78,8 @@ namespace shoecomp
             aligns.back().rotation = tform.rotation /* in radians */;
             aligns.back().dx = tform.dx;
             aligns.back().dy = tform.dy;
-            aligns.back().scale = tform.scale;
+            if (params.sameScale) { aligns.back().scale = 1.0; }
+            else { aligns.back().scale = tform.scale; }
             aligns.back().mode = AlignMode::Automatic;
 
             // Store matched points in info
