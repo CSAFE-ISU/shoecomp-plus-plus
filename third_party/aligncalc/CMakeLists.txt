@@ -14,6 +14,9 @@ add_library(aligncalc
     rts/rtsFill.cpp
     rts/rtsUpdate.cpp
     rts/rtsUtils.cpp
+    rt/rtFill.cpp
+    rt/rtUpdate.cpp
+    rt/rtUtils.cpp
     rts/triangle2d.cpp
 )
 

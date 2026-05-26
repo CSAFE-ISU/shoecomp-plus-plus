@@ -3,6 +3,7 @@
 #include "aligncalc.h"
 #include "clq/graphInfo.internal.h"
 #include "rts/rtsFill.internal.h"
+#include "rt/rtFill.internal.h"
 
 namespace AlignCalc
 {
