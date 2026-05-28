@@ -51,7 +51,8 @@ namespace AlignCalc
             if (!tl.valid()) return false;
             tr.construct(right_pts, task.i2, task.j2, task.k2);
             if (!tr.valid()) return false;
-            return tl.compare(tr, task, params.delta, params.epsilon);
+            return tl.compare(tr, task, params.scaleRange,
+                              params.epsilon);
         }
 
     } /* namespace RTS */

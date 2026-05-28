@@ -153,15 +153,16 @@ namespace shoecomp
 
             if (!rtsParams.sameScale)
             {
-                float delta = static_cast<float>(rtsParams.delta);
-                if (ImGui::SliderFloat("Delta", &delta, 0.001f, 0.25f,
-                                       "%.3f"))
-                    rtsParams.delta = delta;
+                float scaleRange =
+                    static_cast<float>(rtsParams.scaleRange);
+                if (ImGui::SliderFloat("Scale Range", &scaleRange, 1.0f,
+                                       10.0f, "%.2f"))
+                    rtsParams.scaleRange = scaleRange;
             }
 
             float epsilon = static_cast<float>(rtsParams.epsilon);
-            if (ImGui::SliderFloat("Epsilon", &epsilon, 0.001f, 0.25f,
-                                   "%.3f"))
+            if (ImGui::SliderFloat("Allowed Error", &epsilon, 0.001f,
+                                   0.25f, "%.3f"))
                 rtsParams.epsilon = epsilon;
 
             ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
@@ -193,10 +194,7 @@ namespace shoecomp
                     ImGui::TextWrapped("%s", statusText);
                     ImGui::PopStyleColor();
                 }
-                else
-                {
-                    ImGui::TextWrapped("%s", statusText);
-                }
+                else { ImGui::TextWrapped("%s", statusText); }
             }
 
             ImGui::Separator();

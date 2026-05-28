@@ -19,11 +19,10 @@ namespace AlignCalc
 #define SIDE_RATIO(a1, a2, b1, b2, c1, c2) \
     (((a1) / (a2) + (b1) / (b2) + (c1) / (c2)) / 3);
 
-#define BINARY_CMP(n, other, delta, epsilon)          \
-    ((angle_compare##n(*this, (other)) <= (delta)) && \
-     (sr_compare##n(*this, (other)) <= (epsilon)) &&  \
-     (side_ratio##n(*this, (other)) <= MAX_RATIO) &&  \
-     (side_ratio##n(*this, (other)) >= MIN_RATIO))
+#define BINARY_CMP(n, other, scaleRange, epsilon)       \
+    ((sr_compare##n(*this, (other)) <= (epsilon)) &&    \
+     (side_ratio##n(*this, (other)) <= (scaleRange)) && \
+     (side_ratio##n(*this, (other)) >= (1 / (scaleRange))))
 
     //
     static constexpr double MIN_RATIO = 0.10f;
@@ -192,19 +191,10 @@ namespace AlignCalc
         {
             this->as = std::hypot(pts(kk, 0) - pts(jj, 0),
                                   pts(kk, 1) - pts(jj, 1));
-            this->at = stable_angle(
-                pts(ii, 0) - pts(kk, 0), pts(ii, 1) - pts(kk, 1),
-                pts(jj, 0) - pts(ii, 0), pts(jj, 1) - pts(ii, 1));
             this->bs = std::hypot(pts(ii, 0) - pts(kk, 0),
                                   pts(ii, 1) - pts(kk, 1));
-            this->bt = stable_angle(
-                pts(jj, 0) - pts(ii, 0), pts(jj, 1) - pts(ii, 1),
-                pts(kk, 0) - pts(jj, 0), pts(kk, 1) - pts(jj, 1));
             this->cs = std::hypot(pts(jj, 0) - pts(ii, 0),
                                   pts(jj, 1) - pts(ii, 1));
-            this->ct = stable_angle(
-                pts(kk, 0) - pts(jj, 0), pts(kk, 1) - pts(jj, 1),
-                pts(ii, 0) - pts(kk, 0), pts(ii, 1) - pts(kk, 1));
         }
 
         bool Triangle2D::valid() const
@@ -213,16 +203,16 @@ namespace AlignCalc
         };
 
         bool Triangle2D::compare(const Triangle2D &other,
-                                 TaskInfo &task, double delta,
+                                 TaskInfo &task, double scaleRange,
                                  double epsilon) const
         {
             for (int i = 0; i < 8; ++i) task.check[i] = 0;
-            task.check[0] = BINARY_CMP(0, other, delta, epsilon);
-            task.check[1] = BINARY_CMP(1, other, delta, epsilon);
-            task.check[2] = BINARY_CMP(2, other, delta, epsilon);
-            task.check[3] = BINARY_CMP(3, other, delta, epsilon);
-            task.check[4] = BINARY_CMP(4, other, delta, epsilon);
-            task.check[5] = BINARY_CMP(5, other, delta, epsilon);
+            task.check[0] = BINARY_CMP(0, other, scaleRange, epsilon);
+            task.check[1] = BINARY_CMP(1, other, scaleRange, epsilon);
+            task.check[2] = BINARY_CMP(2, other, scaleRange, epsilon);
+            task.check[3] = BINARY_CMP(3, other, scaleRange, epsilon);
+            task.check[4] = BINARY_CMP(4, other, scaleRange, epsilon);
+            task.check[5] = BINARY_CMP(5, other, scaleRange, epsilon);
             for (int i = 0; i < 8; ++i)
             {
                 if (task.check[i]) return true;

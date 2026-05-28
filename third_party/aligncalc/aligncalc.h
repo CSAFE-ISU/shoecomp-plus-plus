@@ -18,13 +18,24 @@ namespace AlignCalc
 
     struct RTSParams
     {
-        double delta;
+        double scaleRange;
         double epsilon;
         size_t numWorkers;
         size_t numResults;
         int32_t lowerBound;
         int32_t upperBound;
         bool sameScale;
+
+        RTSParams()
+        {
+            scaleRange = 5.0;
+            epsilon = 0.005;
+            numWorkers = 2;
+            numResults = 2;
+            lowerBound = 3;
+            upperBound = 500;
+            sameScale = false;
+        }
     };
 
     struct MatchedPoints
