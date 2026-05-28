@@ -43,8 +43,7 @@ namespace AlignCalc
 
         bool processTaskInfo(const DoubleMatrixR& left_pts,
                              const DoubleMatrixR& right_pts,
-                             TaskInfo& task, double delta,
-                             double epsilon)
+                             TaskInfo& task, const RTSParams& params)
         {
             Triangle2D tl;
             Triangle2D tr;
@@ -52,7 +51,7 @@ namespace AlignCalc
             if (!tl.valid()) return false;
             tr.construct(right_pts, task.i2, task.j2, task.k2);
             if (!tr.valid()) return false;
-            return tl.compare(tr, task, delta, epsilon);
+            return tl.compare(tr, task, params.delta, params.epsilon);
         }
 
     } /* namespace RTS */

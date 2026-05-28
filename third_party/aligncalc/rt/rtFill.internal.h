@@ -27,7 +27,8 @@ namespace AlignCalc
         void loadTaskInfo(int32_t, int32_t, int32_t, int32_t,
                           TaskInfo &);
         bool processTaskInfo(const DoubleMatrixR &,
-                             const DoubleMatrixR &, TaskInfo &, double);
+                             const DoubleMatrixR &, TaskInfo &,
+                             const RTSParams &);
         bool fillGraph(const DoubleMatrixR &, const DoubleMatrixR &,
                        const RTSParams &, WorkerChannel &, GraphInfo &);
     } /* namespace RT */

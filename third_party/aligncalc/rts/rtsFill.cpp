@@ -80,12 +80,10 @@ namespace AlignCalc
                             [&work_q, &result_q, &left, &right, &params]
                             {
                                 TaskInfo w;
-                                double delta = params.delta;
-                                double epsilon = params.epsilon;
                                 while (work_q.pop(w))
                                 {
                                     if (processTaskInfo(left, right, w,
-                                                        delta, epsilon))
+                                                        params))
                                     {
                                         result_q.push(w);
                                     }

@@ -43,14 +43,14 @@ namespace AlignCalc
 
         bool processTaskInfo(const DoubleMatrixR& left_pts,
                              const DoubleMatrixR& right_pts,
-                             TaskInfo& task, double epsilon)
+                             TaskInfo& task, const RTSParams& params)
         {
             auto colsize = left_pts.cols();
             double d1 = l2dist(left_pts, task.i1, task.j1, colsize);
             double d2 = l2dist(right_pts, task.i2, task.j2, colsize);
 
-            double low = d2 * (1 - epsilon);
-            double hi = d2 * (1 + epsilon);
+            double low = d2 * (1 - params.epsilon);
+            double hi = d2 * (1 + params.epsilon);
             if (d1 >= low && d1 <= hi) { task.check = 1; }
             return task.check == 1;
         }

@@ -83,7 +83,7 @@ namespace AlignCalc
                                 while (work_q.pop(w))
                                 {
                                     if (processTaskInfo(left, right, w,
-                                                        params.epsilon))
+                                                        params))
                                     {
                                         result_q.push(w);
                                     }
