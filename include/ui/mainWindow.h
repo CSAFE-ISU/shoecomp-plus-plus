@@ -55,6 +55,7 @@ namespace shoecomp
         AlignDialog alignDialog;
 
         // Error popups
+        ErrorPopup imageLoadError;
         ErrorPopup imageSaveError;
         ErrorPopup annotationError;
         ErrorPopup alignmentSaveError;

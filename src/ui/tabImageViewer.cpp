@@ -1,8 +1,19 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas.h"
 #include "ui/uiHelpers.h"
+#include "formats/annotationIo.h"
 #include <algorithm>
 #include <cmath>
+
+#ifdef __EMSCRIPTEN__
+extern "C"
+{
+    void scpp_emOpenImagePicker();
+    void scpp_emOpenJsonPicker();
+    void scpp_emDownloadString(const char* data, int len,
+                               const char* filename, int filenameLen);
+}
+#endif
 
 namespace shoecomp
 {
@@ -181,7 +192,13 @@ namespace shoecomp
             state.activeGalleryImage < (int)state.images.size();
 
         if (ImGui::Button("Load Image"))
+        {
+#ifdef __EMSCRIPTEN__
+            scpp_emOpenImagePicker();
+#else
             state.imageLoadBrowser.show = true;
+#endif
+        }
 
         ImGui::SameLine();
         ImGui::BeginDisabled(!hasActive);
@@ -195,6 +212,11 @@ namespace shoecomp
         ImGui::SameLine();
         if (ImGui::Button("Load JSON"))
         {
+#ifdef __EMSCRIPTEN__
+            state.annotationFileSave = false;
+            state.annotationFileTarget = state.activeGalleryImage;
+            scpp_emOpenJsonPicker();
+#else
             state.annotationFileBrowser.show = true;
             state.annotationFileSave = false;
             state.annotationFileTarget = state.activeGalleryImage;
@@ -203,18 +225,36 @@ namespace shoecomp
             state.annotationFileBrowser.contextLabel.clear();
             state.annotationFileBrowser.extensionChoices = {".json",
                                                             ""};
-            state.annotationFileBrowser.loadMode = true;
             state.annotationFileBrowser.title = "Load Annotations";
+#endif
         }
         ImGui::SameLine();
         if (ImGui::Button("Save JSON"))
         {
+#ifdef __EMSCRIPTEN__
+            auto& img = state.images[state.activeGalleryImage].image;
+            jt::Json copy = img->annotations;
+            std::string data = copy.toStringPretty();
+            if (data.empty())
+            {
+                state.annotationError.show = true;
+                state.annotationError.message =
+                    "Failed to serialize annotations.";
+            }
+            else
+            {
+                std::string fname =
+                    img->name.empty() ? std::string("annotations.json")
+                                      : img->name + ".json";
+                scpp_emDownloadString(data.c_str(), (int)data.size(),
+                                      fname.c_str(), (int)fname.size());
+            }
+#else
             state.annotationFileBrowser.show = true;
             state.annotationFileSave = true;
             state.annotationFileTarget = state.activeGalleryImage;
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
-            state.annotationFileBrowser.loadMode = false;
             {
                 auto& canvas = state.images[state.activeGalleryImage];
                 state.annotationFileBrowser.contextLabel =
@@ -222,6 +262,7 @@ namespace shoecomp
             }
             state.annotationFileBrowser.extensionChoices.clear();
             state.annotationFileBrowser.title = "Save Annotations";
+#endif
         }
         ImGui::EndDisabled();
 

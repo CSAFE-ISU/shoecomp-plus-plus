@@ -2,100 +2,14 @@
 #include "ui/uiHelpers.h"
 #include "imgui.h"
 
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <cstdio>
-#include <cstring>
-#else
+#ifndef __EMSCRIPTEN__
 #include <filesystem>
 #endif
 
 namespace shoecomp
 {
 
-#ifdef __EMSCRIPTEN__
-
-    static LoadBrowser* s_activeLoadBrowser = nullptr;
-
-    // Called from JS when the user selects a file via the
-    // browser's native file picker.
-    extern "C" void EMSCRIPTEN_KEEPALIVE
-    scpp_onFileUploaded(const char* name, const char* mime,
-                        const uint8_t* data, int size)
-    {
-        (void)mime;
-        if (!s_activeLoadBrowser) return;
-
-        std::string filename(name);
-        std::string path = "/tmp/" + filename;
-
-        FILE* f = fopen(path.c_str(), "wb");
-        if (f)
-        {
-            fwrite(data, 1, (size_t)size, f);
-            fclose(f);
-        }
-
-        if (s_activeLoadBrowser->onSelect)
-            s_activeLoadBrowser->onSelect(path, filename);
-
-        s_activeLoadBrowser->show = false;
-        s_activeLoadBrowser = nullptr;
-    }
-
-    EM_JS(void, scpp_openFilePicker, (const char* accept), {
-        var acceptStr = UTF8ToString(accept);
-        var input = document.createElement("input");
-        input.type = "file";
-        input.accept = acceptStr;
-        input.onchange = function(e)
-        {
-            var file = e.target.files[0];
-            if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function()
-            {
-                var data = new Uint8Array(reader.result);
-                var nameLen = lengthBytesUTF8(file.name) + 1;
-                var namePtr = _malloc(nameLen);
-                stringToUTF8(file.name, namePtr, nameLen);
-                var mimeLen = lengthBytesUTF8(file.type) + 1;
-                var mimePtr = _malloc(mimeLen);
-                stringToUTF8(file.type, mimePtr, mimeLen);
-                var dataPtr = _malloc(data.length);
-                HEAPU8.set(data, dataPtr);
-                _scpp_onFileUploaded(namePtr, mimePtr, dataPtr,
-                                     data.length);
-                _free(namePtr);
-                _free(mimePtr);
-                _free(dataPtr);
-            };
-            reader.readAsArrayBuffer(file);
-        };
-        input.click();
-    });
-
-    void LoadBrowser::render()
-    {
-        if (!popupBeginClosable(title.c_str(), show, 0.5f, 0.6f, 0.25f,
-                                0.2f))
-            return;
-
-        if (ImGui::Button("Load Image..."))
-        {
-            s_activeLoadBrowser = this;
-            scpp_openFilePicker(".png,.jpg,.jpeg");
-        }
-
-        ImGui::Checkbox("Load Corresponding JSON",
-                        &loadCorrespondingJson);
-        ImGui::SameLine();
-        if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
-
-        ImGui::EndPopup();
-    }
-
-#else  // Desktop
+#ifndef __EMSCRIPTEN__
 
     namespace fs = std::filesystem;
 
@@ -215,6 +129,10 @@ namespace shoecomp
 
         ImGui::EndPopup();
     }
+
+#else  // __EMSCRIPTEN__
+
+    void LoadBrowser::render() {}
 
 #endif  // __EMSCRIPTEN__
 
