@@ -97,7 +97,7 @@ namespace shoecomp
                     state.activeGalleryImage = i;
 
                 float toolbarH =
-                    ImGui::GetFrameHeightWithSpacing() * 3.0f;
+                    ImGui::GetFrameHeightWithSpacing() * 3.0f * 0.85f;
                 ImVec2 region = ImGui::GetContentRegionAvail();
                 float canvasH = region.y - toolbarH;
                 if (canvasH > 0.0f)

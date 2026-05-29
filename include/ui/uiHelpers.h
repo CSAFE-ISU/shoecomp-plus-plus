@@ -39,8 +39,8 @@ namespace shoecomp
     static constexpr float kIndentSpacing = 1.0f;
 
     // Interactive elements
-    static constexpr float kScrollbarSize = 0.65f;
-    static constexpr float kGrabMinSize = 0.5f;
+    static constexpr float kScrollbarSize = 0.35f;
+    static constexpr float kGrabMinSize = 0.3f;
 
     // Window constraints
     static constexpr float kWindowMinWidth = 10.0f;

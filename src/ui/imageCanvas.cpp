@@ -627,7 +627,7 @@ namespace shoecomp
                           hovered, mode, io);
 
         // Scrollbars
-        float barThick = 8.0f;
+        float barThick = 5.0f;
         float barPad = 2.0f;
         ImU32 barCol = kColorScrollbar;
         ImU32 barColHov = kColorScrollbarHover;
@@ -650,6 +650,7 @@ namespace shoecomp
     {
         AnnotationMode& mode = image->annotationMode;
         ImGui::PushID(toolbarId);
+        ImGui::SetWindowFontScale(0.85f);
 
         float frameH = ImGui::GetFrameHeight();
 
@@ -713,6 +714,8 @@ namespace shoecomp
             viewState.rotation = viewState.rotationTarget;
         }
 
+        ImGui::Separator();
+
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
@@ -771,6 +774,7 @@ namespace shoecomp
             image->annotations["points"].setArray();
         }
 
+        ImGui::SetWindowFontScale(1.0f);
         ImGui::PopID();
     }
 
