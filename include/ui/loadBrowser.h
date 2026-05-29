@@ -22,6 +22,7 @@ namespace shoecomp
             onSelect;
         void render();
     };
+    void openImagePicker(LoadBrowser& browser);
 }  // namespace shoecomp
 
 #endif

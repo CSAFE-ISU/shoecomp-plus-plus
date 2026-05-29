@@ -163,4 +163,97 @@ namespace shoecomp
 
 #endif  // __EMSCRIPTEN__
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <cstdio>
+#include <cstring>
+
+    static SaveBrowser* s_activeSaveBrowser = nullptr;
+
+    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_onJsonFileUploaded(
+        const char* name, const uint8_t* data, int size)
+    {
+        if (!s_activeSaveBrowser) return;
+        std::string filename(name);
+        std::string path = "/tmp/" + filename;
+        FILE* f = fopen(path.c_str(), "wb");
+        if (f)
+        {
+            fwrite(data, 1, (size_t)size, f);
+            fclose(f);
+        }
+        if (s_activeSaveBrowser->onOk) s_activeSaveBrowser->onOk(path);
+    }
+
+    EM_JS(void, scpp_emOpenJsonPicker, (), {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".json";
+        input.onchange = function(e)
+        {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function()
+            {
+                var data = new Uint8Array(reader.result);
+                var nameLen = lengthBytesUTF8(file.name) + 1;
+                var namePtr = _malloc(nameLen);
+                stringToUTF8(file.name, namePtr, nameLen);
+                var dataPtr = _malloc(data.length);
+                HEAPU8.set(data, dataPtr);
+                _scpp_onJsonFileUploaded(namePtr, dataPtr, data.length);
+                _free(namePtr);
+                _free(dataPtr);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+        input.click();
+    });
+
+    EM_JS(void, scpp_emDownloadString,
+          (const char* data, int len, const char* filename,
+           int filenameLen),
+          {
+              var str = UTF8ToString(data, len);
+              var fname = UTF8ToString(filename, filenameLen);
+              var blob = new Blob([str],
+                                  {
+                                      type:
+                                          "application/json"
+                                  });
+              var url = URL.createObjectURL(blob);
+              var a = document.createElement("a");
+              a.href = url;
+              a.download = fname;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+          });
+
+    void openJsonPicker(SaveBrowser& browser)
+    {
+        s_activeSaveBrowser = &browser;
+        scpp_emOpenJsonPicker();
+    }
+
+    void downloadJsonString(const char* data, int len,
+                            const char* filename, int filenameLen)
+    {
+        scpp_emDownloadString(data, len, filename, filenameLen);
+    }
+
+#else  // desktop
+
+    void openJsonPicker(SaveBrowser& browser) { browser.show = true; }
+
+    void downloadJsonString(const char* /*data*/, int /*len*/,
+                            const char* /*filename*/,
+                            int /*filenameLen*/)
+    {
+    }
+
+#endif  // __EMSCRIPTEN__
+
 }  // namespace shoecomp

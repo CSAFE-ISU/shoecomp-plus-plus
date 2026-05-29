@@ -1,19 +1,10 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas.h"
+#include "ui/loadBrowser.h"
+#include "ui/saveBrowser.h"
 #include "ui/uiHelpers.h"
-#include "formats/annotationIo.h"
 #include <algorithm>
 #include <cmath>
-
-#ifdef __EMSCRIPTEN__
-extern "C"
-{
-    void scpp_emOpenImagePicker();
-    void scpp_emOpenJsonPicker();
-    void scpp_emDownloadString(const char* data, int len,
-                               const char* filename, int filenameLen);
-}
-#endif
 
 namespace shoecomp
 {
@@ -193,11 +184,7 @@ namespace shoecomp
 
         if (ImGui::Button("Load Image"))
         {
-#ifdef __EMSCRIPTEN__
-            scpp_emOpenImagePicker();
-#else
-            state.imageLoadBrowser.show = true;
-#endif
+            openImagePicker(state.imageLoadBrowser);
         }
 
         ImGui::SameLine();
@@ -212,20 +199,18 @@ namespace shoecomp
         ImGui::SameLine();
         if (ImGui::Button("Load JSON"))
         {
+            state.annotationFileSave = false;
+            state.annotationFileTarget = state.activeGalleryImage;
 #ifdef __EMSCRIPTEN__
-            state.annotationFileSave = false;
-            state.annotationFileTarget = state.activeGalleryImage;
-            scpp_emOpenJsonPicker();
+            openJsonPicker(state.annotationFileBrowser);
 #else
-            state.annotationFileBrowser.show = true;
-            state.annotationFileSave = false;
-            state.annotationFileTarget = state.activeGalleryImage;
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
             state.annotationFileBrowser.contextLabel.clear();
             state.annotationFileBrowser.extensionChoices = {".json",
                                                             ""};
             state.annotationFileBrowser.title = "Load Annotations";
+            state.annotationFileBrowser.show = true;
 #endif
         }
         ImGui::SameLine();
@@ -246,8 +231,8 @@ namespace shoecomp
                 std::string fname =
                     img->name.empty() ? std::string("annotations.json")
                                       : img->name + ".json";
-                scpp_emDownloadString(data.c_str(), (int)data.size(),
-                                      fname.c_str(), (int)fname.size());
+                downloadJsonString(data.c_str(), (int)data.size(),
+                                   fname.c_str(), (int)fname.size());
             }
 #else
             state.annotationFileBrowser.show = true;

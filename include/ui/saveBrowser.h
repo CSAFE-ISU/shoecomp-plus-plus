@@ -21,6 +21,9 @@ namespace shoecomp
         std::function<void(const std::string& path)> onOk;
         void render();
     };
+    void openJsonPicker(SaveBrowser& browser);
+    void downloadJsonString(const char* data, int len,
+                            const char* filename, int filenameLen);
 }  // namespace shoecomp
 
 #endif

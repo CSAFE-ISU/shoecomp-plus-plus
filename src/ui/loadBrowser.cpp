@@ -136,4 +136,66 @@ namespace shoecomp
 
 #endif  // __EMSCRIPTEN__
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <cstdio>
+#include <cstring>
+
+    static LoadBrowser* s_activeLoadBrowser = nullptr;
+
+    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_onImageFileUploaded(
+        const char* name, const uint8_t* data, int size)
+    {
+        if (!s_activeLoadBrowser) return;
+        std::string filename(name);
+        std::string path = "/tmp/" + filename;
+        FILE* f = fopen(path.c_str(), "wb");
+        if (f)
+        {
+            fwrite(data, 1, (size_t)size, f);
+            fclose(f);
+        }
+        if (s_activeLoadBrowser->onSelect)
+            s_activeLoadBrowser->onSelect(path, filename);
+    }
+
+    EM_JS(void, scpp_emOpenImagePicker, (), {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = ".png,.jpg,.jpeg";
+        input.onchange = function(e)
+        {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function()
+            {
+                var data = new Uint8Array(reader.result);
+                var nameLen = lengthBytesUTF8(file.name) + 1;
+                var namePtr = _malloc(nameLen);
+                stringToUTF8(file.name, namePtr, nameLen);
+                var dataPtr = _malloc(data.length);
+                HEAPU8.set(data, dataPtr);
+                _scpp_onImageFileUploaded(namePtr, dataPtr,
+                                          data.length);
+                _free(namePtr);
+                _free(dataPtr);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+        input.click();
+    });
+
+    void openImagePicker(LoadBrowser& browser)
+    {
+        s_activeLoadBrowser = &browser;
+        scpp_emOpenImagePicker();
+    }
+
+#else  // desktop
+
+    void openImagePicker(LoadBrowser& browser) { browser.show = true; }
+
+#endif  // __EMSCRIPTEN__
+
 }  // namespace shoecomp

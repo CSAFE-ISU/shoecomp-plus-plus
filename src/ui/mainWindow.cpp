@@ -12,26 +12,12 @@
 #include "hello_imgui/imgui_theme.h"
 #include <algorithm>
 #include <cmath>
-#ifndef __EMSCRIPTEN__
 #include <filesystem>
-#endif
 #include <fstream>
-
-#ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <cstdio>
-#include <cstring>
-#endif
 
 namespace shoecomp
 {
-#ifndef __EMSCRIPTEN__
     namespace fs = std::filesystem;
-#endif
-
-#ifdef __EMSCRIPTEN__
-    static AppState* s_appState = nullptr;
-#endif
 
     static void renderImageSaveProgressPopup(AppState& state)
     {
@@ -184,12 +170,10 @@ namespace shoecomp
         state.annotationError.render();
         state.imageSaveError.render();
         state.alignmentSaveError.render();
-#ifndef __EMSCRIPTEN__
         state.alignmentSaveBrowser.render();
         state.imageLoadBrowser.render();
         state.imageSaveBrowser.render();
         state.annotationFileBrowser.render();
-#endif
         renderImageSaveProgressPopup(state);
         {
             int prevLeft = state.viewerLeftIdx;
@@ -407,7 +391,6 @@ namespace shoecomp
         canvas.image->annotations["bounds"].setArray();
         canvas.image->annotations["points"].setArray();
 
-#ifndef __EMSCRIPTEN__
         if (state.imageLoadBrowser.loadCorrespondingJson)
         {
             fs::path jsonPath =
@@ -430,116 +413,9 @@ namespace shoecomp
                 }
             }
         }
-#endif
 
         state.images.push_back(std::move(canvas));
     }
-
-#ifdef __EMSCRIPTEN__
-    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_onImageFileUploaded(
-        const char* name, const uint8_t* data, int size)
-    {
-        if (!s_appState) return;
-        std::string filename(name);
-        std::string path = "/tmp/" + filename;
-        FILE* f = fopen(path.c_str(), "wb");
-        if (f)
-        {
-            fwrite(data, 1, (size_t)size, f);
-            fclose(f);
-        }
-        onImageLoadSelect(*s_appState, path, filename);
-    }
-
-    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_onJsonFileUploaded(
-        const char* name, const uint8_t* data, int size)
-    {
-        if (!s_appState) return;
-        std::string filename(name);
-        std::string path = "/tmp/" + filename;
-        FILE* f = fopen(path.c_str(), "wb");
-        if (f)
-        {
-            fwrite(data, 1, (size_t)size, f);
-            fclose(f);
-        }
-        onAnnotationFileOk(*s_appState, path);
-    }
-
-    EM_JS(void, scpp_emOpenImagePicker, (), {
-        var input = document.createElement("input");
-        input.type = "file";
-        input.accept = ".png,.jpg,.jpeg";
-        input.onchange = function(e)
-        {
-            var file = e.target.files[0];
-            if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function()
-            {
-                var data = new Uint8Array(reader.result);
-                var nameLen = lengthBytesUTF8(file.name) + 1;
-                var namePtr = _malloc(nameLen);
-                stringToUTF8(file.name, namePtr, nameLen);
-                var dataPtr = _malloc(data.length);
-                HEAPU8.set(data, dataPtr);
-                _scpp_onImageFileUploaded(namePtr, dataPtr,
-                                          data.length);
-                _free(namePtr);
-                _free(dataPtr);
-            };
-            reader.readAsArrayBuffer(file);
-        };
-        input.click();
-    });
-
-    EM_JS(void, scpp_emOpenJsonPicker, (), {
-        var input = document.createElement("input");
-        input.type = "file";
-        input.accept = ".json";
-        input.onchange = function(e)
-        {
-            var file = e.target.files[0];
-            if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function()
-            {
-                var data = new Uint8Array(reader.result);
-                var nameLen = lengthBytesUTF8(file.name) + 1;
-                var namePtr = _malloc(nameLen);
-                stringToUTF8(file.name, namePtr, nameLen);
-                var dataPtr = _malloc(data.length);
-                HEAPU8.set(data, dataPtr);
-                _scpp_onJsonFileUploaded(namePtr, dataPtr, data.length);
-                _free(namePtr);
-                _free(dataPtr);
-            };
-            reader.readAsArrayBuffer(file);
-        };
-        input.click();
-    });
-
-    EM_JS(void, scpp_emDownloadString,
-          (const char* data, int len, const char* filename,
-           int filenameLen),
-          {
-              var str = UTF8ToString(data, len);
-              var fname = UTF8ToString(filename, filenameLen);
-              var blob = new Blob([str],
-                                  {
-                                      type:
-                                          "application/json"
-                                  });
-              var url = URL.createObjectURL(blob);
-              var a = document.createElement("a");
-              a.href = url;
-              a.download = fname;
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-          });
-#endif  // __EMSCRIPTEN__
 
     static void onBeforeExit(AppState& state)
     {
@@ -586,9 +462,6 @@ namespace shoecomp
         state.licenseTexts = preloadLicenseTexts();
 #endif
 
-#ifdef __EMSCRIPTEN__
-        s_appState = &state;
-#endif
         state.imageLoadError.title = "Image Load Error";
         state.imageSaveError.title = "Image Save Error";
         state.annotationError.title = "Annotation Error";
