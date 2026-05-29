@@ -203,6 +203,7 @@ namespace shoecomp
             state.annotationFileBrowser.contextLabel.clear();
             state.annotationFileBrowser.extensionChoices = {".json",
                                                             ""};
+            state.annotationFileBrowser.loadMode = true;
             state.annotationFileBrowser.title = "Load Annotations";
         }
         ImGui::SameLine();
@@ -213,6 +214,7 @@ namespace shoecomp
             state.annotationFileTarget = state.activeGalleryImage;
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
+            state.annotationFileBrowser.loadMode = false;
             {
                 auto& canvas = state.images[state.activeGalleryImage];
                 state.annotationFileBrowser.contextLabel =

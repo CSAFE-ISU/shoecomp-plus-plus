@@ -1,10 +1,109 @@
 #include "ui/saveBrowser.h"
 #include "ui/uiHelpers.h"
 #include "imgui.h"
+
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#include <cstdio>
+#include <cstring>
+#else
 #include <filesystem>
+#endif
 
 namespace shoecomp
 {
+
+#ifdef __EMSCRIPTEN__
+
+    static SaveBrowser* s_activeSaveBrowser = nullptr;
+
+    extern "C" void EMSCRIPTEN_KEEPALIVE
+    scpp_onSaveBrowserFileUploaded(const char* name, const char* mime,
+                                   const uint8_t* data, int size)
+    {
+        (void)mime;
+        if (!s_activeSaveBrowser) return;
+
+        std::string filename(name);
+        std::string path = "/tmp/" + filename;
+
+        FILE* f = fopen(path.c_str(), "wb");
+        if (f)
+        {
+            fwrite(data, 1, (size_t)size, f);
+            fclose(f);
+        }
+
+        if (s_activeSaveBrowser->onOk) s_activeSaveBrowser->onOk(path);
+
+        s_activeSaveBrowser->show = false;
+        s_activeSaveBrowser = nullptr;
+    }
+
+    EM_JS(void, scpp_openSaveBrowserFilePicker, (const char* accept), {
+        var acceptStr = UTF8ToString(accept);
+        var input = document.createElement("input");
+        input.type = "file";
+        input.accept = acceptStr;
+        input.onchange = function(e)
+        {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function()
+            {
+                var data = new Uint8Array(reader.result);
+                var nameLen = lengthBytesUTF8(file.name) + 1;
+                var namePtr = _malloc(nameLen);
+                stringToUTF8(file.name, namePtr, nameLen);
+                var mimeLen = lengthBytesUTF8(file.type) + 1;
+                var mimePtr = _malloc(mimeLen);
+                stringToUTF8(file.type, mimePtr, mimeLen);
+                var dataPtr = _malloc(data.length);
+                HEAPU8.set(data, dataPtr);
+                _scpp_onSaveBrowserFileUploaded(namePtr, mimePtr,
+                                                dataPtr, data.length);
+                _free(namePtr);
+                _free(mimePtr);
+                _free(dataPtr);
+            };
+            reader.readAsArrayBuffer(file);
+        };
+        input.click();
+    });
+
+    void SaveBrowser::render()
+    {
+        if (!popupBeginClosable(title.c_str(), show, 0.5f, 0.6f, 0.25f,
+                                0.2f))
+            return;
+
+        if (loadMode)
+        {
+            ImGui::Text("%s", title.c_str());
+            ImGui::Separator();
+
+            if (ImGui::Button("Choose File..."))
+            {
+                s_activeSaveBrowser = this;
+                scpp_openSaveBrowserFilePicker(".json");
+            }
+
+            if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
+        }
+        else
+        {
+            ImGui::Text(
+                "Saving is not supported in the "
+                "browser.");
+            if (ImGui::Button("Cancel")) { ImGui::CloseCurrentPopup(); }
+        }
+
+        ImGui::EndPopup();
+    }
+
+#else  // Desktop
+
     namespace fs = std::filesystem;
 
     void SaveBrowser::render()
@@ -93,7 +192,10 @@ namespace shoecomp
                         }
                     }
                 }
-                else { fileName = entry; }
+                else
+                {
+                    fileName = entry;
+                }
             }
         }
         ImGui::EndChild();
@@ -147,4 +249,7 @@ namespace shoecomp
 
         ImGui::EndPopup();
     }
+
+#endif  // __EMSCRIPTEN__
+
 }  // namespace shoecomp

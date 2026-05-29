@@ -18,6 +18,7 @@ namespace shoecomp
         std::vector<std::string> extensionChoices;
         std::string title;
         std::string contextLabel;
+        bool loadMode = false;
         std::function<void(const std::string& path)> onOk;
         void render();
     };
