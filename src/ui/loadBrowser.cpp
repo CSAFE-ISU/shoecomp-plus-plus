@@ -4,6 +4,10 @@
 
 #ifndef __EMSCRIPTEN__
 #include <filesystem>
+#else
+#include <emscripten.h>
+#include <cstdio>
+#include <cstring>
 #endif
 
 namespace shoecomp
@@ -137,9 +141,6 @@ namespace shoecomp
 #endif  // __EMSCRIPTEN__
 
 #ifdef __EMSCRIPTEN__
-#include <emscripten.h>
-#include <cstdio>
-#include <cstring>
 
     static LoadBrowser* s_activeLoadBrowser = nullptr;
 
