@@ -183,6 +183,13 @@ namespace shoecomp
         static int s_pendingThemeIdx = -1;
         if (s_pendingThemeIdx < 0) s_pendingThemeIdx = s.themeIdx;
 
+        float btnH = ImGui::GetFrameHeightWithSpacing() +
+                     ImGui::GetStyle().ItemSpacing.y * 2;
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImGui::BeginChild("##settingsScroll",
+                          ImVec2(avail.x, avail.y - btnH),
+                          ImGuiChildFlags_None);
+
         // General Settings section
         if (ImGui::CollapsingHeader("General",
                                     ImGuiTreeNodeFlags_DefaultOpen))
@@ -212,8 +219,7 @@ namespace shoecomp
         ImGui::Spacing();
 
         // Annotations section
-        if (ImGui::CollapsingHeader("Annotations",
-                                    ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Annotations"))
         {
             if (ImGui::BeginTable("##annSettings", 3))
             {
@@ -276,8 +282,7 @@ namespace shoecomp
         ImGui::Spacing();
 
         // Locked Viewer Indicators section
-        if (ImGui::CollapsingHeader("Locked Viewer Indicators",
-                                    ImGuiTreeNodeFlags_DefaultOpen))
+        if (ImGui::CollapsingHeader("Locked Viewer Indicators"))
         {
             if (ImGui::BeginTable("##lockedSettings", 3))
             {
@@ -321,15 +326,16 @@ namespace shoecomp
             }
         }
 
-        ImGui::Spacing();
+        ImGui::EndChild();
+
         ImGui::Separator();
         ImGui::Spacing();
 
         float btnW = 300.0f;
-        float avail = ImGui::GetContentRegionAvail().x;
-        if (avail > btnW)
+        float regionW = ImGui::GetContentRegionAvail().x;
+        if (regionW > btnW)
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
-                                 (avail - btnW) * 0.5f);
+                                 (regionW - btnW) * 0.5f);
         if (ImGui::Button("Update Settings", ImVec2(btnW, 0.0f)))
         {
             s.themeIdx = s_pendingThemeIdx;
