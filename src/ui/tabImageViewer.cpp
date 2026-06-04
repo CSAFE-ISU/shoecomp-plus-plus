@@ -186,6 +186,10 @@ namespace shoecomp
         {
             openImagePicker(state.imageLoadBrowser);
         }
+#ifdef __EMSCRIPTEN__
+        if (ImGui::IsItemHovered())
+            setLoadBrowserHovered(&state.imageLoadBrowser);
+#endif
 
         ImGui::SameLine();
         ImGui::BeginDisabled(!hasActive);

@@ -23,6 +23,9 @@ namespace shoecomp
         void render();
     };
     void openImagePicker(LoadBrowser& browser);
+#ifdef __EMSCRIPTEN__
+    void setLoadBrowserHovered(LoadBrowser* browser);
+#endif
 }  // namespace shoecomp
 
 #endif
