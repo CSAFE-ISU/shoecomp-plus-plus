@@ -180,16 +180,8 @@ namespace shoecomp
 
     void renderSettingsTab(SettingsState& s)
     {
-        // Update Settings button at the top
-        if (ImGui::Button("Update Settings", ImVec2(-1.0f, 0.0f)))
-        {
-            applyTheme(s.themeIdx);
-            ImGui::GetIO().FontGlobalScale = s.fontScale;
-        }
-
-        ImGui::Spacing();
-        ImGui::Separator();
-        ImGui::Spacing();
+        static int s_pendingThemeIdx = -1;
+        if (s_pendingThemeIdx < 0) s_pendingThemeIdx = s.themeIdx;
 
         // General Settings section
         if (ImGui::CollapsingHeader("General",
@@ -206,7 +198,7 @@ namespace shoecomp
 
                 settingsTableRow("Theme");
 
-                ImGui::Combo("##Theme", &s.themeIdx, themeNames);
+                ImGui::Combo("##Theme", &s_pendingThemeIdx, themeNames);
 
                 settingsTableRow("Font Scale");
                 ImGui::SliderFloat("##FontScale", &s.fontScale, 0.5f,
@@ -327,6 +319,22 @@ namespace shoecomp
 
                 ImGui::EndTable();
             }
+        }
+
+        ImGui::Spacing();
+        ImGui::Separator();
+        ImGui::Spacing();
+
+        float btnW = 300.0f;
+        float avail = ImGui::GetContentRegionAvail().x;
+        if (avail > btnW)
+            ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
+                                 (avail - btnW) * 0.5f);
+        if (ImGui::Button("Update Settings", ImVec2(btnW, 0.0f)))
+        {
+            s.themeIdx = s_pendingThemeIdx;
+            applyTheme(s.themeIdx);
+            ImGui::GetIO().FontGlobalScale = s.fontScale;
         }
     }
 
