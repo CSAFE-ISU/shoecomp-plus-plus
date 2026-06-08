@@ -1,5 +1,6 @@
 #include "ui/imageCanvas.h"
 #include "ui/uiHelpers.h"
+#include "ui/calcHelpers.h"
 #include "formats/png.h"
 
 namespace shoecomp

@@ -1,5 +1,6 @@
 #include "ui/mainWindow.h"
 #include "ui/uiHelpers.h"
+#include "ui/calcHelpers.h"
 
 namespace shoecomp
 {
