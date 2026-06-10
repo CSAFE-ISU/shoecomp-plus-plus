@@ -7,7 +7,8 @@
 namespace shoecomp
 {
 
-    static void dummyAlign(ImageData& left, ImageData& right,
+    static void dummyAlign(ImageCanvas::ImageData& left,
+                           ImageCanvas::ImageData& right,
                            WorkerChannel& channel,
                            std::vector<AlignState>& results)
     {
@@ -29,7 +30,8 @@ namespace shoecomp
         channel.done();
     }
 
-    void runAutoAlign(ImageData& left, ImageData& right,
+    void runAutoAlign(ImageCanvas::ImageData& left,
+                      ImageCanvas::ImageData& right,
                       WorkerChannel& channel,
                       std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params)

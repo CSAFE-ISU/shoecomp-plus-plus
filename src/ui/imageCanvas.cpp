@@ -5,9 +5,9 @@
 
 namespace shoecomp
 {
-    AnnotationStyle g_annotationStyle;
+    ImageCanvas::AnnotationStyle ImageCanvas::style;
 
-    const char* pointTypeToString(PointType t)
+    const char* ImageCanvas::pointTypeToString(PointType t)
     {
         switch (t)
         {
@@ -29,7 +29,7 @@ namespace shoecomp
         }
     }
 
-    bool ImageViewState::contains(const ImVec2& pt) const
+    bool ImageCanvas::ImageViewState::contains(const ImVec2& pt) const
     {
         return ((pt.x >= this->canvasPos.x) &&
                 (pt.x < (this->canvasPos.x + this->canvasSize.x)) &&
@@ -37,14 +37,15 @@ namespace shoecomp
                 (pt.y < (this->canvasPos.y + this->canvasSize.y)));
     }
 
-    ImVec2 ImageViewState::canvasCenter() const
+    ImVec2 ImageCanvas::ImageViewState::canvasCenter() const
     {
         ImVec2 result(canvasPos.x + canvasSize.x * 0.5f,
                       canvasPos.y + canvasSize.y * 0.5f);
         return result;
     }
 
-    PointType stringToPointType(const std::string& s)
+    ImageCanvas::PointType ImageCanvas::stringToPointType(
+        const std::string& s)
     {
         if (s == "Center") return PointType::Center;
         if (s == "RidgeEnding") return PointType::RidgeEnding;
@@ -55,9 +56,16 @@ namespace shoecomp
         return PointType::Corner;
     }
 
-    ImageData::~ImageData()
+    ImageCanvas::ImageData::~ImageData()
     {
         if (textureId) freeTexture(textureId);
+    }
+
+    void ImageCanvas::ImageData::resetAnnotations()
+    {
+        annotations.setObject();
+        annotations["bounds"].setArray();
+        annotations["points"].setArray();
     }
 
     ImageCanvas::ImageCanvas() : image(std::make_shared<ImageData>()) {}
@@ -65,6 +73,19 @@ namespace shoecomp
     ImageCanvas::ImageCanvas(std::shared_ptr<ImageData> img)
         : image(std::move(img))
     {
+    }
+
+    const std::string& ImageCanvas::name() const
+    {
+        static const std::string empty;
+        return image ? image->name : empty;
+    }
+
+    void ImageCanvas::resetView()
+    {
+        viewState.zoom = viewState.zoomTarget = 1.0f;
+        viewState.pan = viewState.panTarget = ImVec2(0, 0);
+        viewState.rotation = viewState.rotationTarget = 0.0f;
     }
 
     ImVec2 ImageCanvas::screenToImageCoord(ImVec2 sp, ImVec2 canvasPos,
@@ -168,7 +189,7 @@ namespace shoecomp
                                 ImVec2 avail, ImGuiIO& io,
                                 float barThick, float barPad,
                                 ImU32 barCol, ImU32 barColHov,
-                                ImageViewState& vs)
+                                ImageCanvas::ImageViewState& vs)
     {
         if (dispSize <= availSize) return;
         float viewRatio = availSize / dispSize;
@@ -315,33 +336,30 @@ namespace shoecomp
                 if (pType == PointType::Center)
                 {
                     ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                        g_annotationStyle.centerColor);
-                    dl->AddCircleFilled(
-                        sp, g_annotationStyle.pointRadius, cCol);
-                    dl->AddCircle(sp, g_annotationStyle.pointRadius,
+                        style.centerColor);
+                    dl->AddCircleFilled(sp, style.pointRadius, cCol);
+                    dl->AddCircle(sp, style.pointRadius,
                                   kColorPointOutline, 12, 1.5f);
                 }
                 else if (pType == PointType::RidgeEnding ||
                          pType == PointType::Bifurcation ||
                          pType == PointType::Other)
                 {
-                    ImVec4 col =
-                        pType == PointType::RidgeEnding
-                            ? g_annotationStyle.ridgeEndingColor
-                        : pType == PointType::Bifurcation
-                            ? g_annotationStyle.bifurcationColor
-                            : g_annotationStyle.otherColor;
+                    ImVec4 col = pType == PointType::RidgeEnding
+                                     ? style.ridgeEndingColor
+                                 : pType == PointType::Bifurcation
+                                     ? style.bifurcationColor
+                                     : style.otherColor;
                     ImU32 cCol = ImGui::ColorConvertFloat4ToU32(col);
-                    dl->AddCircleFilled(
-                        sp, g_annotationStyle.pointRadius, cCol);
-                    dl->AddCircle(sp, g_annotationStyle.pointRadius,
+                    dl->AddCircleFilled(sp, style.pointRadius, cCol);
+                    dl->AddCircle(sp, style.pointRadius,
                                   kColorPointOutline, 12, 1.5f);
                 }
                 else if (pType == PointType::Core)
                 {
-                    ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                        g_annotationStyle.coreColor);
-                    float r = g_annotationStyle.pointRadius;
+                    ImU32 cCol =
+                        ImGui::ColorConvertFloat4ToU32(style.coreColor);
+                    float r = style.pointRadius;
                     dl->AddCircleFilled(sp, r, cCol);
                     dl->AddCircle(sp, r, kColorPointOutline, 12, 1.5f);
                     dl->AddCircle(sp, r * 1.6f, cCol, 12, 1.5f);
@@ -349,8 +367,8 @@ namespace shoecomp
                 else if (pType == PointType::Delta)
                 {
                     ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                        g_annotationStyle.deltaColor);
-                    float d = g_annotationStyle.pointRadius;
+                        style.deltaColor);
+                    float d = style.pointRadius;
                     ImVec2 top(sp.x, sp.y - d);
                     ImVec2 bl(sp.x - d, sp.y + d);
                     ImVec2 br(sp.x + d, sp.y + d);
@@ -362,8 +380,8 @@ namespace shoecomp
                 else
                 {
                     ImU32 cCol = ImGui::ColorConvertFloat4ToU32(
-                        g_annotationStyle.cornerColor);
-                    float d = g_annotationStyle.pointRadius;
+                        style.cornerColor);
+                    float d = style.pointRadius;
                     ImVec2 top(sp.x, sp.y - d);
                     ImVec2 right(sp.x + d, sp.y);
                     ImVec2 bot(sp.x, sp.y + d);
@@ -379,8 +397,8 @@ namespace shoecomp
         {
             auto& bnd = image->annotations["bounds"].getArray();
             bool editing = (mode == AnnotationMode::AddBounds);
-            ImU32 bndCol = ImGui::ColorConvertFloat4ToU32(
-                g_annotationStyle.boundsColor);
+            ImU32 bndCol =
+                ImGui::ColorConvertFloat4ToU32(style.boundsColor);
             if (bnd.size() >= 2)
             {
                 for (size_t i = 0; i + 1 < bnd.size(); ++i)
@@ -394,7 +412,7 @@ namespace shoecomp
                         bnd[i + 1]["y"].getNumber(), cx, cy, annScale,
                         rotation, imgW, imgH);
                     dl->AddLine(a, b, bndCol,
-                                g_annotationStyle.boundsLineThickness);
+                                style.boundsLineThickness);
                 }
             }
             if (bnd.size() >= 2)
@@ -409,7 +427,7 @@ namespace shoecomp
                 if (!editing)
                 {
                     dl->AddLine(last, first, bndCol,
-                                g_annotationStyle.boundsLineThickness);
+                                style.boundsLineThickness);
                 }
                 else
                 {
@@ -430,8 +448,8 @@ namespace shoecomp
                 ImVec2 sp = imageToScreenCoord(
                     v["x"].getNumber(), v["y"].getNumber(), cx, cy,
                     annScale, rotation, imgW, imgH);
-                dl->AddCircleFilled(
-                    sp, g_annotationStyle.pointRadius - 1.0f, bndCol);
+                dl->AddCircleFilled(sp, style.pointRadius - 1.0f,
+                                    bndCol);
             }
         }
     }
@@ -777,6 +795,56 @@ namespace shoecomp
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::PopID();
+    }
+
+    void ImageCanvas::renderStyleSettings()
+    {
+        if (!ImGui::CollapsingHeader("Annotations")) return;
+        if (!ImGui::BeginTable("##annSettings", 3)) return;
+
+        ImGui::TableSetupColumn(
+            "Label", ImGuiTableColumnFlags_WidthFixed, 250.0f);
+        ImGui::TableSetupColumn(
+            "Spacer", ImGuiTableColumnFlags_WidthFixed, 20.0f);
+        ImGui::TableSetupColumn("Widget",
+                                ImGuiTableColumnFlags_WidthStretch);
+
+        settingsTableRow("Point Radius");
+        ImGui::SliderFloat("##PointRadius", &style.pointRadius, 2.0f,
+                           15.0f, "%.1f");
+
+        settingsTableRow("Corner Color");
+        ImGui::ColorEdit4("##CornerColor", &style.cornerColor.x);
+
+        settingsTableRow("Center Color");
+        ImGui::ColorEdit4("##CenterColor", &style.centerColor.x);
+
+        settingsTableRow("Ridge Ending Color");
+        ImGui::ColorEdit4("##RidgeEndingColor",
+                          &style.ridgeEndingColor.x);
+
+        settingsTableRow("Bifurcation Color");
+        ImGui::ColorEdit4("##BifurcationColor",
+                          &style.bifurcationColor.x);
+
+        settingsTableRow("Other Color");
+        ImGui::ColorEdit4("##OtherColor", &style.otherColor.x);
+
+        settingsTableRow("Core Color");
+        ImGui::ColorEdit4("##CoreColor", &style.coreColor.x);
+
+        settingsTableRow("Delta Color");
+        ImGui::ColorEdit4("##DeltaColor", &style.deltaColor.x);
+
+        settingsTableRow("Bounds Thickness");
+        ImGui::SliderFloat("##BoundsThickness",
+                           &style.boundsLineThickness, 1.0f, 8.0f,
+                           "%.1f");
+
+        settingsTableRow("Bounds Color");
+        ImGui::ColorEdit4("##BoundsColor", &style.boundsColor.x);
+
+        ImGui::EndTable();
     }
 
 }  // namespace shoecomp

@@ -74,7 +74,7 @@ namespace shoecomp
                 (int)state.viewerAlignments.size() - 1;
             state.alignDialog.workerResults.clear();
             state.alignDialog.workerFinished = false;
-            applyAlignment(
+            ImageCanvas::applyAlignment(
                 state.viewerLeft, state.viewerRight,
                 state.viewerAlignments[state.viewerAlignmentIdx],
                 state.viewerLocked);
@@ -122,9 +122,9 @@ namespace shoecomp
             if (changed)
             {
                 state.alignEditState.rotation = rotationDeg * kDegToRad;
-                applyAlignment(state.viewerLeft, state.viewerRight,
-                               state.alignEditState,
-                               state.viewerLocked);
+                ImageCanvas::applyAlignment(
+                    state.viewerLeft, state.viewerRight,
+                    state.alignEditState, state.viewerLocked);
             }
 
             ImGui::Spacing();
@@ -134,7 +134,7 @@ namespace shoecomp
                 state.viewerAlignments.push_back(state.alignEditState);
                 state.viewerAlignmentIdx =
                     state.viewerAlignments.size() - 1;
-                applyAlignment(
+                ImageCanvas::applyAlignment(
                     state.viewerLeft, state.viewerRight,
                     state.viewerAlignments[state.viewerAlignmentIdx],
                     state.viewerLocked);
@@ -145,9 +145,9 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditState;
-                applyAlignment(state.viewerLeft, state.viewerRight,
-                               state.alignEditState,
-                               state.viewerLocked);
+                ImageCanvas::applyAlignment(
+                    state.viewerLeft, state.viewerRight,
+                    state.alignEditState, state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
@@ -155,9 +155,9 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditOriginal;
-                applyAlignment(state.viewerLeft, state.viewerRight,
-                               state.alignEditOriginal,
-                               state.viewerLocked);
+                ImageCanvas::applyAlignment(
+                    state.viewerLeft, state.viewerRight,
+                    state.alignEditOriginal, state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -387,9 +387,7 @@ namespace shoecomp
             return;
         }
 
-        canvas.image->annotations.setObject();
-        canvas.image->annotations["bounds"].setArray();
-        canvas.image->annotations["points"].setArray();
+        canvas.image->resetAnnotations();
 
         if (state.imageLoadBrowser.loadCorrespondingJson)
         {
@@ -401,9 +399,7 @@ namespace shoecomp
                         jsonPath.string(), canvas.image->annotations) !=
                     0)
                 {
-                    canvas.image->annotations.setObject();
-                    canvas.image->annotations["bounds"].setArray();
-                    canvas.image->annotations["points"].setArray();
+                    canvas.image->resetAnnotations();
                     state.annotationError.show = true;
                     state.annotationError.message =
                         "Failed to load "

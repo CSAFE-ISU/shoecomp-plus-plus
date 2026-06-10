@@ -1,4 +1,6 @@
-#include "ui/mainWindow.h"
+#include "ui/imageCanvas.h"
+#include "ui/alignDialog.h"
+#include "ui/settings.h"
 #include "ui/uiHelpers.h"
 #include "ui/calcHelpers.h"
 
@@ -7,9 +9,9 @@ namespace shoecomp
 
     // Apply alignment transform: set right viewer
     // to match left viewer + alignment offset.
-    void applyAlignment(ImageCanvas& viewerLeft,
-                        ImageCanvas& viewerRight, const AlignState& a,
-                        bool& locked)
+    void ImageCanvas::applyAlignment(ImageCanvas& viewerLeft,
+                                     ImageCanvas& viewerRight,
+                                     const AlignState& a, bool& locked)
     {
         auto& lv = viewerLeft.viewState;
         auto& rv = viewerRight.viewState;
@@ -107,11 +109,12 @@ namespace shoecomp
     // Sync locked viewers after rendering. Detects
     // which viewer changed and propagates through
     // alignment.
-    void syncLockedViewers(ImageCanvas& viewerLeft,
-                           ImageCanvas& viewerRight,
-                           const AlignState& a, float lZoom0,
-                           ImVec2 lPan0, float lRot0, float rZoom0,
-                           ImVec2 rPan0, float rRot0)
+    void ImageCanvas::syncLockedViewers(ImageCanvas& viewerLeft,
+                                        ImageCanvas& viewerRight,
+                                        const AlignState& a,
+                                        float lZoom0, ImVec2 lPan0,
+                                        float lRot0, float rZoom0,
+                                        ImVec2 rPan0, float rRot0)
     {
         auto& lv = viewerLeft.viewState;
         auto& rv = viewerRight.viewState;
@@ -168,10 +171,10 @@ namespace shoecomp
     }
 
     static void renderLockedCursorIndicators0(
-        const AppState& state, const AlignState& align,
-        const ImageCanvas& src, const std::vector<jt::Json>& srcPoints,
-        const ImageCanvas& dst, const std::vector<jt::Json>& dstPoints,
-        bool srcIsLeft, const SettingsState& settings)
+        const AlignState& align, const ImageCanvas& src,
+        const std::vector<jt::Json>& srcPoints, const ImageCanvas& dst,
+        const std::vector<jt::Json>& dstPoints, bool srcIsLeft,
+        const SettingsState& settings)
     {
         // Visual constants (from settings)
         const float primaryRadius = settings.cursorRadius;
@@ -308,26 +311,16 @@ namespace shoecomp
                 // Draw line connecting the matched points
                 dl->AddLine(srcScreenPos, dstScreenPos,
                             correspondingColor,
-                            g_annotationStyle.boundsLineThickness);
+                            ImageCanvas::style.boundsLineThickness);
             }
         }
     }
 
-    void renderLockedCursorIndicators(const AppState& state,
-                                      const SettingsState& settings)
+    void ImageCanvas::renderLockedCursorIndicators(
+        const ImageCanvas& left, const ImageCanvas& right,
+        const AlignState& align, const SettingsState& settings)
     {
-        if (state.viewerLeftIdx < 0 || state.viewerRightIdx < 0)
-        {
-            return;
-        }
-
-        auto& leftView = state.viewerLeft.viewState;
-        auto& rightView = state.viewerRight.viewState;
-        auto& leftImg = state.viewerLeft.image;
-        auto& rightImg = state.viewerRight.image;
-        if (!leftImg || !rightImg) { return; }
-
-        auto& align = state.viewerAlignments[state.viewerAlignmentIdx];
+        if (!left.image || !right.image) { return; }
 
         // Guard against division by zero in inverse transformation
         if (align.scale < 0.001f) { return; }
@@ -344,24 +337,65 @@ namespace shoecomp
         auto& rightPoints = align.info["rightPoints"].getArray();
         if (leftPoints.size() != rightPoints.size()) { return; }
 
-        if (rightView.isHovered)
+        if (right.viewState.isHovered)
         {
-            renderLockedCursorIndicators0(state, align,
-                                          /*src=*/state.viewerRight,
+            renderLockedCursorIndicators0(align,
+                                          /*src=*/right,
                                           /*srcPoints=*/rightPoints,
-                                          /*dst=*/state.viewerLeft,
+                                          /*dst=*/left,
                                           /*dstPoints=*/leftPoints,
                                           false, settings);
         }
         else
         {
-            renderLockedCursorIndicators0(state, align,
-                                          /*src=*/state.viewerLeft,
+            renderLockedCursorIndicators0(align,
+                                          /*src=*/left,
                                           /*srcPoints=*/leftPoints,
-                                          /*dst=*/state.viewerRight,
+                                          /*dst=*/right,
                                           /*dstPoints=*/rightPoints,
                                           true, settings);
         }
+    }
+
+    ImageCanvas::ViewTargets ImageCanvas::snapshotTargets(
+        const ImageCanvas& c)
+    {
+        ViewTargets t;
+        t.zoom = c.viewState.zoomTarget;
+        t.pan = c.viewState.panTarget;
+        t.rotation = c.viewState.rotationTarget;
+        return t;
+    }
+
+    void ImageCanvas::syncPair(ImageCanvas& left, ImageCanvas& right,
+                               const ViewTargets& l0,
+                               const ViewTargets& r0,
+                               const AlignState& align, bool& locked,
+                               bool alignDialogOpen,
+                               const SettingsState& settings)
+    {
+        auto& lv = left.viewState;
+        auto& rv = right.viewState;
+
+        if (lv.homeRequested || rv.homeRequested)
+        {
+            lv.zoomTarget = 1.0f;
+            lv.panTarget = ImVec2(0, 0);
+            lv.rotationTarget = 0.0f;
+            applyAlignment(left, right, align, locked);
+        }
+        else
+        {
+            syncLockedViewers(left, right, align, l0.zoom, l0.pan,
+                              l0.rotation, r0.zoom, r0.pan,
+                              r0.rotation);
+        }
+
+        if (!alignDialogOpen)
+            renderLockedCursorIndicators(left, right, align, settings);
+
+        lv.homeRequested = false;
+        rv.homeRequested = false;
     }
 
 } /* namespace shoecomp */

@@ -26,7 +26,7 @@ namespace shoecomp
             ImGui::SameLine();
             ImGui::Checkbox("Minimize", &images[i].minimized);
             ImGui::SameLine();
-            ImGui::Text("%s", images[i].image->name.c_str());
+            ImGui::Text("%s", images[i].name().c_str());
             ImGui::PopID();
         }
         if (popRemoveIdx >= 0)

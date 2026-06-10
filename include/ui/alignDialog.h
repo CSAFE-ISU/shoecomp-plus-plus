@@ -8,10 +8,10 @@
 #include "imgui.h"
 #include "calc/align.h"
 #include "jtjson/json.h"
+#include "ui/imageCanvas.h"
 
 namespace shoecomp
 {
-    struct ImageData;
     enum class AlignMode
     {
         Manual = 0,
@@ -27,8 +27,8 @@ namespace shoecomp
         float scale = 1.0f;
         jt::Json info;
 
-        ImVec2 transformRight2Left(const ImVec2 &pt) const;
-        ImVec2 transformLeft2Right(const ImVec2 &pt) const;
+        ImVec2 transformRight2Left(const ImVec2& pt) const;
+        ImVec2 transformLeft2Right(const ImVec2& pt) const;
     };
 
     struct AlignDialog
@@ -37,8 +37,8 @@ namespace shoecomp
         bool open = false;
         std::string leftName;
         std::string rightName;
-        std::shared_ptr<ImageData> leftImage;
-        std::shared_ptr<ImageData> rightImage;
+        std::shared_ptr<ImageCanvas::ImageData> leftImage;
+        std::shared_ptr<ImageCanvas::ImageData> rightImage;
         std::vector<AlignState> workerResults;
         WorkerChannel channel;
         std::thread workerThread;

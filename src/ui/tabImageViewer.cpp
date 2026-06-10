@@ -34,11 +34,11 @@ namespace shoecomp
             auto& canvas = state.images[i];
 
             // Scale image to fit within max bounds
-            float scale = std::min(maxW / (float)canvas.image->width,
-                                   maxH / (float)canvas.image->height);
+            float scale = std::min(maxW / (float)canvas.width(),
+                                   maxH / (float)canvas.height());
             scale = std::min(scale, 1.0f);
-            float dispW = canvas.image->width * scale;
-            float dispH = canvas.image->height * scale;
+            float dispW = canvas.width() * scale;
+            float dispH = canvas.height() * scale;
 
             float tbRows = ImGui::GetFrameHeightWithSpacing() * 3.0f;
             float minW = 400.0f;
@@ -52,7 +52,7 @@ namespace shoecomp
 
             char winId[128];
             snprintf(winId, sizeof(winId), "%s###gallery_%d",
-                     canvas.image->name.c_str(), i);
+                     canvas.name().c_str(), i);
 
             char canvasId[64];
             snprintf(canvasId, sizeof(canvasId), "##gcanvas_%d", i);

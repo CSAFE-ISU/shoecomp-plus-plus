@@ -13,7 +13,7 @@ namespace shoecomp
             ImGui::PushID(i);
             if (ImGui::Button("X")) removeIdx = i;
             ImGui::SameLine();
-            ImGui::Text("%s", state.images[i].image->name.c_str());
+            ImGui::Text("%s", state.images[i].name().c_str());
             ImGui::PopID();
         }
         if (removeIdx >= 0)

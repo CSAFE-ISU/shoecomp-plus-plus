@@ -89,20 +89,8 @@ namespace shoecomp
         std::vector<std::string> licenseTexts;
     };
 
-    void applyAlignment(ImageCanvas&, ImageCanvas&,  //
-                        const AlignState& a, bool&);
-    void syncLockedViewers(ImageCanvas&, ImageCanvas&,
-                           const AlignState&,     //
-                           float, ImVec2, float,  //
-                           float, ImVec2, float);
-    void renderLockedCursorIndicators(const AppState&,
-                                      const SettingsState&);
-    //
     void renderAbout(AppState& state);
     void renderImageComparison(AppState& state);
-    void renderSingleViewer(AppState& state, int& selectedIdx,
-                            int otherIdx, ImageCanvas& viewer,
-                            const char* label);
     void renderLockToggle(bool& locked);
     void renderImageGallery(AppState& state);
     void renderFilesAndSettings(AppState& state);

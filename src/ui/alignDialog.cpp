@@ -72,7 +72,8 @@ namespace shoecomp
         }
     }
 
-    static int countPts(const std::shared_ptr<ImageData>& img)
+    static int countPts(
+        const std::shared_ptr<ImageCanvas::ImageData>& img)
     {
         if (!img) return 0;
         if (!hasAnnotationArray(img->annotations, "points")) return 0;
@@ -194,7 +195,10 @@ namespace shoecomp
                     ImGui::TextWrapped("%s", statusText);
                     ImGui::PopStyleColor();
                 }
-                else { ImGui::TextWrapped("%s", statusText); }
+                else
+                {
+                    ImGui::TextWrapped("%s", statusText);
+                }
             }
 
             ImGui::Separator();

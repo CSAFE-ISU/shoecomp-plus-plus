@@ -8,7 +8,7 @@
 
 namespace shoecomp
 {
-    static bool extractAnnotatedPoints(ImageData& data,
+    static bool extractAnnotatedPoints(ImageCanvas::ImageData& data,
                                        AlignCalc::DoubleMatrixR& mat)
     {
         if (!data.annotations.isObject() ||
@@ -32,12 +32,13 @@ namespace shoecomp
             mat(i, 0) = el["x"].getNumber();
             mat(i, 1) = el["y"].getNumber();
             mat(i, 2) = static_cast<double>(
-                stringToPointType(el["type"].getString()));
+                ImageCanvas::stringToPointType(el["type"].getString()));
         }
         return true;
     }
 
-    void runRTSAlign(ImageData& left, ImageData& right,
+    void runRTSAlign(ImageCanvas::ImageData& left,
+                     ImageCanvas::ImageData& right,
                      WorkerChannel& channel,
                      std::vector<AlignState>& aligns,
                      const AlignCalc::RTSParams& params)
@@ -79,7 +80,10 @@ namespace shoecomp
             aligns.back().dx = tform.dx;
             aligns.back().dy = tform.dy;
             if (params.sameScale) { aligns.back().scale = 1.0; }
-            else { aligns.back().scale = tform.scale; }
+            else
+            {
+                aligns.back().scale = tform.scale;
+            }
             aligns.back().mode = AlignMode::Automatic;
 
             // Store matched points in info

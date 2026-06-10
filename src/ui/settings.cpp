@@ -218,66 +218,8 @@ namespace shoecomp
 
         ImGui::Spacing();
 
-        // Annotations section
-        if (ImGui::CollapsingHeader("Annotations"))
-        {
-            if (ImGui::BeginTable("##annSettings", 3))
-            {
-                ImGui::TableSetupColumn(
-                    "Label", ImGuiTableColumnFlags_WidthFixed, 250.0f);
-                ImGui::TableSetupColumn(
-                    "Spacer", ImGuiTableColumnFlags_WidthFixed, 20.0f);
-                ImGui::TableSetupColumn(
-                    "Widget", ImGuiTableColumnFlags_WidthStretch);
-
-                settingsTableRow("Point Radius");
-                ImGui::SliderFloat("##PointRadius",
-                                   &g_annotationStyle.pointRadius, 2.0f,
-                                   15.0f, "%.1f");
-
-                settingsTableRow("Corner Color");
-                ImGui::ColorEdit4("##CornerColor",
-                                  &g_annotationStyle.cornerColor.x);
-
-                settingsTableRow("Center Color");
-                ImGui::ColorEdit4("##CenterColor",
-                                  &g_annotationStyle.centerColor.x);
-
-                settingsTableRow("Ridge Ending Color");
-                ImGui::ColorEdit4(
-                    "##RidgeEndingColor",
-                    &g_annotationStyle.ridgeEndingColor.x);
-
-                settingsTableRow("Bifurcation Color");
-                ImGui::ColorEdit4(
-                    "##BifurcationColor",
-                    &g_annotationStyle.bifurcationColor.x);
-
-                settingsTableRow("Other Color");
-                ImGui::ColorEdit4("##OtherColor",
-                                  &g_annotationStyle.otherColor.x);
-
-                settingsTableRow("Core Color");
-                ImGui::ColorEdit4("##CoreColor",
-                                  &g_annotationStyle.coreColor.x);
-
-                settingsTableRow("Delta Color");
-                ImGui::ColorEdit4("##DeltaColor",
-                                  &g_annotationStyle.deltaColor.x);
-
-                settingsTableRow("Bounds Thickness");
-                ImGui::SliderFloat(
-                    "##BoundsThickness",
-                    &g_annotationStyle.boundsLineThickness, 1.0f, 8.0f,
-                    "%.1f");
-
-                settingsTableRow("Bounds Color");
-                ImGui::ColorEdit4("##BoundsColor",
-                                  &g_annotationStyle.boundsColor.x);
-
-                ImGui::EndTable();
-            }
-        }
+        // Annotations section (owned by ImageCanvas)
+        ImageCanvas::renderStyleSettings();
 
         ImGui::Spacing();
 

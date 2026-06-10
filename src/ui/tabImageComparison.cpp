@@ -11,16 +11,17 @@ namespace shoecomp
         if (ImGui::Button(locked ? "Unlock" : "Lock")) locked = !locked;
     }
 
-    void renderSingleViewer(AppState& state, int& selectedIdx,
-                            int otherIdx, ImageCanvas& viewer,
-                            const char* label)
+    void ImageCanvas::renderViewerPanel(
+        std::vector<ImageCanvas>& images, int& selectedIdx,
+        int otherIdx, ImageCanvas& viewer, bool locked,
+        const char* label)
     {
         const char* preview =
-            (selectedIdx >= 0 && selectedIdx < (int)state.images.size())
-                ? state.images[selectedIdx].image->name.c_str()
+            (selectedIdx >= 0 && selectedIdx < (int)images.size())
+                ? images[selectedIdx].image->name.c_str()
                 : "<none>";
 
-        ImGui::BeginDisabled(state.viewerLocked);
+        ImGui::BeginDisabled(locked);
         if (ImGui::BeginCombo(label, preview))
         {
             if (ImGui::Selectable("<none>", selectedIdx < 0))
@@ -31,12 +32,12 @@ namespace shoecomp
                 viewer.viewState.pan = viewer.viewState.panTarget =
                     ImVec2(0, 0);
             }
-            for (int i = 0; i < (int)state.images.size(); ++i)
+            for (int i = 0; i < (int)images.size(); ++i)
             {
                 if (i == otherIdx) continue;
                 bool selected = (i == selectedIdx);
-                if (ImGui::Selectable(
-                        state.images[i].image->name.c_str(), selected))
+                if (ImGui::Selectable(images[i].image->name.c_str(),
+                                      selected))
                 {
                     selectedIdx = i;
                     viewer.viewState.zoom =
@@ -50,10 +51,10 @@ namespace shoecomp
         }
         ImGui::EndDisabled();
 
-        if (selectedIdx < 0 || selectedIdx >= (int)state.images.size())
+        if (selectedIdx < 0 || selectedIdx >= (int)images.size())
             return;
 
-        viewer.image = state.images[selectedIdx].image;
+        viewer.image = images[selectedIdx].image;
         float toolbarH = ImGui::GetFrameHeightWithSpacing() * 3.0f;
         ImVec2 region = ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
@@ -87,21 +88,16 @@ namespace shoecomp
 
             // Snapshot targets before rendering so
             // we can detect which viewer changed.
-            auto& lv = state.viewerLeft.viewState;
-            auto& rv = state.viewerRight.viewState;
-
-            float lZoom0 = lv.zoomTarget;
-            ImVec2 lPan0 = lv.panTarget;
-            float lRot0 = lv.rotationTarget;
-            float rZoom0 = rv.zoomTarget;
-            ImVec2 rPan0 = rv.panTarget;
-            float rRot0 = rv.rotationTarget;
+            ImageCanvas::ViewTargets l0 =
+                ImageCanvas::snapshotTargets(state.viewerLeft);
+            ImageCanvas::ViewTargets r0 =
+                ImageCanvas::snapshotTargets(state.viewerRight);
 
             ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
                               ImGuiChildFlags_Borders);
-            renderSingleViewer(state, state.viewerLeftIdx,
-                               state.viewerRightIdx, state.viewerLeft,
-                               "##Left");
+            ImageCanvas::renderViewerPanel(
+                state.images, state.viewerLeftIdx, state.viewerRightIdx,
+                state.viewerLeft, state.viewerLocked, "##Left");
             ImGui::EndChild();
 
             ImGui::SameLine();
@@ -123,36 +119,26 @@ namespace shoecomp
 
             ImGui::BeginChild("RightViewer", ImVec2(rightW, 0),
                               ImGuiChildFlags_Borders);
-            renderSingleViewer(state, state.viewerRightIdx,
-                               state.viewerLeftIdx, state.viewerRight,
-                               "##Right");
+            ImageCanvas::renderViewerPanel(
+                state.images, state.viewerRightIdx, state.viewerLeftIdx,
+                state.viewerRight, state.viewerLocked, "##Right");
             ImGui::EndChild();
 
             // Apply locked sync with alignment
             // offset after both viewers render.
             if (state.viewerLocked && !state.alignEditPopupVisible)
             {
-                auto& a =
-                    state.viewerAlignments[state.viewerAlignmentIdx];
-                if (lv.homeRequested || rv.homeRequested)
-                {
-                    lv.zoomTarget = 1.0f;
-                    lv.panTarget = ImVec2(0, 0);
-                    lv.rotationTarget = 0.0f;
-                    applyAlignment(state.viewerLeft, state.viewerRight,
-                                   a, state.viewerLocked);
-                }
-                else
-                {
-                    syncLockedViewers(
-                        state.viewerLeft, state.viewerRight, a, lZoom0,
-                        lPan0, lRot0, rZoom0, rPan0, rRot0);
-                }
-                if (!state.alignDialog.open)
-                    renderLockedCursorIndicators(state, state.settings);
+                ImageCanvas::syncPair(
+                    state.viewerLeft, state.viewerRight, l0, r0,
+                    state.viewerAlignments[state.viewerAlignmentIdx],
+                    state.viewerLocked, state.alignDialog.open,
+                    state.settings);
             }
-            lv.homeRequested = false;
-            rv.homeRequested = false;
+            else
+            {
+                state.viewerLeft.viewState.homeRequested = false;
+                state.viewerRight.viewState.homeRequested = false;
+            }
         }
         ImGui::EndChild();
 
@@ -182,14 +168,8 @@ namespace shoecomp
             state.alignDialog.rightImage =
                 state.images[state.viewerRightIdx].image;
             state.viewerLocked = false;
-            auto& lv = state.viewerLeft.viewState;
-            lv.zoom = lv.zoomTarget = 1.0f;
-            lv.pan = lv.panTarget = ImVec2(0, 0);
-            lv.rotation = lv.rotationTarget = 0.0f;
-            auto& rv = state.viewerRight.viewState;
-            rv.zoom = rv.zoomTarget = 1.0f;
-            rv.pan = rv.panTarget = ImVec2(0, 0);
-            rv.rotation = rv.rotationTarget = 0.0f;
+            state.viewerLeft.resetView();
+            state.viewerRight.resetView();
             state.viewerLocked = true;
         }
         ImGui::EndDisabled();
@@ -214,7 +194,7 @@ namespace shoecomp
                 if (state.viewerAlignmentIdx > 0)
                 {
                     state.viewerAlignmentIdx--;
-                    applyAlignment(
+                    ImageCanvas::applyAlignment(
                         state.viewerLeft, state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
@@ -228,7 +208,7 @@ namespace shoecomp
                 if (state.viewerAlignmentIdx < maxIdx)
                 {
                     state.viewerAlignmentIdx++;
-                    applyAlignment(
+                    ImageCanvas::applyAlignment(
                         state.viewerLeft, state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
@@ -258,9 +238,9 @@ namespace shoecomp
                 if (idx >= (int)state.viewerAlignments.size())
                     idx = (int)state.viewerAlignments.size() - 1;
                 state.viewerAlignmentIdx = idx;
-                applyAlignment(state.viewerLeft, state.viewerRight,
-                               state.viewerAlignments[idx],
-                               state.viewerLocked);
+                ImageCanvas::applyAlignment(
+                    state.viewerLeft, state.viewerRight,
+                    state.viewerAlignments[idx], state.viewerLocked);
             }
             if (delDisabled) ImGui::EndDisabled();
 
