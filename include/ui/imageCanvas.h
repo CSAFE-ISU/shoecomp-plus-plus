@@ -182,10 +182,9 @@ namespace shoecomp
 
         static void syncLockedViewers(ImageCanvas& left,
                                       ImageCanvas& right,
-                                      const AlignState& a, float lZoom0,
-                                      ImVec2 lPan0, float lRot0,
-                                      float rZoom0, ImVec2 rPan0,
-                                      float rRot0);
+                                      const AlignState& a,
+                                      const ViewTargets& l0,
+                                      const ViewTargets& r0);
 
         static void renderLockedCursorIndicators(
             const ImageCanvas& left, const ImageCanvas& right,

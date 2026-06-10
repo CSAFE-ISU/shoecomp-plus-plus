@@ -58,7 +58,7 @@ namespace shoecomp
 
     static void propagateZoom(ImageCanvas& src, ImageCanvas& dst,
                               const AlignState& a, bool srcIsLeft,
-                              float zoom0, ImVec2 pan0, float rot0)
+                              const ImageCanvas::ViewTargets& dst0)
     {
         auto& srcView = src.viewState;
         auto& dstView = dst.viewState;
@@ -72,8 +72,8 @@ namespace shoecomp
         ImVec2 cursor = ImGui::GetIO().MousePos;
         srcImgPt = src.getImageCoord(cursor);
 
-        oldDstScale = dstView.baseScale * zoom0;
-        oldDstCenter = dstView.canvasCenter() + pan0;
+        oldDstScale = dstView.baseScale * dst0.zoom;
+        oldDstCenter = dstView.canvasCenter() + dst0.pan;
 
         if (srcIsLeft)
         {
@@ -81,7 +81,7 @@ namespace shoecomp
             dstView.zoomTarget = srcView.zoomTarget * a.scale;
             dstView.rotationTarget =
                 srcView.rotationTarget + a.rotation;
-            dstView.panTarget = pan0;
+            dstView.panTarget = dst0.pan;
         }
         else
         {
@@ -89,15 +89,16 @@ namespace shoecomp
             dstView.zoomTarget = srcView.zoomTarget / a.scale;
             dstView.rotationTarget =
                 srcView.rotationTarget - a.rotation;
-            dstView.panTarget = pan0;
+            dstView.panTarget = dst0.pan;
         }
 
         oldDstScreen = ImageCanvas::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, oldDstCenter.x, oldDstCenter.y,
-            oldDstScale, rot0, dst.image->width, dst.image->height);
+            oldDstScale, dst0.rotation, dst.image->width,
+            dst.image->height);
         //
         newDstScale = dstView.baseScale * dstView.zoomTarget;
-        newDstCenter = dstView.canvasCenter() + pan0;
+        newDstCenter = dstView.canvasCenter() + dst0.pan;
         newDstScreen = ImageCanvas::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y,
             newDstScale, dstView.rotationTarget, dst.image->width,
@@ -112,9 +113,8 @@ namespace shoecomp
     void ImageCanvas::syncLockedViewers(ImageCanvas& viewerLeft,
                                         ImageCanvas& viewerRight,
                                         const AlignState& a,
-                                        float lZoom0, ImVec2 lPan0,
-                                        float lRot0, float rZoom0,
-                                        ImVec2 rPan0, float rRot0)
+                                        const ViewTargets& l0,
+                                        const ViewTargets& r0)
     {
         auto& lv = viewerLeft.viewState;
         auto& rv = viewerRight.viewState;
@@ -122,15 +122,17 @@ namespace shoecomp
         if (!viewerLeft.image || !viewerRight.image) return;
 
         float aRad = a.rotation;
-        bool lChanged =
-            lv.zoomTarget != lZoom0 || lv.panTarget.x != lPan0.x ||
-            lv.panTarget.y != lPan0.y || lv.rotationTarget != lRot0;
-        bool rChanged =
-            rv.zoomTarget != rZoom0 || rv.panTarget.x != rPan0.x ||
-            rv.panTarget.y != rPan0.y || rv.rotationTarget != rRot0;
+        bool lChanged = lv.zoomTarget != l0.zoom ||
+                        lv.panTarget.x != l0.pan.x ||
+                        lv.panTarget.y != l0.pan.y ||
+                        lv.rotationTarget != l0.rotation;
+        bool rChanged = rv.zoomTarget != r0.zoom ||
+                        rv.panTarget.x != r0.pan.x ||
+                        rv.panTarget.y != r0.pan.y ||
+                        rv.rotationTarget != r0.rotation;
 
-        bool lZoomed = lv.zoomTarget != lZoom0;
-        bool rZoomed = rv.zoomTarget != rZoom0;
+        bool lZoomed = lv.zoomTarget != l0.zoom;
+        bool rZoomed = rv.zoomTarget != r0.zoom;
 
         if ((lChanged && !rChanged) || (lChanged && rChanged))
         {
@@ -139,13 +141,13 @@ namespace shoecomp
                 propagateZoom(/*src=*/viewerLeft,
                               /*dst=*/viewerRight,
                               /*align*/ a, /*srcIsLeft*/ true,  //
-                              rZoom0, rPan0, rRot0);
+                              r0);
             }
             else
             {
                 rv.zoomTarget = lv.zoomTarget * a.scale;
                 rv.zoom = lv.zoom * a.scale;
-                rv.panTarget += (lv.panTarget - lPan0);
+                rv.panTarget += (lv.panTarget - l0.pan);
                 rv.rotationTarget = lv.rotationTarget + aRad;
                 rv.rotation = lv.rotation + aRad;
             }
@@ -157,13 +159,13 @@ namespace shoecomp
                 propagateZoom(/*src=*/viewerRight,
                               /*dst=*/viewerLeft,
                               /*align*/ a, /*srcIsLeft*/ false,  //
-                              lZoom0, lPan0, lRot0);
+                              l0);
             }
             else
             {
                 lv.zoomTarget = rv.zoomTarget / a.scale;
                 lv.zoom = rv.zoom / a.scale;
-                lv.panTarget += (rv.panTarget - rPan0);
+                lv.panTarget += (rv.panTarget - r0.pan);
                 lv.rotationTarget = rv.rotationTarget - aRad;
                 lv.rotation = rv.rotation - aRad;
             }
@@ -396,9 +398,7 @@ namespace shoecomp
         }
         else
         {
-            syncLockedViewers(left, right, align, l0.zoom, l0.pan,
-                              l0.rotation, r0.zoom, r0.pan,
-                              r0.rotation);
+            syncLockedViewers(left, right, align, l0, r0);
         }
 
         if (!alignDialogOpen)
