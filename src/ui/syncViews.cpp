@@ -218,8 +218,18 @@ namespace shoecomp
         ImVec2 dstAdjustCenter = dstView.canvasCenter() + dstView.pan;
         const size_t N = srcPoints.size();
 
-        // Get cursor position in image coordinates
-        ImVec2 imgCoord = src.getImageCoord(io.MousePos);
+        // Get cursor position in image coordinates. Invert
+        // using the CURRENTLY rendered state (pan/zoom/rotation),
+        // not the animation targets, so the cursor's image
+        // coordinate matches what is drawn this frame (the image
+        // and the matched-point circles below both use the
+        // current state). Using getImageCoord() here would read
+        // the targets and desync the indicators during/after any
+        // zoom or pan.
+        ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
+            io.MousePos, srcView.canvasPos, srcView.canvasSize,
+            srcView.pan, srcView.zoom, srcView.baseScale,
+            srcView.rotation, srcImg->width, srcImg->height);
 
         // Draw pixel coordinates src
         if (srcView.contains(io.MousePos))
