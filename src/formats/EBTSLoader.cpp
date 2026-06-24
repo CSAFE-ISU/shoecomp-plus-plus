@@ -424,7 +424,9 @@ namespace shoecomp
 
     int loadNistFromDisk(
         const std::string& filePath,
-        std::vector<std::unique_ptr<ImageCanvas>>& outCanvases)
+        std::vector<std::unique_ptr<ImageCanvas>>& outCanvases,
+        const std::function<std::unique_ptr<ImageCanvas2D>()>&
+            makeCanvas)
     {
         // Read entire file
         std::ifstream ifs(filePath, std::ios::binary | std::ios::ate);
@@ -548,7 +550,7 @@ namespace shoecomp
             ImTextureID texId = createTextureRGBA(rgba, w, h);
             stbi_image_free(rgba);
 
-            auto canvas = std::make_unique<ImageCanvas2D>();
+            auto canvas = makeCanvas();
             char nameBuf[256];
             snprintf(nameBuf, sizeof(nameBuf),
                      "%s [Type-%d IDC:%02d FGP:%d]", basename.c_str(),

@@ -178,10 +178,28 @@ namespace shoecomp
         applyModernStyling();
     }
 
+    // Active-canvas combo lists only the user-selectable kinds.
+    static const char* kActiveKindNames[] = {"ShoeCanvas",
+                                             "EBTSCanvas"};
+
+    static int activeKindToIndex(ImageCanvas::Kind k)
+    {
+        return k == ImageCanvas::Kind::EBTSCanvas ? 1 : 0;
+    }
+
+    static ImageCanvas::Kind activeIndexToKind(int idx)
+    {
+        return idx == 1 ? ImageCanvas::Kind::EBTSCanvas
+                        : ImageCanvas::Kind::ShoeCanvas;
+    }
+
     void renderSettingsTab(SettingsState& s)
     {
         static int s_pendingThemeIdx = -1;
         if (s_pendingThemeIdx < 0) s_pendingThemeIdx = s.themeIdx;
+        static int s_pendingActiveKind = -1;
+        if (s_pendingActiveKind < 0)
+            s_pendingActiveKind = activeKindToIndex(s.activeKind);
 
         float btnH = ImGui::GetFrameHeightWithSpacing() +
                      ImGui::GetStyle().ItemSpacing.y * 2;
@@ -211,6 +229,10 @@ namespace shoecomp
                 ImGui::SliderFloat("##FontScale", &s.fontScale, 0.5f,
                                    4.0f, "%.2f");
                 s.fontScale = std::round(s.fontScale / 0.05f) * 0.05f;
+
+                settingsTableRow("Active Canvas");
+                ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
+                             kActiveKindNames, 2);
 
                 ImGui::EndTable();
             }
@@ -283,6 +305,7 @@ namespace shoecomp
             s.themeIdx = s_pendingThemeIdx;
             applyTheme(s.themeIdx);
             ImGui::GetIO().FontGlobalScale = s.fontScale;
+            s.activeKind = activeIndexToKind(s_pendingActiveKind);
         }
     }
 
@@ -303,6 +326,8 @@ namespace shoecomp
         float f;
         if (sscanf(line, "themeIdx=%d", &i) == 1)
             s->themeIdx = i;
+        else if (sscanf(line, "activeKind=%d", &i) == 1)
+            s->activeKind = (ImageCanvas::Kind)i;
         else if (sscanf(line, "fontScale=%f", &f) == 1)
             s->fontScale = f;
         else if (sscanf(line, "cursorRadius=%f", &f) == 1)
@@ -333,6 +358,7 @@ namespace shoecomp
         if (!s) return;
         buf->appendf("[%s][State]\n", handler->TypeName);
         buf->appendf("themeIdx=%d\n", s->themeIdx);
+        buf->appendf("activeKind=%d\n", (int)s->activeKind);
         buf->appendf("fontScale=%.4f\n", s->fontScale);
         buf->appendf("cursorRadius=%.4f\n", s->cursorRadius);
         buf->appendf("correspondingRadius=%.4f\n",

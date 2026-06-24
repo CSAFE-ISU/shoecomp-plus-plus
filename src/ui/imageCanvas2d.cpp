@@ -2,8 +2,10 @@
 #include "ui/uiHelpers.h"
 #include "ui/calcHelpers.h"
 #include "formats/png.h"
+#include "formats/annotationIo.h"
 #include <algorithm>
 #include <cmath>
+#include <filesystem>
 
 namespace shoecomp
 {
@@ -12,9 +14,8 @@ namespace shoecomp
     const std::vector<std::string>& ImageCanvas2D::imageExtensions()
         const
     {
-        static const std::vector<std::string> exts = {
-            ".png", ".PNG", ".jpg", ".JPG",  ".jpeg", ".JPEG",
-            ".an2", ".AN2", ".irr", ".lffs", ".ebts"};
+        // Plain 2D canvas accepts PNG only. Subclasses widen this.
+        static const std::vector<std::string> exts = {".png", ".PNG"};
         return exts;
     }
 
@@ -111,6 +112,61 @@ namespace shoecomp
     void ImageCanvas2D::clearHomeRequested()
     {
         viewState.homeRequested = false;
+    }
+
+    std::string ImageCanvas2D::lowerExt(const std::string& path)
+    {
+        auto dot = path.rfind('.');
+        if (dot == std::string::npos) return std::string();
+        std::string ext = path.substr(dot);
+        for (auto& c : ext) c = (char)std::tolower(c);
+        return ext;
+    }
+
+    void ImageCanvas2D::fillRaster(const std::string& path,
+                                   ImTextureID tex, int width,
+                                   int height)
+    {
+        image->name = std::filesystem::path(path).filename().string();
+        image->path = path;
+        image->textureId = tex;
+        image->width = width;
+        image->height = height;
+        image->resetAnnotations();
+    }
+
+    int ImageCanvas2D::loadImages(
+        const std::string& path,
+        std::vector<std::unique_ptr<ImageCanvas>>& out,
+        std::string& err) const
+    {
+        // Plain 2D canvas: PNG only.
+        if (lowerExt(path) != ".png")
+        {
+            err = "ImageCanvas2D only supports PNG:\n" + path;
+            return -1;
+        }
+        ImTextureID tex = 0;
+        int w = 0, h = 0;
+        if (!loadPngFromDisk(path, tex, w, h))
+        {
+            err = "Failed to load image from:\n" + path;
+            return -1;
+        }
+        auto c = std::make_unique<ImageCanvas2D>();
+        c->fillRaster(path, tex, w, h);
+        out.push_back(std::move(c));
+        return 1;
+    }
+
+    int ImageCanvas2D::saveAnnotations(const std::string& path) const
+    {
+        return saveAnnotationsToFile(path, image->annotations);
+    }
+
+    int ImageCanvas2D::loadAnnotations(const std::string& path)
+    {
+        return loadAnnotationsFromFile(path, image->annotations);
     }
 
     ImVec2 ImageCanvas2D::screenToImageCoord(

@@ -24,7 +24,9 @@ namespace shoecomp
     {
         enum class Kind
         {
-            Canvas2D
+            Canvas2D,
+            ShoeCanvas,
+            EBTSCanvas
         };
 
         // Snapshot of a viewer's animation targets, captured
@@ -47,6 +49,11 @@ namespace shoecomp
 
         // --- Subclass tag ---
         virtual Kind kind() const = 0;
+
+        // True for any canvas in the ImageCanvas2D family. Used by
+        // asCanvas2D() to narrow safely regardless of the concrete
+        // 2D Kind (Canvas2D / ShoeCanvas / EBTSCanvas).
+        virtual bool is2D() const { return false; }
 
         // --- Clean API used by the generic GUI ---
         virtual bool hasImage() const = 0;

@@ -1,13 +1,12 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas2d.h"
+#include "ui/imageCanvasKinds.h"
 #include "ui/alignDialog.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
 #include "ui/licenseData.h"
 #include "ui/embeddedAssets.h"
 #include "formats/png.h"
-#include "formats/ebts.h"
-#include "formats/annotationIo.h"
 #include "jtjson/json.h"
 #include "hello_imgui/imgui_theme.h"
 #include <algorithm>
@@ -164,8 +163,40 @@ namespace shoecomp
         }
     }
 
+    // Soft reset when the active canvas kind changes: close every
+    // image not of the new kind, reset comparison/selection state,
+    // and rebuild the active prototype + picker filter.
+    static void applyActiveKindChange(AppState& state)
+    {
+        if (state.settings.activeKind == state.lastActiveKind) return;
+        state.lastActiveKind = state.settings.activeKind;
+
+        state.images.erase(
+            std::remove_if(
+                state.images.begin(), state.images.end(),
+                [&](const std::unique_ptr<ImageCanvas>& c)
+                { return c->kind() != state.settings.activeKind; }),
+            state.images.end());
+
+        state.viewerLeftIdx = -1;
+        state.viewerRightIdx = -1;
+        state.activeGalleryImage = -1;
+        state.viewerLocked = false;
+        state.viewerAlignments = {AlignState{}};
+        state.viewerAlignmentIdx = 0;
+        state.alignEditOpen = false;
+        state.alignEditPopupVisible = false;
+        state.viewerLeft = std::make_unique<ImageCanvas2D>();
+        state.viewerRight = std::make_unique<ImageCanvas2D>();
+
+        state.activeProto = makeCanvas(state.settings.activeKind);
+        state.imageLoadBrowser.extensionChoices =
+            state.activeProto->imageExtensions();
+    }
+
     static void renderGui(AppState& state)
     {
+        applyActiveKindChange(state);
         state.imageLoadError.render();
         state.annotationError.render();
         state.imageSaveError.render();
@@ -288,10 +319,9 @@ namespace shoecomp
         ImageCanvas2D* c2d =
             asCanvas2D(*state.images[state.annotationFileTarget]);
         if (!c2d) return;
-        auto& img = c2d->image;
         if (state.annotationFileSave)
         {
-            if (saveAnnotationsToFile(fullPath, img->annotations) != 0)
+            if (c2d->saveAnnotations(fullPath) != 0)
             {
                 state.annotationError.show = true;
                 state.annotationError.message =
@@ -302,8 +332,7 @@ namespace shoecomp
         }
         else
         {
-            if (loadAnnotationsFromFile(fullPath, img->annotations) !=
-                0)
+            if (c2d->loadAnnotations(fullPath) != 0)
             {
                 state.annotationError.show = true;
                 state.annotationError.message =
@@ -349,64 +378,40 @@ namespace shoecomp
         }
     }
 
-    static bool isNistExtension(const std::string& path)
-    {
-        // Find the last '.' for extension
-        auto dot = path.rfind('.');
-        if (dot == std::string::npos) return false;
-        std::string ext = path.substr(dot);
-        // Convert to lowercase for comparison
-        for (auto& c : ext) c = (char)std::tolower(c);
-        return ext == ".an2" || ext == ".irr" || ext == ".lffs" ||
-               ext == ".ebts";
-    }
-
     static void onImageLoadSelect(AppState& state,
                                   const std::string& fullPath,
-                                  const std::string& name)
+                                  const std::string& /*name*/)
     {
         for (auto& c : state.images)
         {
             if (c->path() == fullPath) return;
         }
 
-        if (isNistExtension(fullPath))
-        {
-            std::vector<std::unique_ptr<ImageCanvas>> canvases;
-            if (loadNistFromDisk(fullPath, canvases) > 0)
-            {
-                for (auto& c : canvases)
-                    state.images.push_back(std::move(c));
-            }
-            return;
-        }
-
-        auto canvas = std::make_unique<ImageCanvas2D>();
-        canvas->image->name = name;
-        canvas->image->path = fullPath;
-        if (!loadPngFromDisk(fullPath, canvas->image->textureId,
-                             canvas->image->width,
-                             canvas->image->height))
+        // The active-kind prototype decides which formats are
+        // accepted and constructs the right canvas subclass(es).
+        std::vector<std::unique_ptr<ImageCanvas>> loaded;
+        std::string err;
+        int n = state.activeProto->loadImages(fullPath, loaded, err);
+        if (n <= 0)
         {
             state.imageLoadError.show = true;
             state.imageLoadError.message =
-                "Failed to load image from:\n" + fullPath;
+                err.empty() ? "Failed to load image from:\n" + fullPath
+                            : err;
             return;
         }
 
-        canvas->image->resetAnnotations();
-
-        if (state.imageLoadBrowser.loadCorrespondingJson)
+        // Auto-load a sibling .json for a single raster image.
+        if (n == 1 && state.imageLoadBrowser.loadCorrespondingJson)
         {
+            ImageCanvas2D* c2d = asCanvas2D(*loaded[0]);
             fs::path jsonPath =
                 fs::path(fullPath).replace_extension(".json");
-            if (fs::exists(jsonPath))
+            if (c2d && fs::exists(jsonPath))
             {
-                if (loadAnnotationsFromFile(
-                        jsonPath.string(),
-                        canvas->image->annotations) != 0)
+                if (c2d->loadAnnotations(jsonPath.string()) != 0)
                 {
-                    canvas->image->resetAnnotations();
+                    c2d->image->resetAnnotations();
                     state.annotationError.show = true;
                     state.annotationError.message =
                         "Failed to load "
@@ -417,7 +422,7 @@ namespace shoecomp
             }
         }
 
-        state.images.push_back(std::move(canvas));
+        for (auto& c : loaded) state.images.push_back(std::move(c));
     }
 
     static void onBeforeExit(AppState& state)
@@ -461,6 +466,8 @@ namespace shoecomp
         AppState state;
         state.viewerLeft = std::make_unique<ImageCanvas2D>();
         state.viewerRight = std::make_unique<ImageCanvas2D>();
+        state.activeProto = makeCanvas(state.settings.activeKind);
+        state.lastActiveKind = state.settings.activeKind;
 #ifndef __EMSCRIPTEN__
         state.licenseTexts = std::move(splashResult.licenseTexts);
 #else
@@ -490,7 +497,7 @@ namespace shoecomp
 
         state.imageLoadBrowser.extension = ".png";
         state.imageLoadBrowser.extensionChoices =
-            state.viewerLeft->imageExtensions();
+            state.activeProto->imageExtensions();
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
             [&state](const std::string& p, const std::string& n)

@@ -2,6 +2,7 @@
 #define SHOECOMP_UI_SETTINGS_H
 
 #include "imgui.h"
+#include "ui/imageCanvas.h"
 #include <string>
 
 namespace shoecomp
@@ -11,6 +12,10 @@ namespace shoecomp
         // App
         int themeIdx = 6;  // ShoeComp Dark
         float fontScale = 2.5f;
+
+        // Active canvas kind: which ImageCanvas subclass new images
+        // load as. Only ShoeCanvas / EBTSCanvas are user-selectable.
+        ImageCanvas::Kind activeKind = ImageCanvas::Kind::ShoeCanvas;
 
         // Locked-viewer hover indicators
         // Shared radius for source (cyan) and transformed (orange)

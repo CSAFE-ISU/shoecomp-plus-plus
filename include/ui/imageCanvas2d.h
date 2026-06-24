@@ -105,6 +105,7 @@ namespace shoecomp
 
         // --- ImageCanvas interface ---
         Kind kind() const override { return Kind::Canvas2D; }
+        bool is2D() const override { return true; }
 
         bool hasImage() const override { return image != nullptr; }
         int width() const override { return image ? image->width : 0; }
@@ -119,6 +120,21 @@ namespace shoecomp
         void resetView() override;
         void renderCanvas(const char* canvasId) override;
         void renderToolbar(const char* toolbarId) override;
+
+        // --- Load/save interface ---
+        // Append one or more freshly-constructed canvases (of this
+        // canvas's kind) loaded from `path` to `out`. Returns the
+        // count loaded, or -1 and sets `err` on failure / unsupported
+        // format. Acts as a prototype/factory: does not mutate `this`.
+        // The base (Canvas2D) accepts PNG only; subclasses widen this.
+        virtual int loadImages(
+            const std::string& path,
+            std::vector<std::unique_ptr<ImageCanvas>>& out,
+            std::string& err) const;
+
+        // Annotation persistence is uniform (JSON) across all kinds.
+        int saveAnnotations(const std::string& path) const;
+        int loadAnnotations(const std::string& path);
 
         ViewTargets snapshotTargets() const override;
         void renderViewerPanel(
@@ -167,6 +183,17 @@ namespace shoecomp
         // section (edits the shared `style`).
         static void renderStyleSettings();
 
+       protected:
+        // Lowercased file extension (including the dot), e.g. ".png".
+        static std::string lowerExt(const std::string& path);
+
+        // Populate this canvas's ImageData from an already-decoded
+        // texture: name (from basename), path, texture id, dimensions,
+        // and empty annotations. Used by subclass loadImages() for
+        // single-raster files.
+        void fillRaster(const std::string& path, ImTextureID tex,
+                        int width, int height);
+
        private:
         // Sync helpers, used only between same-Kind 2D viewers.
         void syncLockedViewers(ImageCanvas2D& other,
@@ -183,16 +210,13 @@ namespace shoecomp
     // if the canvas is not a 2D canvas.
     inline ImageCanvas2D* asCanvas2D(ImageCanvas& c)
     {
-        return c.kind() == ImageCanvas::Kind::Canvas2D
-                   ? static_cast<ImageCanvas2D*>(&c)
-                   : nullptr;
+        return c.is2D() ? static_cast<ImageCanvas2D*>(&c) : nullptr;
     }
 
     inline const ImageCanvas2D* asCanvas2D(const ImageCanvas& c)
     {
-        return c.kind() == ImageCanvas::Kind::Canvas2D
-                   ? static_cast<const ImageCanvas2D*>(&c)
-                   : nullptr;
+        return c.is2D() ? static_cast<const ImageCanvas2D*>(&c)
+                        : nullptr;
     }
 }  // namespace shoecomp
 

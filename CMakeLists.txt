@@ -96,6 +96,7 @@ include_directories(
 set(SC_SRCS
     src/ui/mainWindow.cpp
     src/ui/imageCanvas2d.cpp
+    src/ui/imageCanvasKinds.cpp
     src/ui/uiHelpers.cpp
     src/ui/settings.cpp
     src/ui/tabImageViewer.cpp

@@ -13,7 +13,7 @@
 #include "ui/errorPopup.h"
 #include "ui/loadBrowser.h"
 #include "ui/saveBrowser.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/imageListDialog.h"
 #include "ui/alignDialog.h"
 #include "ui/settings.h"
@@ -34,6 +34,14 @@ namespace shoecomp
         // shared image data)
         std::unique_ptr<ImageCanvas> viewerLeft;
         std::unique_ptr<ImageCanvas> viewerRight;
+
+        // Prototype canvas of the active kind; dispatches loading +
+        // supplies the file-picker extension list. Rebuilt on tag
+        // change. `lastActiveKind` tracks the applied kind so a change
+        // in settings triggers the soft reset.
+        std::unique_ptr<ImageCanvas2D> activeProto;
+        ImageCanvas::Kind lastActiveKind =
+            ImageCanvas::Kind::ShoeCanvas;
         bool viewerLocked = false;
         std::vector<AlignState> viewerAlignments{AlignState{}};
         int viewerAlignmentIdx = 0;
