@@ -1,5 +1,5 @@
 #include "ui/alignDialog.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/uiHelpers.h"
 #include "calc/align.h"
 #include "imgui.h"
@@ -73,7 +73,7 @@ namespace shoecomp
     }
 
     static int countPts(
-        const std::shared_ptr<ImageCanvas::ImageData>& img)
+        const std::shared_ptr<ImageCanvas2D::ImageData>& img)
     {
         if (!img) return 0;
         if (!hasAnnotationArray(img->annotations, "points")) return 0;

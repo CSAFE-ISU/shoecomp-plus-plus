@@ -1,6 +1,6 @@
 #include "ui/settings.h"
 #include "ui/uiHelpers.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "hello_imgui/hello_imgui.h"
 #include "hello_imgui/imgui_theme.h"
 #include "imgui.h"
@@ -219,7 +219,7 @@ namespace shoecomp
         ImGui::Spacing();
 
         // Annotations section (owned by ImageCanvas)
-        ImageCanvas::renderStyleSettings();
+        ImageCanvas2D::renderStyleSettings();
 
         ImGui::Spacing();
 

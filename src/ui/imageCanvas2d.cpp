@@ -1,13 +1,16 @@
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/uiHelpers.h"
 #include "ui/calcHelpers.h"
 #include "formats/png.h"
+#include <algorithm>
+#include <cmath>
 
 namespace shoecomp
 {
-    ImageCanvas::AnnotationStyle ImageCanvas::style;
+    ImageCanvas2D::AnnotationStyle ImageCanvas2D::style;
 
-    const std::vector<std::string>& ImageCanvas::imageExtensions() const
+    const std::vector<std::string>& ImageCanvas2D::imageExtensions()
+        const
     {
         static const std::vector<std::string> exts = {
             ".png", ".PNG", ".jpg", ".JPG",  ".jpeg", ".JPEG",
@@ -15,7 +18,7 @@ namespace shoecomp
         return exts;
     }
 
-    const char* ImageCanvas::pointTypeToString(PointType t)
+    const char* ImageCanvas2D::pointTypeToString(PointType t)
     {
         switch (t)
         {
@@ -37,7 +40,7 @@ namespace shoecomp
         }
     }
 
-    bool ImageCanvas::ImageViewState::contains(const ImVec2& pt) const
+    bool ImageCanvas2D::ImageViewState::contains(const ImVec2& pt) const
     {
         return ((pt.x >= this->canvasPos.x) &&
                 (pt.x < (this->canvasPos.x + this->canvasSize.x)) &&
@@ -45,14 +48,14 @@ namespace shoecomp
                 (pt.y < (this->canvasPos.y + this->canvasSize.y)));
     }
 
-    ImVec2 ImageCanvas::ImageViewState::canvasCenter() const
+    ImVec2 ImageCanvas2D::ImageViewState::canvasCenter() const
     {
         ImVec2 result(canvasPos.x + canvasSize.x * 0.5f,
                       canvasPos.y + canvasSize.y * 0.5f);
         return result;
     }
 
-    ImageCanvas::PointType ImageCanvas::stringToPointType(
+    ImageCanvas2D::PointType ImageCanvas2D::stringToPointType(
         const std::string& s)
     {
         if (s == "Center") return PointType::Center;
@@ -64,43 +67,55 @@ namespace shoecomp
         return PointType::Corner;
     }
 
-    ImageCanvas::ImageData::~ImageData()
+    ImageCanvas2D::ImageData::~ImageData()
     {
         if (textureId) freeTexture(textureId);
     }
 
-    void ImageCanvas::ImageData::resetAnnotations()
+    void ImageCanvas2D::ImageData::resetAnnotations()
     {
         annotations.setObject();
         annotations["bounds"].setArray();
         annotations["points"].setArray();
     }
 
-    ImageCanvas::ImageCanvas() : image(std::make_shared<ImageData>()) {}
+    ImageCanvas2D::ImageCanvas2D()
+        : image(std::make_shared<ImageData>())
+    {
+    }
 
-    ImageCanvas::ImageCanvas(std::shared_ptr<ImageData> img)
+    ImageCanvas2D::ImageCanvas2D(std::shared_ptr<ImageData> img)
         : image(std::move(img))
     {
     }
 
-    const std::string& ImageCanvas::name() const
+    const std::string& ImageCanvas2D::name() const
     {
         static const std::string empty;
         return image ? image->name : empty;
     }
 
-    void ImageCanvas::resetView()
+    const std::string& ImageCanvas2D::path() const
+    {
+        static const std::string empty;
+        return image ? image->path : empty;
+    }
+
+    void ImageCanvas2D::resetView()
     {
         viewState.zoom = viewState.zoomTarget = 1.0f;
         viewState.pan = viewState.panTarget = ImVec2(0, 0);
         viewState.rotation = viewState.rotationTarget = 0.0f;
     }
 
-    ImVec2 ImageCanvas::screenToImageCoord(ImVec2 sp, ImVec2 canvasPos,
-                                           ImVec2 avail, ImVec2 pan,
-                                           float zoom, float baseScale,
-                                           float rotation, int imgW,
-                                           int imgH)
+    void ImageCanvas2D::clearHomeRequested()
+    {
+        viewState.homeRequested = false;
+    }
+
+    ImVec2 ImageCanvas2D::screenToImageCoord(
+        ImVec2 sp, ImVec2 canvasPos, ImVec2 avail, ImVec2 pan,
+        float zoom, float baseScale, float rotation, int imgW, int imgH)
     {
         ImVec2 c = canvasPos + (avail * 0.5f) + pan;
         ImVec2 d = sp - c;
@@ -113,19 +128,20 @@ namespace shoecomp
                       ly / scale + imgH * 0.5f);
     }
 
-    ImVec2 ImageCanvas::getImageCoord(ImVec2 sp) const
+    ImVec2 ImageCanvas2D::getImageCoord(ImVec2 sp) const
     {
-        return ImageCanvas::screenToImageCoord(
+        return ImageCanvas2D::screenToImageCoord(
             sp, viewState.canvasPos, viewState.canvasSize,
             viewState.panTarget, viewState.zoomTarget,
             viewState.baseScale, viewState.rotationTarget, image->width,
             image->height);
     }
 
-    ImVec2 ImageCanvas::imageToScreenCoord(float ix, float iy, float cx,
-                                           float cy, float scale,
-                                           float rotation, int imgW,
-                                           int imgH)
+    ImVec2 ImageCanvas2D::imageToScreenCoord(float ix, float iy,
+                                             float cx, float cy,
+                                             float scale,
+                                             float rotation, int imgW,
+                                             int imgH)
     {
         float cosR = cosf(rotation);
         float sinR = sinf(rotation);
@@ -135,8 +151,8 @@ namespace shoecomp
                       cy + lx * sinR + ly * cosR);
     }
 
-    bool ImageCanvas::pointInPolygon(float px, float py,
-                                     const std::vector<jt::Json>& poly)
+    bool ImageCanvas2D::pointInPolygon(
+        float px, float py, const std::vector<jt::Json>& poly)
     {
         bool inside = false;
         int n = (int)poly.size();
@@ -153,7 +169,7 @@ namespace shoecomp
         return inside;
     }
 
-    void ImageCanvas::removePointsOutsideBounds()
+    void ImageCanvas2D::removePointsOutsideBounds()
     {
         if (!hasAnnotationArray(image->annotations, "bounds")) return;
         auto& bnd = image->annotations["bounds"].getArray();
@@ -197,7 +213,7 @@ namespace shoecomp
                                 ImVec2 avail, ImGuiIO& io,
                                 float barThick, float barPad,
                                 ImU32 barCol, ImU32 barColHov,
-                                ImageCanvas::ImageViewState& vs)
+                                ImageCanvas2D::ImageViewState& vs)
     {
         if (dispSize <= availSize) return;
         float viewRatio = availSize / dispSize;
@@ -267,7 +283,7 @@ namespace shoecomp
         screenBnd.reserve(bnd.size());
         for (auto& v : bnd)
         {
-            ImVec2 sp = ImageCanvas::imageToScreenCoord(
+            ImVec2 sp = ImageCanvas2D::imageToScreenCoord(
                 v["x"].getNumber(), v["y"].getNumber(), cx, cy,
                 annScale, rotation, imgW, imgH);
             screenBnd.push_back(sp);
@@ -317,11 +333,11 @@ namespace shoecomp
                                  kColorBoundsDimOverlay);
     }
 
-    void ImageCanvas::renderAnnotations(ImDrawList* dl, float cx,
-                                        float cy, float annScale,
-                                        float rotation, bool hovered,
-                                        AnnotationMode mode,
-                                        const ImGuiIO& io)
+    void ImageCanvas2D::renderAnnotations(ImDrawList* dl, float cx,
+                                          float cy, float annScale,
+                                          float rotation, bool hovered,
+                                          AnnotationMode mode,
+                                          const ImGuiIO& io)
     {
         if (!image->annotations.isObject()) return;
 
@@ -469,7 +485,7 @@ namespace shoecomp
                       c.y + lx * sinf(rotation) + ly * cosf(rotation));
     }
 
-    void ImageCanvas::renderCanvas(const char* canvasId)
+    void ImageCanvas2D::renderCanvas(const char* canvasId)
     {
         AnnotationMode& mode = image->annotationMode;
         ImVec2 avail = ImGui::GetContentRegionAvail();
@@ -673,7 +689,7 @@ namespace shoecomp
         dl->PopClipRect();
     }
 
-    void ImageCanvas::renderToolbar(const char* toolbarId)
+    void ImageCanvas2D::renderToolbar(const char* toolbarId)
     {
         AnnotationMode& mode = image->annotationMode;
         ImGui::PushID(toolbarId);
@@ -805,7 +821,7 @@ namespace shoecomp
         ImGui::PopID();
     }
 
-    void ImageCanvas::renderStyleSettings()
+    void ImageCanvas2D::renderStyleSettings()
     {
         if (!ImGui::CollapsingHeader("Annotations")) return;
         if (!ImGui::BeginTable("##annSettings", 3)) return;

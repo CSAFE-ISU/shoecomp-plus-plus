@@ -1,22 +1,28 @@
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/alignDialog.h"
 #include "ui/settings.h"
 #include "ui/uiHelpers.h"
 #include "ui/calcHelpers.h"
+#include <cassert>
+#include <cmath>
+#include <cstdio>
 
 namespace shoecomp
 {
 
-    // Apply alignment transform: set right viewer
-    // to match left viewer + alignment offset.
-    void ImageCanvas::applyAlignment(ImageCanvas& viewerLeft,
-                                     ImageCanvas& viewerRight,
-                                     const AlignState& a, bool& locked)
+    // Apply alignment transform: set the `other` (right) viewer
+    // to match this (left) viewer + alignment offset.
+    void ImageCanvas2D::applyAlignment(ImageCanvas& other,
+                                       const AlignState& a,
+                                       bool& locked)
     {
-        auto& lv = viewerLeft.viewState;
-        auto& rv = viewerRight.viewState;
+        ImageCanvas2D* right = asCanvas2D(other);
+        assert(right && "applyAlignment requires a 2D partner");
 
-        if (!viewerLeft.image || !viewerRight.image)
+        auto& lv = this->viewState;
+        auto& rv = right->viewState;
+
+        if (!this->image || !right->image)
         {
             locked = false;
             return;
@@ -31,7 +37,7 @@ namespace shoecomp
         ImVec2 rightRefScreen = rv.canvasCenter();
 
         // Convert left reference to image coordinates
-        ImVec2 leftImgPt = viewerLeft.getImageCoord(leftRefScreen);
+        ImVec2 leftImgPt = this->getImageCoord(leftRefScreen);
 
         // Apply alignment transformation from left to right
         ImVec2 rightImgPt = a.transformLeft2Right(leftImgPt);
@@ -44,10 +50,10 @@ namespace shoecomp
         ImVec2 rightCenter = rv.canvasCenter() + rv.panTarget;
 
         // Convert right image point back to screen coordinates
-        ImVec2 rightScreen = ImageCanvas::imageToScreenCoord(
+        ImVec2 rightScreen = ImageCanvas2D::imageToScreenCoord(
             rightImgPt.x, rightImgPt.y, rightCenter.x, rightCenter.y,
-            rightRenderScale, rv.rotationTarget,
-            viewerRight.image->width, viewerRight.image->height);
+            rightRenderScale, rv.rotationTarget, right->image->width,
+            right->image->height);
 
         // Adjust pan so right image point appears at right canvas
         // center
@@ -56,7 +62,7 @@ namespace shoecomp
         locked = true;
     }
 
-    static void propagateZoom(ImageCanvas& src, ImageCanvas& dst,
+    static void propagateZoom(ImageCanvas2D& src, ImageCanvas2D& dst,
                               const AlignState& a, bool srcIsLeft,
                               const ImageCanvas::ViewTargets& dst0)
     {
@@ -92,14 +98,14 @@ namespace shoecomp
             dstView.panTarget = dst0.pan;
         }
 
-        oldDstScreen = ImageCanvas::imageToScreenCoord(
+        oldDstScreen = ImageCanvas2D::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, oldDstCenter.x, oldDstCenter.y,
             oldDstScale, dst0.rotation, dst.image->width,
             dst.image->height);
         //
         newDstScale = dstView.baseScale * dstView.zoomTarget;
         newDstCenter = dstView.canvasCenter() + dst0.pan;
-        newDstScreen = ImageCanvas::imageToScreenCoord(
+        newDstScreen = ImageCanvas2D::imageToScreenCoord(
             dstImgPt.x, dstImgPt.y, newDstCenter.x, newDstCenter.y,
             newDstScale, dstView.rotationTarget, dst.image->width,
             dst.image->height);
@@ -109,45 +115,44 @@ namespace shoecomp
 
     // Sync locked viewers after rendering. Detects
     // which viewer changed and propagates through
-    // alignment.
-    void ImageCanvas::syncLockedViewers(ImageCanvas& viewerLeft,
-                                        ImageCanvas& viewerRight,
-                                        const AlignState& a,
-                                        const ViewTargets& l0,
-                                        const ViewTargets& r0)
+    // alignment. `this` is the left viewer, `other` the right.
+    void ImageCanvas2D::syncLockedViewers(ImageCanvas2D& other,
+                                          const AlignState& a,
+                                          const ViewTargets& self0,
+                                          const ViewTargets& other0)
     {
-        auto& lv = viewerLeft.viewState;
-        auto& rv = viewerRight.viewState;
+        auto& lv = this->viewState;
+        auto& rv = other.viewState;
 
-        if (!viewerLeft.image || !viewerRight.image) return;
+        if (!this->image || !other.image) return;
 
         float aRad = a.rotation;
-        bool lChanged = lv.zoomTarget != l0.zoom ||
-                        lv.panTarget.x != l0.pan.x ||
-                        lv.panTarget.y != l0.pan.y ||
-                        lv.rotationTarget != l0.rotation;
-        bool rChanged = rv.zoomTarget != r0.zoom ||
-                        rv.panTarget.x != r0.pan.x ||
-                        rv.panTarget.y != r0.pan.y ||
-                        rv.rotationTarget != r0.rotation;
+        bool lChanged = lv.zoomTarget != self0.zoom ||
+                        lv.panTarget.x != self0.pan.x ||
+                        lv.panTarget.y != self0.pan.y ||
+                        lv.rotationTarget != self0.rotation;
+        bool rChanged = rv.zoomTarget != other0.zoom ||
+                        rv.panTarget.x != other0.pan.x ||
+                        rv.panTarget.y != other0.pan.y ||
+                        rv.rotationTarget != other0.rotation;
 
-        bool lZoomed = lv.zoomTarget != l0.zoom;
-        bool rZoomed = rv.zoomTarget != r0.zoom;
+        bool lZoomed = lv.zoomTarget != self0.zoom;
+        bool rZoomed = rv.zoomTarget != other0.zoom;
 
         if ((lChanged && !rChanged) || (lChanged && rChanged))
         {
             if (lZoomed)
             {
-                propagateZoom(/*src=*/viewerLeft,
-                              /*dst=*/viewerRight,
+                propagateZoom(/*src=*/*this,
+                              /*dst=*/other,
                               /*align*/ a, /*srcIsLeft*/ true,  //
-                              r0);
+                              other0);
             }
             else
             {
                 rv.zoomTarget = lv.zoomTarget * a.scale;
                 rv.zoom = lv.zoom * a.scale;
-                rv.panTarget += (lv.panTarget - l0.pan);
+                rv.panTarget += (lv.panTarget - self0.pan);
                 rv.rotationTarget = lv.rotationTarget + aRad;
                 rv.rotation = lv.rotation + aRad;
             }
@@ -156,16 +161,16 @@ namespace shoecomp
         {
             if (rZoomed)
             {
-                propagateZoom(/*src=*/viewerRight,
-                              /*dst=*/viewerLeft,
+                propagateZoom(/*src=*/other,
+                              /*dst=*/*this,
                               /*align*/ a, /*srcIsLeft*/ false,  //
-                              l0);
+                              self0);
             }
             else
             {
                 lv.zoomTarget = rv.zoomTarget / a.scale;
                 lv.zoom = rv.zoom / a.scale;
-                lv.panTarget += (rv.panTarget - r0.pan);
+                lv.panTarget += (rv.panTarget - other0.pan);
                 lv.rotationTarget = rv.rotationTarget - aRad;
                 lv.rotation = rv.rotation - aRad;
             }
@@ -173,8 +178,9 @@ namespace shoecomp
     }
 
     static void renderLockedCursorIndicators0(
-        const AlignState& align, const ImageCanvas& src,
-        const std::vector<jt::Json>& srcPoints, const ImageCanvas& dst,
+        const AlignState& align, const ImageCanvas2D& src,
+        const std::vector<jt::Json>& srcPoints,
+        const ImageCanvas2D& dst,
         const std::vector<jt::Json>& dstPoints, bool srcIsLeft,
         const SettingsState& settings)
     {
@@ -204,7 +210,6 @@ namespace shoecomp
         ImVec2 transformed;
         char coordText[64];
         char transformedText[64];
-        char matchedText[64];
         float srcX, srcY;
         ImVec2 srcScreenPos;
         float dstX, dstY;
@@ -228,7 +233,7 @@ namespace shoecomp
         // current state). Using getImageCoord() here would read
         // the targets and desync the indicators during/after any
         // zoom or pan.
-        ImVec2 imgCoord = ImageCanvas::screenToImageCoord(
+        ImVec2 imgCoord = ImageCanvas2D::screenToImageCoord(
             io.MousePos, srcView.canvasPos, srcView.canvasSize,
             srcView.pan, srcView.zoom, srcView.baseScale,
             srcView.rotation, srcImg->width, srcImg->height);
@@ -258,7 +263,7 @@ namespace shoecomp
         }
 
         // Convert to screen coordinates
-        dstScreenPos = ImageCanvas::imageToScreenCoord(
+        dstScreenPos = ImageCanvas2D::imageToScreenCoord(
             transformed.x, transformed.y, dstAdjustCenter.x,
             dstAdjustCenter.y, dstView.renderScale, dstView.rotation,
             dstImg->width, dstImg->height);
@@ -287,14 +292,14 @@ namespace shoecomp
         {
             srcX = srcPoints[i]["x"].getNumber();
             srcY = srcPoints[i]["y"].getNumber();
-            srcScreenPos = ImageCanvas::imageToScreenCoord(
+            srcScreenPos = ImageCanvas2D::imageToScreenCoord(
                 srcX, srcY, srcAdjustCenter.x, srcAdjustCenter.y,
                 srcView.renderScale, srcView.rotation, srcImg->width,
                 srcImg->height);
 
             dstX = dstPoints[i]["x"].getNumber();
             dstY = dstPoints[i]["y"].getNumber();
-            dstScreenPos = ImageCanvas::imageToScreenCoord(
+            dstScreenPos = ImageCanvas2D::imageToScreenCoord(
                 dstX, dstY, dstAdjustCenter.x, dstAdjustCenter.y,
                 dstView.renderScale, dstView.rotation, dstImg->width,
                 dstImg->height);
@@ -323,16 +328,17 @@ namespace shoecomp
                 // Draw line connecting the matched points
                 dl->AddLine(srcScreenPos, dstScreenPos,
                             correspondingColor,
-                            ImageCanvas::style.boundsLineThickness);
+                            ImageCanvas2D::style.boundsLineThickness);
             }
         }
     }
 
-    void ImageCanvas::renderLockedCursorIndicators(
-        const ImageCanvas& left, const ImageCanvas& right,
-        const AlignState& align, const SettingsState& settings)
+    // `this` is the left viewer, `other` the right.
+    void ImageCanvas2D::renderLockedCursorIndicators(
+        ImageCanvas2D& other, const AlignState& align,
+        const SettingsState& settings)
     {
-        if (!left.image || !right.image) { return; }
+        if (!this->image || !other.image) { return; }
 
         // Guard against division by zero in inverse transformation
         if (align.scale < 0.001f) { return; }
@@ -349,60 +355,63 @@ namespace shoecomp
         auto& rightPoints = align.info["rightPoints"].getArray();
         if (leftPoints.size() != rightPoints.size()) { return; }
 
-        if (right.viewState.isHovered)
+        if (other.viewState.isHovered)
         {
             renderLockedCursorIndicators0(align,
-                                          /*src=*/right,
+                                          /*src=*/other,
                                           /*srcPoints=*/rightPoints,
-                                          /*dst=*/left,
+                                          /*dst=*/*this,
                                           /*dstPoints=*/leftPoints,
                                           false, settings);
         }
         else
         {
             renderLockedCursorIndicators0(align,
-                                          /*src=*/left,
+                                          /*src=*/*this,
                                           /*srcPoints=*/leftPoints,
-                                          /*dst=*/right,
+                                          /*dst=*/other,
                                           /*dstPoints=*/rightPoints,
                                           true, settings);
         }
     }
 
-    ImageCanvas::ViewTargets ImageCanvas::snapshotTargets(
-        const ImageCanvas& c)
+    ImageCanvas::ViewTargets ImageCanvas2D::snapshotTargets() const
     {
         ViewTargets t;
-        t.zoom = c.viewState.zoomTarget;
-        t.pan = c.viewState.panTarget;
-        t.rotation = c.viewState.rotationTarget;
+        t.zoom = this->viewState.zoomTarget;
+        t.pan = this->viewState.panTarget;
+        t.rotation = this->viewState.rotationTarget;
         return t;
     }
 
-    void ImageCanvas::syncPair(ImageCanvas& left, ImageCanvas& right,
-                               const ViewTargets& l0,
-                               const ViewTargets& r0,
-                               const AlignState& align, bool& locked,
-                               bool alignDialogOpen,
-                               const SettingsState& settings)
+    // `this` is the left viewer, `other` the right.
+    void ImageCanvas2D::syncPair(ImageCanvas& other,
+                                 const ViewTargets& self0,
+                                 const ViewTargets& other0,
+                                 const AlignState& align, bool& locked,
+                                 bool alignDialogOpen,
+                                 const SettingsState& settings)
     {
-        auto& lv = left.viewState;
-        auto& rv = right.viewState;
+        ImageCanvas2D* right = asCanvas2D(other);
+        assert(right && "syncPair requires a 2D partner");
+
+        auto& lv = this->viewState;
+        auto& rv = right->viewState;
 
         if (lv.homeRequested || rv.homeRequested)
         {
             lv.zoomTarget = 1.0f;
             lv.panTarget = ImVec2(0, 0);
             lv.rotationTarget = 0.0f;
-            applyAlignment(left, right, align, locked);
+            applyAlignment(*right, align, locked);
         }
         else
         {
-            syncLockedViewers(left, right, align, l0, r0);
+            syncLockedViewers(*right, align, self0, other0);
         }
 
         if (!alignDialogOpen)
-            renderLockedCursorIndicators(left, right, align, settings);
+            renderLockedCursorIndicators(*right, align, settings);
 
         lv.homeRequested = false;
         rv.homeRequested = false;

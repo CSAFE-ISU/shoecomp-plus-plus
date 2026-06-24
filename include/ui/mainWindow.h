@@ -5,6 +5,7 @@
 #include "imgui.h"
 #include <string>
 #include <vector>
+#include <memory>
 #include <thread>
 #include <atomic>
 #include <mutex>
@@ -22,7 +23,7 @@ namespace shoecomp
     struct AppState
     {
         // Loaded images
-        std::vector<ImageCanvas> images;
+        std::vector<std::unique_ptr<ImageCanvas>> images;
 
         // Image viewer selections (-1 = none)
         int viewerLeftIdx = -1;
@@ -31,8 +32,8 @@ namespace shoecomp
 
         // Per-viewer canvas (own view state,
         // shared image data)
-        ImageCanvas viewerLeft;
-        ImageCanvas viewerRight;
+        std::unique_ptr<ImageCanvas> viewerLeft;
+        std::unique_ptr<ImageCanvas> viewerRight;
         bool viewerLocked = false;
         std::vector<AlignState> viewerAlignments{AlignState{}};
         int viewerAlignmentIdx = 0;

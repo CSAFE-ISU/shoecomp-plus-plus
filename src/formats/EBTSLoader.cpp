@@ -1,4 +1,5 @@
 #include "formats/ebts.h"
+#include "ui/imageCanvas2d.h"
 #include "formats/png.h"
 #include "stb_image.h"
 #include <cstdint>
@@ -421,8 +422,9 @@ namespace shoecomp
 
     }  // anonymous namespace
 
-    int loadNistFromDisk(const std::string& filePath,
-                         std::vector<ImageCanvas>& outCanvases)
+    int loadNistFromDisk(
+        const std::string& filePath,
+        std::vector<std::unique_ptr<ImageCanvas>>& outCanvases)
     {
         // Read entire file
         std::ifstream ifs(filePath, std::ios::binary | std::ios::ate);
@@ -546,21 +548,21 @@ namespace shoecomp
             ImTextureID texId = createTextureRGBA(rgba, w, h);
             stbi_image_free(rgba);
 
-            ImageCanvas canvas;
+            auto canvas = std::make_unique<ImageCanvas2D>();
             char nameBuf[256];
             snprintf(nameBuf, sizeof(nameBuf),
                      "%s [Type-%d IDC:%02d FGP:%d]", basename.c_str(),
                      img.recordType, img.idc, img.fgp);
-            canvas.image->name = nameBuf;
-            canvas.image->path = filePath;
-            canvas.image->textureId = texId;
-            canvas.image->width = w;
-            canvas.image->height = h;
+            canvas->image->name = nameBuf;
+            canvas->image->path = filePath;
+            canvas->image->textureId = texId;
+            canvas->image->width = w;
+            canvas->image->height = h;
 
             // Build annotations
-            canvas.image->annotations.setObject();
-            canvas.image->annotations["bounds"].setArray();
-            canvas.image->annotations["points"].setArray();
+            canvas->image->annotations.setObject();
+            canvas->image->annotations["bounds"].setArray();
+            canvas->image->annotations["points"].setArray();
 
             // Find matching Type-9 record by IDC
             for (auto& rec : txn.records)
@@ -577,7 +579,7 @@ namespace shoecomp
                 if (minField)
                 {
                     parseMinutiae(minField->rawValue,
-                                  canvas.image->annotations["points"],
+                                  canvas->image->annotations["points"],
                                   pixelUnits, img.ppi);
                 }
 
@@ -586,7 +588,7 @@ namespace shoecomp
                 if (corField)
                 {
                     parseCores(corField->rawValue,
-                               canvas.image->annotations["points"],
+                               canvas->image->annotations["points"],
                                pixelUnits, img.ppi);
                 }
 
@@ -595,7 +597,7 @@ namespace shoecomp
                 if (delField)
                 {
                     parseDeltas(delField->rawValue,
-                                canvas.image->annotations["points"],
+                                canvas->image->annotations["points"],
                                 pixelUnits, img.ppi);
                 }
 
@@ -607,7 +609,7 @@ namespace shoecomp
             ebts.setObject();
             ebts["fingerPosition"] = jt::Json((double)img.fgp);
             ebts["ppi"] = jt::Json(img.ppi);
-            canvas.image->annotations["EBTS"] = std::move(ebts);
+            canvas->image->annotations["EBTS"] = std::move(ebts);
 
             outCanvases.push_back(std::move(canvas));
             ++loaded;

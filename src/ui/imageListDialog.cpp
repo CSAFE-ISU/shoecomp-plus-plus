@@ -6,10 +6,10 @@
 
 namespace shoecomp
 {
-    void ImageListDialog::render(std::vector<ImageCanvas>& images,
-                                 int& viewerLeftIdx,
-                                 int& viewerRightIdx,
-                                 int& activeGalleryImage)
+    void ImageListDialog::render(
+        std::vector<std::unique_ptr<ImageCanvas>>& images,
+        int& viewerLeftIdx, int& viewerRightIdx,
+        int& activeGalleryImage)
     {
         if (!popupBeginClosable("Images", show, 0.5f, 0.6f, 0.25f,
                                 0.2f))
@@ -24,9 +24,9 @@ namespace shoecomp
             ImGui::PushID(i);
             if (ImGui::Button("X")) popRemoveIdx = i;
             ImGui::SameLine();
-            ImGui::Checkbox("Minimize", &images[i].minimized);
+            ImGui::Checkbox("Minimize", &images[i]->minimized);
             ImGui::SameLine();
-            ImGui::Text("%s", images[i].name().c_str());
+            ImGui::Text("%s", images[i]->name().c_str());
             ImGui::PopID();
         }
         if (popRemoveIdx >= 0)

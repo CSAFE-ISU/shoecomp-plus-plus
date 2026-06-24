@@ -4,7 +4,7 @@
 #include <vector>
 #include "aligncalc/workerChannel.h"
 #include "aligncalc/aligncalc.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 
 namespace shoecomp
 {
@@ -14,13 +14,13 @@ namespace shoecomp
     // Compares |left| and |right| images, communicates
     // progress via |channel|, and writes the estimated
     // transforms into |results|.
-    void runAutoAlign(ImageCanvas::ImageData& left,
-                      ImageCanvas::ImageData& right,
+    void runAutoAlign(ImageCanvas2D::ImageData& left,
+                      ImageCanvas2D::ImageData& right,
                       WorkerChannel& channel,
                       std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params);
-    void runRTSAlign(ImageCanvas::ImageData& left,
-                     ImageCanvas::ImageData& right,
+    void runRTSAlign(ImageCanvas2D::ImageData& left,
+                     ImageCanvas2D::ImageData& right,
                      WorkerChannel& channel,
                      std::vector<AlignState>& results,
                      const AlignCalc::RTSParams& params);

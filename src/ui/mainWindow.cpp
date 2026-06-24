@@ -1,5 +1,5 @@
 #include "ui/mainWindow.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/alignDialog.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
@@ -74,8 +74,8 @@ namespace shoecomp
                 (int)state.viewerAlignments.size() - 1;
             state.alignDialog.workerResults.clear();
             state.alignDialog.workerFinished = false;
-            ImageCanvas::applyAlignment(
-                state.viewerLeft, state.viewerRight,
+            state.viewerLeft->applyAlignment(
+                *state.viewerRight,
                 state.viewerAlignments[state.viewerAlignmentIdx],
                 state.viewerLocked);
             printf(
@@ -122,9 +122,9 @@ namespace shoecomp
             if (changed)
             {
                 state.alignEditState.rotation = rotationDeg * kDegToRad;
-                ImageCanvas::applyAlignment(
-                    state.viewerLeft, state.viewerRight,
-                    state.alignEditState, state.viewerLocked);
+                state.viewerLeft->applyAlignment(*state.viewerRight,
+                                                 state.alignEditState,
+                                                 state.viewerLocked);
             }
 
             ImGui::Spacing();
@@ -134,8 +134,8 @@ namespace shoecomp
                 state.viewerAlignments.push_back(state.alignEditState);
                 state.viewerAlignmentIdx =
                     state.viewerAlignments.size() - 1;
-                ImageCanvas::applyAlignment(
-                    state.viewerLeft, state.viewerRight,
+                state.viewerLeft->applyAlignment(
+                    *state.viewerRight,
                     state.viewerAlignments[state.viewerAlignmentIdx],
                     state.viewerLocked);
                 ImGui::CloseCurrentPopup();
@@ -145,9 +145,9 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditState;
-                ImageCanvas::applyAlignment(
-                    state.viewerLeft, state.viewerRight,
-                    state.alignEditState, state.viewerLocked);
+                state.viewerLeft->applyAlignment(*state.viewerRight,
+                                                 state.alignEditState,
+                                                 state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::SameLine();
@@ -155,9 +155,9 @@ namespace shoecomp
             {
                 state.viewerAlignments[state.viewerAlignmentIdx] =
                     state.alignEditOriginal;
-                ImageCanvas::applyAlignment(
-                    state.viewerLeft, state.viewerRight,
-                    state.alignEditOriginal, state.viewerLocked);
+                state.viewerLeft->applyAlignment(
+                    *state.viewerRight, state.alignEditOriginal,
+                    state.viewerLocked);
                 ImGui::CloseCurrentPopup();
             }
             ImGui::EndPopup();
@@ -191,8 +191,8 @@ namespace shoecomp
                 state.alignEditPopupVisible = false;
                 state.viewerLeftIdx = -1;
                 state.viewerRightIdx = -1;
-                state.viewerLeft = ImageCanvas{};
-                state.viewerRight = ImageCanvas{};
+                state.viewerLeft = std::make_unique<ImageCanvas2D>();
+                state.viewerRight = std::make_unique<ImageCanvas2D>();
             }
         }
 
@@ -253,7 +253,10 @@ namespace shoecomp
             state.imageSaveTarget >= (int)state.images.size() ||
             state.imageSaveInProgress.load())
             return;
-        auto& img = state.images[state.imageSaveTarget].image;
+        ImageCanvas2D* c2d =
+            asCanvas2D(*state.images[state.imageSaveTarget]);
+        if (!c2d) return;
+        auto& img = c2d->image;
 
         int w = img->width;
         int h = img->height;
@@ -282,7 +285,10 @@ namespace shoecomp
         if (state.annotationFileTarget < 0 ||
             state.annotationFileTarget >= (int)state.images.size())
             return;
-        auto& img = state.images[state.annotationFileTarget].image;
+        ImageCanvas2D* c2d =
+            asCanvas2D(*state.images[state.annotationFileTarget]);
+        if (!c2d) return;
+        auto& img = c2d->image;
         if (state.annotationFileSave)
         {
             if (saveAnnotationsToFile(fullPath, img->annotations) != 0)
@@ -361,12 +367,12 @@ namespace shoecomp
     {
         for (auto& c : state.images)
         {
-            if (c.image->path == fullPath) return;
+            if (c->path() == fullPath) return;
         }
 
         if (isNistExtension(fullPath))
         {
-            std::vector<ImageCanvas> canvases;
+            std::vector<std::unique_ptr<ImageCanvas>> canvases;
             if (loadNistFromDisk(fullPath, canvases) > 0)
             {
                 for (auto& c : canvases)
@@ -375,11 +381,12 @@ namespace shoecomp
             return;
         }
 
-        ImageCanvas canvas;
-        canvas.image->name = name;
-        canvas.image->path = fullPath;
-        if (!loadPngFromDisk(fullPath, canvas.image->textureId,
-                             canvas.image->width, canvas.image->height))
+        auto canvas = std::make_unique<ImageCanvas2D>();
+        canvas->image->name = name;
+        canvas->image->path = fullPath;
+        if (!loadPngFromDisk(fullPath, canvas->image->textureId,
+                             canvas->image->width,
+                             canvas->image->height))
         {
             state.imageLoadError.show = true;
             state.imageLoadError.message =
@@ -387,7 +394,7 @@ namespace shoecomp
             return;
         }
 
-        canvas.image->resetAnnotations();
+        canvas->image->resetAnnotations();
 
         if (state.imageLoadBrowser.loadCorrespondingJson)
         {
@@ -396,10 +403,10 @@ namespace shoecomp
             if (fs::exists(jsonPath))
             {
                 if (loadAnnotationsFromFile(
-                        jsonPath.string(), canvas.image->annotations) !=
-                    0)
+                        jsonPath.string(),
+                        canvas->image->annotations) != 0)
                 {
-                    canvas.image->resetAnnotations();
+                    canvas->image->resetAnnotations();
                     state.annotationError.show = true;
                     state.annotationError.message =
                         "Failed to load "
@@ -424,8 +431,8 @@ namespace shoecomp
         state.alignDialog.cleanup();
         state.alignDialog.leftImage.reset();
         state.alignDialog.rightImage.reset();
-        state.viewerLeft.image.reset();
-        state.viewerRight.image.reset();
+        state.viewerLeft.reset();
+        state.viewerRight.reset();
         state.images.clear();
     }
 
@@ -452,6 +459,8 @@ namespace shoecomp
 #endif
 
         AppState state;
+        state.viewerLeft = std::make_unique<ImageCanvas2D>();
+        state.viewerRight = std::make_unique<ImageCanvas2D>();
 #ifndef __EMSCRIPTEN__
         state.licenseTexts = std::move(splashResult.licenseTexts);
 #else
@@ -481,7 +490,7 @@ namespace shoecomp
 
         state.imageLoadBrowser.extension = ".png";
         state.imageLoadBrowser.extensionChoices =
-            state.viewerLeft.imageExtensions();
+            state.viewerLeft->imageExtensions();
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
             [&state](const std::string& p, const std::string& n)

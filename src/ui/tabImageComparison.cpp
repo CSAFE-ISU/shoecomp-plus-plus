@@ -1,5 +1,5 @@
 #include "ui/mainWindow.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/uiHelpers.h"
 #include <algorithm>
 #include <cmath>
@@ -11,14 +11,13 @@ namespace shoecomp
         if (ImGui::Button(locked ? "Unlock" : "Lock")) locked = !locked;
     }
 
-    void ImageCanvas::renderViewerPanel(
-        std::vector<ImageCanvas>& images, int& selectedIdx,
-        int otherIdx, ImageCanvas& viewer, bool locked,
-        const char* label)
+    void ImageCanvas2D::renderViewerPanel(
+        std::vector<std::unique_ptr<ImageCanvas>>& images,
+        int& selectedIdx, int otherIdx, bool locked, const char* label)
     {
         const char* preview =
             (selectedIdx >= 0 && selectedIdx < (int)images.size())
-                ? images[selectedIdx].image->name.c_str()
+                ? images[selectedIdx]->name().c_str()
                 : "<none>";
 
         ImGui::BeginDisabled(locked);
@@ -27,23 +26,19 @@ namespace shoecomp
             if (ImGui::Selectable("<none>", selectedIdx < 0))
             {
                 selectedIdx = -1;
-                viewer.viewState.zoom = viewer.viewState.zoomTarget =
-                    1.0f;
-                viewer.viewState.pan = viewer.viewState.panTarget =
-                    ImVec2(0, 0);
+                viewState.zoom = viewState.zoomTarget = 1.0f;
+                viewState.pan = viewState.panTarget = ImVec2(0, 0);
             }
             for (int i = 0; i < (int)images.size(); ++i)
             {
                 if (i == otherIdx) continue;
                 bool selected = (i == selectedIdx);
-                if (ImGui::Selectable(images[i].image->name.c_str(),
+                if (ImGui::Selectable(images[i]->name().c_str(),
                                       selected))
                 {
                     selectedIdx = i;
-                    viewer.viewState.zoom =
-                        viewer.viewState.zoomTarget = 0.0f;
-                    viewer.viewState.pan = viewer.viewState.panTarget =
-                        ImVec2(0, 0);
+                    viewState.zoom = viewState.zoomTarget = 0.0f;
+                    viewState.pan = viewState.panTarget = ImVec2(0, 0);
                 }
                 if (selected) ImGui::SetItemDefaultFocus();
             }
@@ -54,7 +49,9 @@ namespace shoecomp
         if (selectedIdx < 0 || selectedIdx >= (int)images.size())
             return;
 
-        viewer.image = images[selectedIdx].image;
+        ImageCanvas2D* sel = asCanvas2D(*images[selectedIdx]);
+        if (!sel) return;
+        image = sel->image;
         float toolbarH = ImGui::GetFrameHeightWithSpacing() * 3.0f;
         ImVec2 region = ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
@@ -62,10 +59,10 @@ namespace shoecomp
         {
             ImGui::BeginChild("##cvs", ImVec2(0, canvasH),
                               ImGuiChildFlags_None);
-            viewer.renderCanvas("##canvas");
+            renderCanvas("##canvas");
             ImGui::EndChild();
         }
-        viewer.renderToolbar(label);
+        renderToolbar(label);
     }
 
     void renderImageComparison(AppState& state)
@@ -89,15 +86,15 @@ namespace shoecomp
             // Snapshot targets before rendering so
             // we can detect which viewer changed.
             ImageCanvas::ViewTargets l0 =
-                ImageCanvas::snapshotTargets(state.viewerLeft);
+                state.viewerLeft->snapshotTargets();
             ImageCanvas::ViewTargets r0 =
-                ImageCanvas::snapshotTargets(state.viewerRight);
+                state.viewerRight->snapshotTargets();
 
             ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
                               ImGuiChildFlags_Borders);
-            ImageCanvas::renderViewerPanel(
+            state.viewerLeft->renderViewerPanel(
                 state.images, state.viewerLeftIdx, state.viewerRightIdx,
-                state.viewerLeft, state.viewerLocked, "##Left");
+                state.viewerLocked, "##Left");
             ImGui::EndChild();
 
             ImGui::SameLine();
@@ -119,25 +116,25 @@ namespace shoecomp
 
             ImGui::BeginChild("RightViewer", ImVec2(rightW, 0),
                               ImGuiChildFlags_Borders);
-            ImageCanvas::renderViewerPanel(
+            state.viewerRight->renderViewerPanel(
                 state.images, state.viewerRightIdx, state.viewerLeftIdx,
-                state.viewerRight, state.viewerLocked, "##Right");
+                state.viewerLocked, "##Right");
             ImGui::EndChild();
 
             // Apply locked sync with alignment
             // offset after both viewers render.
             if (state.viewerLocked && !state.alignEditPopupVisible)
             {
-                ImageCanvas::syncPair(
-                    state.viewerLeft, state.viewerRight, l0, r0,
+                state.viewerLeft->syncPair(
+                    *state.viewerRight, l0, r0,
                     state.viewerAlignments[state.viewerAlignmentIdx],
                     state.viewerLocked, state.alignDialog.open,
                     state.settings);
             }
             else
             {
-                state.viewerLeft.viewState.homeRequested = false;
-                state.viewerRight.viewState.homeRequested = false;
+                state.viewerLeft->clearHomeRequested();
+                state.viewerRight->clearHomeRequested();
             }
         }
         ImGui::EndChild();
@@ -158,18 +155,20 @@ namespace shoecomp
         ImGui::BeginDisabled(!hasBoth);
         if (ImGui::Button("Align"))
         {
+            ImageCanvas2D* lsel =
+                asCanvas2D(*state.images[state.viewerLeftIdx]);
+            ImageCanvas2D* rsel =
+                asCanvas2D(*state.images[state.viewerRightIdx]);
             state.alignDialog.show = true;
             state.alignDialog.leftName =
-                state.images[state.viewerLeftIdx].image->name;
+                state.images[state.viewerLeftIdx]->name();
             state.alignDialog.rightName =
-                state.images[state.viewerRightIdx].image->name;
-            state.alignDialog.leftImage =
-                state.images[state.viewerLeftIdx].image;
-            state.alignDialog.rightImage =
-                state.images[state.viewerRightIdx].image;
+                state.images[state.viewerRightIdx]->name();
+            state.alignDialog.leftImage = lsel ? lsel->image : nullptr;
+            state.alignDialog.rightImage = rsel ? rsel->image : nullptr;
             state.viewerLocked = false;
-            state.viewerLeft.resetView();
-            state.viewerRight.resetView();
+            state.viewerLeft->resetView();
+            state.viewerRight->resetView();
             state.viewerLocked = true;
         }
         ImGui::EndDisabled();
@@ -194,8 +193,8 @@ namespace shoecomp
                 if (state.viewerAlignmentIdx > 0)
                 {
                     state.viewerAlignmentIdx--;
-                    ImageCanvas::applyAlignment(
-                        state.viewerLeft, state.viewerRight,
+                    state.viewerLeft->applyAlignment(
+                        *state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
                         state.viewerLocked);
@@ -208,8 +207,8 @@ namespace shoecomp
                 if (state.viewerAlignmentIdx < maxIdx)
                 {
                     state.viewerAlignmentIdx++;
-                    ImageCanvas::applyAlignment(
-                        state.viewerLeft, state.viewerRight,
+                    state.viewerLeft->applyAlignment(
+                        *state.viewerRight,
                         state
                             .viewerAlignments[state.viewerAlignmentIdx],
                         state.viewerLocked);
@@ -238,9 +237,9 @@ namespace shoecomp
                 if (idx >= (int)state.viewerAlignments.size())
                     idx = (int)state.viewerAlignments.size() - 1;
                 state.viewerAlignmentIdx = idx;
-                ImageCanvas::applyAlignment(
-                    state.viewerLeft, state.viewerRight,
-                    state.viewerAlignments[idx], state.viewerLocked);
+                state.viewerLeft->applyAlignment(
+                    *state.viewerRight, state.viewerAlignments[idx],
+                    state.viewerLocked);
             }
             if (delDisabled) ImGui::EndDisabled();
 

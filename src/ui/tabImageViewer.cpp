@@ -1,5 +1,5 @@
 #include "ui/mainWindow.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "ui/loadBrowser.h"
 #include "ui/saveBrowser.h"
 #include "ui/uiHelpers.h"
@@ -31,7 +31,7 @@ namespace shoecomp
         int removeIdx = -1;
         for (int i = 0; i < (int)state.images.size(); ++i)
         {
-            auto& canvas = state.images[i];
+            ImageCanvas& canvas = *state.images[i];
 
             // Scale image to fit within max bounds
             float scale = std::min(maxW / (float)canvas.width(),
@@ -135,8 +135,8 @@ namespace shoecomp
                 state.alignEditPopupVisible = false;
                 state.viewerLeftIdx = -1;
                 state.viewerRightIdx = -1;
-                state.viewerLeft = ImageCanvas{};
-                state.viewerRight = ImageCanvas{};
+                state.viewerLeft = std::make_unique<ImageCanvas2D>();
+                state.viewerRight = std::make_unique<ImageCanvas2D>();
             }
             state.images.erase(state.images.begin() + removeIdx);
             clampViewerIndices(removeIdx, (int)state.images.size(),
@@ -221,7 +221,9 @@ namespace shoecomp
         if (ImGui::Button("Save JSON"))
         {
 #ifdef __EMSCRIPTEN__
-            auto& img = state.images[state.activeGalleryImage].image;
+            auto& img =
+                asCanvas2D(*state.images[state.activeGalleryImage])
+                    ->image;
             jt::Json copy = img->annotations;
             std::string data = copy.toStringPretty();
             if (data.empty())
@@ -245,9 +247,11 @@ namespace shoecomp
             state.annotationFileBrowser.dirNeedsRefresh = true;
             state.annotationFileBrowser.fileName.clear();
             {
-                auto& canvas = state.images[state.activeGalleryImage];
+                ImageCanvas2D* c2d =
+                    asCanvas2D(*state.images[state.activeGalleryImage]);
                 state.annotationFileBrowser.contextLabel =
-                    canvas.image ? canvas.image->name : std::string();
+                    (c2d && c2d->image) ? c2d->image->name
+                                        : std::string();
             }
             state.annotationFileBrowser.extensionChoices.clear();
             state.annotationFileBrowser.title = "Save Annotations";

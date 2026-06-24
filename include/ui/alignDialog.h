@@ -8,7 +8,7 @@
 #include "imgui.h"
 #include "calc/align.h"
 #include "jtjson/json.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 
 namespace shoecomp
 {
@@ -37,8 +37,8 @@ namespace shoecomp
         bool open = false;
         std::string leftName;
         std::string rightName;
-        std::shared_ptr<ImageCanvas::ImageData> leftImage;
-        std::shared_ptr<ImageCanvas::ImageData> rightImage;
+        std::shared_ptr<ImageCanvas2D::ImageData> leftImage;
+        std::shared_ptr<ImageCanvas2D::ImageData> rightImage;
         std::vector<AlignState> workerResults;
         WorkerChannel channel;
         std::thread workerThread;

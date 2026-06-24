@@ -1,14 +1,14 @@
 #include "calc/align.h"
 #include "ui/alignDialog.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include <chrono>
 #include <thread>
 
 namespace shoecomp
 {
 
-    static void dummyAlign(ImageCanvas::ImageData& left,
-                           ImageCanvas::ImageData& right,
+    static void dummyAlign(ImageCanvas2D::ImageData& left,
+                           ImageCanvas2D::ImageData& right,
                            WorkerChannel& channel,
                            std::vector<AlignState>& results)
     {
@@ -30,8 +30,8 @@ namespace shoecomp
         channel.done();
     }
 
-    void runAutoAlign(ImageCanvas::ImageData& left,
-                      ImageCanvas::ImageData& right,
+    void runAutoAlign(ImageCanvas2D::ImageData& left,
+                      ImageCanvas2D::ImageData& right,
                       WorkerChannel& channel,
                       std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params)

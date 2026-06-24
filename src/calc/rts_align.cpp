@@ -1,5 +1,5 @@
 #include "ui/alignDialog.h"
-#include "ui/imageCanvas.h"
+#include "ui/imageCanvas2d.h"
 #include "calc/align.h"
 #include <chrono>
 #include <cstdio>
@@ -8,7 +8,7 @@
 
 namespace shoecomp
 {
-    static bool extractAnnotatedPoints(ImageCanvas::ImageData& data,
+    static bool extractAnnotatedPoints(ImageCanvas2D::ImageData& data,
                                        AlignCalc::DoubleMatrixR& mat)
     {
         if (!data.annotations.isObject() ||
@@ -31,14 +31,15 @@ namespace shoecomp
                 return false;
             mat(i, 0) = el["x"].getNumber();
             mat(i, 1) = el["y"].getNumber();
-            mat(i, 2) = static_cast<double>(
-                ImageCanvas::stringToPointType(el["type"].getString()));
+            mat(i, 2) =
+                static_cast<double>(ImageCanvas2D::stringToPointType(
+                    el["type"].getString()));
         }
         return true;
     }
 
-    void runRTSAlign(ImageCanvas::ImageData& left,
-                     ImageCanvas::ImageData& right,
+    void runRTSAlign(ImageCanvas2D::ImageData& left,
+                     ImageCanvas2D::ImageData& right,
                      WorkerChannel& channel,
                      std::vector<AlignState>& aligns,
                      const AlignCalc::RTSParams& params)
