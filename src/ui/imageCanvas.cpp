@@ -7,6 +7,14 @@ namespace shoecomp
 {
     ImageCanvas::AnnotationStyle ImageCanvas::style;
 
+    const std::vector<std::string>& ImageCanvas::imageExtensions() const
+    {
+        static const std::vector<std::string> exts = {
+            ".png", ".PNG", ".jpg", ".JPG",  ".jpeg", ".JPEG",
+            ".an2", ".AN2", ".irr", ".lffs", ".ebts"};
+        return exts;
+    }
+
     const char* ImageCanvas::pointTypeToString(PointType t)
     {
         switch (t)

@@ -480,9 +480,8 @@ namespace shoecomp
         { onAlignmentSaveOk(state, p); };
 
         state.imageLoadBrowser.extension = ".png";
-        state.imageLoadBrowser.extensionChoices = {
-            ".png", ".PNG", ".jpg", ".JPG",  ".jpeg", ".JPEG",
-            ".an2", ".AN2", ".irr", ".lffs", ".ebts"};
+        state.imageLoadBrowser.extensionChoices =
+            state.viewerLeft.imageExtensions();
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
             [&state](const std::string& p, const std::string& n)

@@ -118,6 +118,9 @@ namespace shoecomp
         ImageCanvas();
         explicit ImageCanvas(std::shared_ptr<ImageData> img);
 
+        // --- Supported image file extensions ---
+        const std::vector<std::string>& imageExtensions() const;
+
         // --- PointType <-> string ---
         static const char* pointTypeToString(PointType t);
         static PointType stringToPointType(const std::string& s);
