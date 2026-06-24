@@ -230,9 +230,16 @@ namespace shoecomp
                                    4.0f, "%.2f");
                 s.fontScale = std::round(s.fontScale / 0.05f) * 0.05f;
 
+                // The active canvas kind applies immediately (it is a
+                // soft reset of the gallery), unlike theme/font which
+                // wait for "Update Settings".
                 settingsTableRow("Active Canvas");
-                ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
-                             kActiveKindNames, 2);
+                if (ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
+                                 kActiveKindNames, 2))
+                {
+                    s.activeKind =
+                        activeIndexToKind(s_pendingActiveKind);
+                }
 
                 ImGui::EndTable();
             }
@@ -305,7 +312,6 @@ namespace shoecomp
             s.themeIdx = s_pendingThemeIdx;
             applyTheme(s.themeIdx);
             ImGui::GetIO().FontGlobalScale = s.fontScale;
-            s.activeKind = activeIndexToKind(s_pendingActiveKind);
         }
     }
 
