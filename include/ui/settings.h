@@ -37,7 +37,7 @@ namespace shoecomp
         ImVec4 activeImageColor = ImVec4(0.75f, 0.49f, 0.0f, 1.0f);
     };
 
-    void renderSettingsTab(SettingsState& s);
+    void renderSettingsTab(SettingsState& s, ImageCanvas& activeCanvas);
     void applyTheme(int themeIdx);
     void applyModernStyling();
     void registerSettingsHandler(SettingsState& s);

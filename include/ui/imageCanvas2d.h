@@ -26,16 +26,7 @@ namespace shoecomp
             AddBounds
         };
 
-        enum class PointType : uint8_t
-        {
-            Corner = 0,
-            Center = 1,
-            RidgeEnding = 2,
-            Bifurcation = 3,
-            Other = 4,
-            Core = 5,
-            Delta = 6
-        };
+        using PointType = ImageCanvas::PointType;
 
         struct AnnotationStyle
         {
@@ -106,6 +97,7 @@ namespace shoecomp
         // --- ImageCanvas interface ---
         Kind kind() const override { return Kind::Canvas2D; }
         bool is2D() const override { return true; }
+        std::vector<PointType> allowedPointTypes() const override;
 
         bool hasImage() const override { return image != nullptr; }
         int width() const override { return image ? image->width : 0; }
@@ -134,7 +126,7 @@ namespace shoecomp
 
         // Annotation persistence is uniform (JSON) across all kinds.
         int saveAnnotations(const std::string& path) const;
-        int loadAnnotations(const std::string& path);
+        int loadAnnotations(const std::string& path, std::string& err);
 
         ViewTargets snapshotTargets() const override;
         void renderViewerPanel(
@@ -178,10 +170,8 @@ namespace shoecomp
                                bool hovered, AnnotationMode mode,
                                const ImGuiIO& io);
 
-        // --- Settings UI owned by the canvas ---
-        // Renders the annotation-style ("Annotations") settings
-        // section (edits the shared `style`).
-        static void renderStyleSettings();
+        // --- Settings UI ---
+        void renderAnnotationStyleSettings() override;
 
        protected:
         // Lowercased file extension (including the dot), e.g. ".png".
@@ -195,6 +185,11 @@ namespace shoecomp
                         int width, int height);
 
        private:
+        // Renders color pickers for the types in `allowed` (shared
+        // AnnotationStyle). Called by renderAnnotationStyleSettings().
+        static void renderStyleSettings(
+            const std::vector<PointType>& allowed);
+
         // Sync helpers, used only between same-Kind 2D viewers.
         void syncLockedViewers(ImageCanvas2D& other,
                                const AlignState& a,

@@ -28,7 +28,7 @@ namespace shoecomp
 
     void renderFilesAndSettings(AppState& state)
     {
-        renderSettingsTab(state.settings);
+        renderSettingsTab(state.settings, *state.activeProto);
     }
 
 }  // namespace shoecomp

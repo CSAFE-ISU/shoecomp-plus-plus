@@ -5,6 +5,19 @@
 
 namespace shoecomp
 {
+    std::vector<ImageCanvas2D::PointType>
+    ShoeCanvas::allowedPointTypes() const
+    {
+        return {PointType::Corner, PointType::Center};
+    }
+
+    std::vector<ImageCanvas2D::PointType>
+    EBTSCanvas::allowedPointTypes() const
+    {
+        return {PointType::RidgeEnding, PointType::Bifurcation,
+                PointType::Core, PointType::Delta, PointType::Other};
+    }
+
     const std::vector<std::string>& ShoeCanvas::imageExtensions() const
     {
         static const std::vector<std::string> exts = {

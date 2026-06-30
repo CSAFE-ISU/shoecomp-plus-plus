@@ -2,6 +2,7 @@
 #define SHOECOMP_IMAGE_CANVAS_H
 
 #include "imgui.h"
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -29,6 +30,17 @@ namespace shoecomp
             EBTSCanvas
         };
 
+        enum class PointType : uint8_t
+        {
+            Corner = 0,
+            Center = 1,
+            RidgeEnding = 2,
+            Bifurcation = 3,
+            Other = 4,
+            Core = 5,
+            Delta = 6
+        };
+
         // Snapshot of a viewer's animation targets, captured
         // before rendering so syncPair can detect which viewer
         // the user changed.
@@ -46,6 +58,16 @@ namespace shoecomp
         bool lastMinimized = false;
 
         virtual ~ImageCanvas() = default;
+
+        // Returns the annotation point types this canvas kind accepts.
+        // Used to filter settings color pickers and validate JSON
+        // loads.
+        virtual std::vector<PointType> allowedPointTypes() const = 0;
+
+        // Renders the annotation-style settings section for this canvas
+        // kind (edits the shared AnnotationStyle). Only controls for
+        // point types returned by allowedPointTypes() are shown.
+        virtual void renderAnnotationStyleSettings() = 0;
 
         // --- Subclass tag ---
         virtual Kind kind() const = 0;

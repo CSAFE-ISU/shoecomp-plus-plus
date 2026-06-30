@@ -332,13 +332,11 @@ namespace shoecomp
         }
         else
         {
-            if (c2d->loadAnnotations(fullPath) != 0)
+            std::string annErr;
+            if (c2d->loadAnnotations(fullPath, annErr) != 0)
             {
                 state.annotationError.show = true;
-                state.annotationError.message =
-                    "Failed to load "
-                    "annotations from:\n" +
-                    fullPath;
+                state.annotationError.message = annErr;
             }
         }
     }
@@ -409,15 +407,13 @@ namespace shoecomp
                 fs::path(fullPath).replace_extension(".json");
             if (c2d && fs::exists(jsonPath))
             {
-                if (c2d->loadAnnotations(jsonPath.string()) != 0)
+                std::string annErr;
+                if (c2d->loadAnnotations(jsonPath.string(), annErr) !=
+                    0)
                 {
                     c2d->image->resetAnnotations();
                     state.annotationError.show = true;
-                    state.annotationError.message =
-                        "Failed to load "
-                        "annotations "
-                        "from:\n" +
-                        jsonPath.string();
+                    state.annotationError.message = annErr;
                 }
             }
         }

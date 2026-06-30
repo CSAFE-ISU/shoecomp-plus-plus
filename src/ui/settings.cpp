@@ -1,6 +1,5 @@
 #include "ui/settings.h"
 #include "ui/uiHelpers.h"
-#include "ui/imageCanvas2d.h"
 #include "hello_imgui/hello_imgui.h"
 #include "hello_imgui/imgui_theme.h"
 #include "imgui.h"
@@ -193,7 +192,7 @@ namespace shoecomp
                         : ImageCanvas::Kind::ShoeCanvas;
     }
 
-    void renderSettingsTab(SettingsState& s)
+    void renderSettingsTab(SettingsState& s, ImageCanvas& activeCanvas)
     {
         static int s_pendingThemeIdx = -1;
         if (s_pendingThemeIdx < 0) s_pendingThemeIdx = s.themeIdx;
@@ -248,7 +247,7 @@ namespace shoecomp
         ImGui::Spacing();
 
         // Annotations section (owned by ImageCanvas)
-        ImageCanvas2D::renderStyleSettings();
+        activeCanvas.renderAnnotationStyleSettings();
 
         ImGui::Spacing();
 

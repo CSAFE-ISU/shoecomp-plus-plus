@@ -19,6 +19,15 @@ namespace shoecomp
         return exts;
     }
 
+    std::vector<ImageCanvas2D::PointType>
+    ImageCanvas2D::allowedPointTypes() const
+    {
+        return {PointType::Corner,      PointType::Center,
+                PointType::RidgeEnding, PointType::Bifurcation,
+                PointType::Other,       PointType::Core,
+                PointType::Delta};
+    }
+
     const char* ImageCanvas2D::pointTypeToString(PointType t)
     {
         switch (t)
@@ -164,9 +173,35 @@ namespace shoecomp
         return saveAnnotationsToFile(path, image->annotations);
     }
 
-    int ImageCanvas2D::loadAnnotations(const std::string& path)
+    int ImageCanvas2D::loadAnnotations(const std::string& path,
+                                       std::string& err)
     {
-        return loadAnnotationsFromFile(path, image->annotations);
+        if (loadAnnotationsFromFile(path, image->annotations) != 0)
+        {
+            err = "Failed to load annotations from:\n" + path;
+            return -1;
+        }
+
+        auto allowed = allowedPointTypes();
+        for (auto& pt : image->annotations["points"].getArray())
+        {
+            if (pt.contains("type") && pt["type"].isString())
+            {
+                PointType t = stringToPointType(pt["type"].getString());
+                if (std::find(allowed.begin(), allowed.end(), t) ==
+                    allowed.end())
+                {
+                    err = "Annotation type '" + pt["type"].getString() +
+                          "' is not allowed for this canvas "
+                          "type.\nFailed to load annotations "
+                          "from:\n" +
+                          path;
+                    image->resetAnnotations();
+                    return -1;
+                }
+            }
+        }
+        return 0;
     }
 
     ImVec2 ImageCanvas2D::screenToImageCoord(
@@ -877,7 +912,13 @@ namespace shoecomp
         ImGui::PopID();
     }
 
-    void ImageCanvas2D::renderStyleSettings()
+    void ImageCanvas2D::renderAnnotationStyleSettings()
+    {
+        renderStyleSettings(allowedPointTypes());
+    }
+
+    void ImageCanvas2D::renderStyleSettings(
+        const std::vector<PointType>& allowed)
     {
         if (!ImGui::CollapsingHeader("Annotations")) return;
         if (!ImGui::BeginTable("##annSettings", 3)) return;
@@ -889,32 +930,53 @@ namespace shoecomp
         ImGui::TableSetupColumn("Widget",
                                 ImGuiTableColumnFlags_WidthStretch);
 
+        auto has = [&](PointType t)
+        {
+            return std::find(allowed.begin(), allowed.end(), t) !=
+                   allowed.end();
+        };
+
         settingsTableRow("Point Radius");
         ImGui::SliderFloat("##PointRadius", &style.pointRadius, 2.0f,
                            15.0f, "%.1f");
 
-        settingsTableRow("Corner Color");
-        ImGui::ColorEdit4("##CornerColor", &style.cornerColor.x);
-
-        settingsTableRow("Center Color");
-        ImGui::ColorEdit4("##CenterColor", &style.centerColor.x);
-
-        settingsTableRow("Ridge Ending Color");
-        ImGui::ColorEdit4("##RidgeEndingColor",
-                          &style.ridgeEndingColor.x);
-
-        settingsTableRow("Bifurcation Color");
-        ImGui::ColorEdit4("##BifurcationColor",
-                          &style.bifurcationColor.x);
-
-        settingsTableRow("Other Color");
-        ImGui::ColorEdit4("##OtherColor", &style.otherColor.x);
-
-        settingsTableRow("Core Color");
-        ImGui::ColorEdit4("##CoreColor", &style.coreColor.x);
-
-        settingsTableRow("Delta Color");
-        ImGui::ColorEdit4("##DeltaColor", &style.deltaColor.x);
+        if (has(PointType::Corner))
+        {
+            settingsTableRow("Corner Color");
+            ImGui::ColorEdit4("##CornerColor", &style.cornerColor.x);
+        }
+        if (has(PointType::Center))
+        {
+            settingsTableRow("Center Color");
+            ImGui::ColorEdit4("##CenterColor", &style.centerColor.x);
+        }
+        if (has(PointType::RidgeEnding))
+        {
+            settingsTableRow("Ridge Ending Color");
+            ImGui::ColorEdit4("##RidgeEndingColor",
+                              &style.ridgeEndingColor.x);
+        }
+        if (has(PointType::Bifurcation))
+        {
+            settingsTableRow("Bifurcation Color");
+            ImGui::ColorEdit4("##BifurcationColor",
+                              &style.bifurcationColor.x);
+        }
+        if (has(PointType::Other))
+        {
+            settingsTableRow("Other Color");
+            ImGui::ColorEdit4("##OtherColor", &style.otherColor.x);
+        }
+        if (has(PointType::Core))
+        {
+            settingsTableRow("Core Color");
+            ImGui::ColorEdit4("##CoreColor", &style.coreColor.x);
+        }
+        if (has(PointType::Delta))
+        {
+            settingsTableRow("Delta Color");
+            ImGui::ColorEdit4("##DeltaColor", &style.deltaColor.x);
+        }
 
         settingsTableRow("Bounds Thickness");
         ImGui::SliderFloat("##BoundsThickness",

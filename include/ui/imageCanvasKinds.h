@@ -12,6 +12,7 @@ namespace shoecomp
     struct ShoeCanvas : public ImageCanvas2D
     {
         Kind kind() const override { return Kind::ShoeCanvas; }
+        std::vector<PointType> allowedPointTypes() const override;
         const std::vector<std::string>& imageExtensions()
             const override;
         int loadImages(const std::string& path,
@@ -24,6 +25,7 @@ namespace shoecomp
     struct EBTSCanvas : public ImageCanvas2D
     {
         Kind kind() const override { return Kind::EBTSCanvas; }
+        std::vector<PointType> allowedPointTypes() const override;
         const std::vector<std::string>& imageExtensions()
             const override;
         int loadImages(const std::string& path,
