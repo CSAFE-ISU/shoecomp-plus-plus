@@ -178,18 +178,21 @@ namespace shoecomp
     }
 
     // Active-canvas combo lists only the user-selectable kinds.
-    static const char* kActiveKindNames[] = {"ShoeCanvas",
-                                             "EBTSCanvas"};
+    static const char* kActiveKindNames[] = {"ShoeCanvas", "EBTSCanvas",
+                                             "HWCanvas"};
 
     static int activeKindToIndex(ImageCanvas::Kind k)
     {
-        return k == ImageCanvas::Kind::EBTSCanvas ? 1 : 0;
+        if (k == ImageCanvas::Kind::EBTSCanvas) return 1;
+        if (k == ImageCanvas::Kind::HWCanvas) return 2;
+        return 0;
     }
 
     static ImageCanvas::Kind activeIndexToKind(int idx)
     {
-        return idx == 1 ? ImageCanvas::Kind::EBTSCanvas
-                        : ImageCanvas::Kind::ShoeCanvas;
+        if (idx == 1) return ImageCanvas::Kind::EBTSCanvas;
+        if (idx == 2) return ImageCanvas::Kind::HWCanvas;
+        return ImageCanvas::Kind::ShoeCanvas;
     }
 
     void renderSettingsTab(SettingsState& s, ImageCanvas& activeCanvas)
@@ -234,7 +237,7 @@ namespace shoecomp
                 // wait for "Update Settings".
                 settingsTableRow("Active Canvas");
                 if (ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
-                                 kActiveKindNames, 2))
+                                 kActiveKindNames, 3))
                 {
                     s.activeKind =
                         activeIndexToKind(s_pendingActiveKind);

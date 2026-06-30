@@ -27,7 +27,8 @@ namespace shoecomp
         {
             Canvas2D,
             ShoeCanvas,
-            EBTSCanvas
+            EBTSCanvas,
+            HWCanvas
         };
 
         enum class PointType : uint8_t
@@ -38,7 +39,11 @@ namespace shoecomp
             Bifurcation = 3,
             Other = 4,
             Core = 5,
-            Delta = 6
+            Delta = 6,
+            WordStart = 7,
+            WordEnd = 8,
+            Intersection = 9,
+            CurveTurn = 10
         };
 
         // Snapshot of a viewer's animation targets, captured

@@ -25,7 +25,9 @@ namespace shoecomp
         return {PointType::Corner,      PointType::Center,
                 PointType::RidgeEnding, PointType::Bifurcation,
                 PointType::Other,       PointType::Core,
-                PointType::Delta};
+                PointType::Delta,       PointType::WordStart,
+                PointType::WordEnd,     PointType::Intersection,
+                PointType::CurveTurn};
     }
 
     const char* ImageCanvas2D::pointTypeToString(PointType t)
@@ -44,6 +46,14 @@ namespace shoecomp
                 return "Core";
             case PointType::Delta:
                 return "Delta";
+            case PointType::WordStart:
+                return "WordStart";
+            case PointType::WordEnd:
+                return "WordEnd";
+            case PointType::Intersection:
+                return "Intersection";
+            case PointType::CurveTurn:
+                return "CurveTurn";
             case PointType::Corner:
             default:
                 return "Corner";
@@ -74,6 +84,10 @@ namespace shoecomp
         if (s == "Other") return PointType::Other;
         if (s == "Core") return PointType::Core;
         if (s == "Delta") return PointType::Delta;
+        if (s == "WordStart") return PointType::WordStart;
+        if (s == "WordEnd") return PointType::WordEnd;
+        if (s == "Intersection") return PointType::Intersection;
+        if (s == "CurveTurn") return PointType::CurveTurn;
         return PointType::Corner;
     }
 
@@ -976,6 +990,29 @@ namespace shoecomp
         {
             settingsTableRow("Delta Color");
             ImGui::ColorEdit4("##DeltaColor", &style.deltaColor.x);
+        }
+        if (has(PointType::WordStart))
+        {
+            settingsTableRow("Word Start Color");
+            ImGui::ColorEdit4("##WordStartColor",
+                              &style.wordStartColor.x);
+        }
+        if (has(PointType::WordEnd))
+        {
+            settingsTableRow("Word End Color");
+            ImGui::ColorEdit4("##WordEndColor", &style.wordEndColor.x);
+        }
+        if (has(PointType::Intersection))
+        {
+            settingsTableRow("Intersection Color");
+            ImGui::ColorEdit4("##IntersectionColor",
+                              &style.intersectionColor.x);
+        }
+        if (has(PointType::CurveTurn))
+        {
+            settingsTableRow("CurveTurn Color");
+            ImGui::ColorEdit4("##CurveTurnColor",
+                              &style.curveTurnColor.x);
         }
 
         settingsTableRow("Bounds Thickness");

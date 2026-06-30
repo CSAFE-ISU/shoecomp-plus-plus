@@ -3,6 +3,7 @@
 
 #include "ui/shoeCanvas.h"
 #include "ui/ebtsCanvas.h"
+#include "ui/hwCanvas.h"
 #include <memory>
 
 namespace shoecomp

@@ -99,6 +99,7 @@ set(SC_SRCS
     src/ui/imageCanvasKinds.cpp
     src/ui/shoeCanvas.cpp
     src/ui/ebtsCanvas.cpp
+    src/ui/hwCanvas.cpp
     src/ui/uiHelpers.cpp
     src/ui/settings.cpp
     src/ui/tabImageViewer.cpp

@@ -75,7 +75,9 @@ namespace shoecomp
                 auto& t = el["type"].getString();
                 if (t != "Corner" && t != "Center" &&
                     t != "RidgeEnding" && t != "Bifurcation" &&
-                    t != "Other" && t != "Core" && t != "Delta")
+                    t != "Other" && t != "Core" && t != "Delta" &&
+                    t != "WordStart" && t != "WordEnd" &&
+                    t != "Intersection" && t != "CurveTurn")
                     return -1;
             }
         }
