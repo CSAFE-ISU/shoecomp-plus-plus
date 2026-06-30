@@ -10,6 +10,10 @@
 namespace shoecomp
 {
     ImageCanvas2D::AnnotationStyle ImageCanvas2D::style;
+    ImageCanvas2D::AnnotationMode ImageCanvas2D::annotationMode =
+        ImageCanvas2D::AnnotationMode::None;
+    ImageCanvas2D::PointType ImageCanvas2D::selectedPointType =
+        ImageCanvas2D::PointType::Corner;
 
     const std::vector<std::string>& ImageCanvas2D::imageExtensions()
         const
@@ -592,7 +596,7 @@ namespace shoecomp
 
     void ImageCanvas2D::renderCanvas(const char* canvasId)
     {
-        AnnotationMode& mode = image->annotationMode;
+        AnnotationMode& mode = annotationMode;
         ImVec2 avail = ImGui::GetContentRegionAvail();
 
         float scaleX = avail.x / (float)image->width;
@@ -716,7 +720,7 @@ namespace shoecomp
                     if (mode == AnnotationMode::AddPoint)
                     {
                         pt["type"] =
-                            pointTypeToString(image->selectedPointType);
+                            pointTypeToString(selectedPointType);
                     }
                     image->annotations[key].getArray().push_back(
                         std::move(pt));
@@ -796,7 +800,6 @@ namespace shoecomp
 
     void ImageCanvas2D::renderToolbar(const char* toolbarId)
     {
-        AnnotationMode& mode = image->annotationMode;
         ImGui::PushID(toolbarId);
         ImGui::SetWindowFontScale(0.85f);
 
@@ -862,68 +865,82 @@ namespace shoecomp
             viewState.rotation = viewState.rotationTarget;
         }
 
-        ImGui::Separator();
+        ImGui::SetWindowFontScale(1.0f);
+        ImGui::PopID();
+    }
+
+    void ImageCanvas2D::renderMarkupControls(ImageCanvas2D* active)
+    {
+        ImGui::SeparatorText("Markup");
+        AnnotationMode& mode = annotationMode;
+
+        // Per-image edits need a live canvas; the mode toggles are
+        // shared and stay usable, but anything touching annotations
+        // is disabled when no canvas is active.
+        bool hasActive =
+            (active != nullptr && active->image != nullptr);
+        float fullW = ImGui::GetContentRegionAvail().x;
 
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
-        if (ImGui::Button("+ Point"))
+        if (ImGui::Button("+ Point", ImVec2(fullW, 0)))
             mode = pointActive ? AnnotationMode::None
                                : AnnotationMode::AddPoint;
         if (pointActive) ImGui::PopStyleColor();
 
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!pointActive);
-        ImGui::SetNextItemWidth(ImGui::CalcTextSize("RidgeEnding__").x);
-        int cur = static_cast<int>(image->selectedPointType);
+        ImGui::BeginDisabled(!pointActive || !hasActive);
+        ImGui::SetNextItemWidth(fullW);
+        int cur = static_cast<int>(selectedPointType);
         const char* items[] = {"Corner",      "Center", "RidgeEnding",
                                "Bifurcation", "Other",  "Core",
                                "Delta"};
         if (ImGui::Combo("##ptType", &cur, items, 7))
         {
-            image->selectedPointType = static_cast<PointType>(cur);
+            selectedPointType = static_cast<PointType>(cur);
         }
         ImGui::EndDisabled();
-
-        ImGui::SameLine();
 
         bool boundsActive = (mode == AnnotationMode::AddBounds);
         if (boundsActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
-        if (ImGui::Button("+ Bounds"))
+        if (ImGui::Button("+ Bounds", ImVec2(fullW, 0)))
         {
             mode = boundsActive ? AnnotationMode::None
                                 : AnnotationMode::AddBounds;
-            if (boundsActive) removePointsOutsideBounds();
+            if (boundsActive && hasActive)
+                active->removePointsOutsideBounds();
         }
         if (boundsActive) ImGui::PopStyleColor();
 
-        if (ImGui::Button("Undo"))
+        ImGui::Spacing();
+        ImGui::BeginDisabled(!hasActive);
+        float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        if (ImGui::Button("Undo", ImVec2(halfW, 0)))
         {
             const char* key = nullptr;
             if (mode == AnnotationMode::AddPoint)
                 key = "points";
             else if (mode == AnnotationMode::AddBounds)
                 key = "bounds";
-            if (key && hasAnnotationArray(image->annotations, key))
+            if (key &&
+                hasAnnotationArray(active->image->annotations, key))
             {
-                auto& arr = image->annotations[key].getArray();
+                auto& arr = active->image->annotations[key].getArray();
                 if (!arr.empty()) arr.pop_back();
             }
         }
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Clear"))
+        if (ImGui::Button("Clear", ImVec2(halfW, 0)))
         {
-            image->annotations["bounds"].setArray();
-            image->annotations["points"].setArray();
+            active->image->annotations["bounds"].setArray();
+            active->image->annotations["points"].setArray();
         }
-
-        ImGui::SetWindowFontScale(1.0f);
-        ImGui::PopID();
+        ImGui::EndDisabled();
     }
 
     void ImageCanvas2D::renderAnnotationStyleSettings()

@@ -30,6 +30,13 @@ namespace shoecomp
         int viewerRightIdx = -1;
         float viewerSplitRatio = 0.5f;
 
+        // Right-side dock width as a fraction of the tab's content
+        // region (shared by the Viewer + Comparison tabs).
+        float dockRatio = 0.2f;
+        // Which comparison viewer markup edits target (0 = left,
+        // 1 = right); follows the last-hovered viewer.
+        int activeComparisonViewer = 0;
+
         // Per-viewer canvas (own view state,
         // shared image data)
         std::unique_ptr<ImageCanvas> viewerLeft;

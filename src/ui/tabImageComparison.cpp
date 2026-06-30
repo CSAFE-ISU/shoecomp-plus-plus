@@ -52,7 +52,7 @@ namespace shoecomp
         ImageCanvas2D* sel = asCanvas2D(*images[selectedIdx]);
         if (!sel) return;
         image = sel->image;
-        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 3.0f;
+        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 1.6f;
         ImVec2 region = ImGui::GetContentRegionAvail();
         float canvasH = region.y - toolbarH;
         if (canvasH > 0.0f)
@@ -65,15 +65,11 @@ namespace shoecomp
         renderToolbar(label);
     }
 
-    void renderImageComparison(AppState& state)
+    static void renderComparisonContent(AppState& state, float contentW,
+                                        float contentH)
     {
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        float dockH = ImGui::GetFrameHeightWithSpacing() +
-                      ImGui::GetStyle().ItemSpacing.y;
-        float contentH = avail.y - dockH;
-
         ImGui::BeginChild("ComparisonContent",
-                          ImVec2(avail.x, contentH),
+                          ImVec2(contentW, contentH),
                           ImGuiChildFlags_None);
         {
             float totalW = ImGui::GetContentRegionAvail().x;
@@ -121,6 +117,14 @@ namespace shoecomp
                 state.viewerLocked, "##Right");
             ImGui::EndChild();
 
+            // Track which viewer is active for markup edits.
+            ImageCanvas2D* lc = asCanvas2D(*state.viewerLeft);
+            ImageCanvas2D* rc = asCanvas2D(*state.viewerRight);
+            if (lc && lc->viewState.isHovered)
+                state.activeComparisonViewer = 0;
+            else if (rc && rc->viewState.isHovered)
+                state.activeComparisonViewer = 1;
+
             // Apply locked sync with alignment
             // offset after both viewers render.
             if (state.viewerLocked && !state.alignEditPopupVisible)
@@ -138,22 +142,36 @@ namespace shoecomp
             }
         }
         ImGui::EndChild();
+    }
 
-        // --- Dock bar ---
-        ImGui::Separator();
+    static void renderComparisonDock(AppState& state)
+    {
         bool hasLeft = state.viewerLeftIdx >= 0 &&
                        state.viewerLeftIdx < (int)state.images.size();
         bool hasRight = state.viewerRightIdx >= 0 &&
                         state.viewerRightIdx < (int)state.images.size();
         bool hasBoth = hasLeft && hasRight;
-        ImGui::BeginDisabled(!hasBoth);
-        if (ImGui::Button(state.viewerLocked ? "Unlock" : "Lock"))
-            state.viewerLocked = !state.viewerLocked;
-        ImGui::EndDisabled();
+        float fullW = ImGui::GetContentRegionAvail().x;
 
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!hasBoth);
-        if (ImGui::Button("Align"))
+        // --- Markup section (renders its own header) ---
+        ImageCanvas2D* lc = asCanvas2D(*state.viewerLeft);
+        ImageCanvas2D* rc = asCanvas2D(*state.viewerRight);
+        ImageCanvas2D* active =
+            (state.activeComparisonViewer == 0)
+                ? (hasLeft ? lc : (hasRight ? rc : nullptr))
+                : (hasRight ? rc : (hasLeft ? lc : nullptr));
+        ImageCanvas2D::renderMarkupControls(active);
+
+        // --- Alignment section (only once both images load) ---
+        if (!hasBoth) return;
+
+        ImGui::SeparatorText("Alignment");
+
+        if (ImGui::Button(state.viewerLocked ? "Unlock" : "Lock",
+                          ImVec2(fullW, 0)))
+            state.viewerLocked = !state.viewerLocked;
+
+        if (ImGui::Button("Align", ImVec2(fullW, 0)))
         {
             ImageCanvas2D* lsel =
                 asCanvas2D(*state.images[state.viewerLeftIdx]);
@@ -171,11 +189,9 @@ namespace shoecomp
             state.viewerRight->resetView();
             state.viewerLocked = true;
         }
-        ImGui::EndDisabled();
 
-        ImGui::SameLine();
         ImGui::BeginDisabled(!state.viewerLocked);
-        if (ImGui::Button("Save Alignment"))
+        if (ImGui::Button("Save Alignment", ImVec2(fullW, 0)))
         {
             state.alignmentSaveBrowser.show = true;
             state.alignmentSaveBrowser.dirNeedsRefresh = true;
@@ -183,75 +199,105 @@ namespace shoecomp
         }
         ImGui::EndDisabled();
 
-        if (state.viewerLocked)
+        if (!state.viewerLocked) return;
+
+        ImGui::Spacing();
+        auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
+        ImGui::TextWrapped(
+            "[%d/%d] [%s]\nR:%.1f T:(%.0f,%.0f) S:%.2f",
+            state.viewerAlignmentIdx + 1,
+            (int)state.viewerAlignments.size(),
+            a.mode == AlignMode::Manual ? "Manual" : "Auto",
+            a.rotation / kDegToRad, a.dx, a.dy, a.scale);
+        ImGui::Spacing();
+
+        bool navDisabled = (int)state.viewerAlignments.size() <= 1;
+        float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+        if (navDisabled) ImGui::BeginDisabled();
+        if (ImGui::Button("<", ImVec2(halfW, 0)))
         {
-            ImGui::SameLine();
-            bool navDisabled = (int)state.viewerAlignments.size() <= 1;
-            if (navDisabled) ImGui::BeginDisabled();
-            if (ImGui::Button("<"))
+            if (state.viewerAlignmentIdx > 0)
             {
-                if (state.viewerAlignmentIdx > 0)
-                {
-                    state.viewerAlignmentIdx--;
-                    state.viewerLeft->applyAlignment(
-                        *state.viewerRight,
-                        state
-                            .viewerAlignments[state.viewerAlignmentIdx],
-                        state.viewerLocked);
-                }
-            }
-            ImGui::SameLine();
-            if (ImGui::Button(">"))
-            {
-                int maxIdx = (int)state.viewerAlignments.size() - 1;
-                if (state.viewerAlignmentIdx < maxIdx)
-                {
-                    state.viewerAlignmentIdx++;
-                    state.viewerLeft->applyAlignment(
-                        *state.viewerRight,
-                        state
-                            .viewerAlignments[state.viewerAlignmentIdx],
-                        state.viewerLocked);
-                }
-            }
-            if (navDisabled) ImGui::EndDisabled();
-
-            auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
-            ImGui::SameLine();
-            ImGui::Text(
-                "[%d/%d] [%s] R:%.1f"
-                " T:(%.0f,%.0f) S:%.2f",
-                state.viewerAlignmentIdx + 1,
-                (int)state.viewerAlignments.size(),
-                a.mode == AlignMode::Manual ? "Manual" : "Auto",
-                a.rotation / kDegToRad, a.dx, a.dy, a.scale);
-
-            ImGui::SameLine();
-            bool delDisabled = (int)state.viewerAlignments.size() <= 1;
-            if (delDisabled) ImGui::BeginDisabled();
-            if (ImGui::Button("Delete"))
-            {
-                int idx = state.viewerAlignmentIdx;
-                state.viewerAlignments.erase(
-                    state.viewerAlignments.begin() + idx);
-                if (idx >= (int)state.viewerAlignments.size())
-                    idx = (int)state.viewerAlignments.size() - 1;
-                state.viewerAlignmentIdx = idx;
+                state.viewerAlignmentIdx--;
                 state.viewerLeft->applyAlignment(
-                    *state.viewerRight, state.viewerAlignments[idx],
+                    *state.viewerRight,
+                    state.viewerAlignments[state.viewerAlignmentIdx],
                     state.viewerLocked);
             }
-            if (delDisabled) ImGui::EndDisabled();
-
-            ImGui::SameLine();
-            if (ImGui::Button("Edit"))
+        }
+        ImGui::SameLine();
+        if (ImGui::Button(">", ImVec2(halfW, 0)))
+        {
+            int maxIdx = (int)state.viewerAlignments.size() - 1;
+            if (state.viewerAlignmentIdx < maxIdx)
             {
-                state.alignEditState =
-                    state.viewerAlignments[state.viewerAlignmentIdx];
-                state.alignEditOriginal = state.alignEditState;
-                state.alignEditOpen = true;
+                state.viewerAlignmentIdx++;
+                state.viewerLeft->applyAlignment(
+                    *state.viewerRight,
+                    state.viewerAlignments[state.viewerAlignmentIdx],
+                    state.viewerLocked);
             }
         }
+        if (navDisabled) ImGui::EndDisabled();
+
+        if (navDisabled) ImGui::BeginDisabled();
+        if (ImGui::Button("Delete", ImVec2(fullW, 0)))
+        {
+            int idx = state.viewerAlignmentIdx;
+            state.viewerAlignments.erase(
+                state.viewerAlignments.begin() + idx);
+            if (idx >= (int)state.viewerAlignments.size())
+                idx = (int)state.viewerAlignments.size() - 1;
+            state.viewerAlignmentIdx = idx;
+            state.viewerLeft->applyAlignment(
+                *state.viewerRight, state.viewerAlignments[idx],
+                state.viewerLocked);
+        }
+        if (navDisabled) ImGui::EndDisabled();
+
+        if (ImGui::Button("Edit", ImVec2(fullW, 0)))
+        {
+            state.alignEditState =
+                state.viewerAlignments[state.viewerAlignmentIdx];
+            state.alignEditOriginal = state.alignEditState;
+            state.alignEditOpen = true;
+        }
+    }
+
+    void renderImageComparison(AppState& state)
+    {
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        float splitterW = 8.0f;
+        float dockW = std::clamp(avail.x * state.dockRatio, 180.0f,
+                                 avail.x * 0.4f);
+        float contentW = avail.x - dockW - splitterW;
+
+        renderComparisonContent(state, contentW, avail.y);
+
+        // --- Right-side dock ---
+        ImGui::SameLine();
+        ImGui::Button("##DockSplitter", ImVec2(splitterW, avail.y));
+        if (ImGui::IsItemActive())
+        {
+            float delta = ImGui::GetIO().MouseDelta.x;
+            state.dockRatio -= delta / avail.x;
+            state.dockRatio = std::clamp(state.dockRatio, 0.12f, 0.4f);
+        }
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+
+        ImGui::SameLine();
+        ImGui::BeginChild("Dock", ImVec2(dockW, avail.y),
+                          ImGuiChildFlags_Borders);
+        // Roomier vertical rhythm so the stacked buttons don't look
+        // cramped. Pushed here (not inside the dock fn) so the early
+        // returns there can't unbalance the style stack.
+        ImGui::PushStyleVar(
+            ImGuiStyleVar_ItemSpacing,
+            ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
+        renderComparisonDock(state);
+        ImGui::PopStyleVar();
+        ImGui::EndChild();
     }
 
 }  // namespace shoecomp

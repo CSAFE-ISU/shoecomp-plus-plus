@@ -8,24 +8,128 @@
 
 namespace shoecomp
 {
+    static void renderGalleryDock(AppState& state)
+    {
+        bool hasActive =
+            state.activeGalleryImage >= 0 &&
+            state.activeGalleryImage < (int)state.images.size();
+
+        // Slightly roomier vertical rhythm than the global style so
+        // the stacked buttons don't look cramped in the narrow dock.
+        ImGui::PushStyleVar(
+            ImGuiStyleVar_ItemSpacing,
+            ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
+        float fullW = ImGui::GetContentRegionAvail().x;
+
+        // --- Markup section (renders its own header) ---
+        ImageCanvas2D* active =
+            hasActive
+                ? asCanvas2D(*state.images[state.activeGalleryImage])
+                : nullptr;
+        ImageCanvas2D::renderMarkupControls(active);
+
+        // --- File section ---
+        ImGui::SeparatorText("File");
+        if (ImGui::Button("Load Image", ImVec2(fullW, 0)))
+        {
+            openImagePicker(state.imageLoadBrowser);
+        }
+#ifdef __EMSCRIPTEN__
+        if (ImGui::IsItemHovered())
+            setLoadBrowserHovered(&state.imageLoadBrowser);
+#endif
+
+        ImGui::BeginDisabled(!hasActive);
+        if (ImGui::Button("Save PNG", ImVec2(fullW, 0)))
+        {
+            state.imageSaveBrowser.show = true;
+            state.imageSaveTarget = state.activeGalleryImage;
+            state.imageSaveBrowser.dirNeedsRefresh = true;
+            state.imageSaveBrowser.fileName.clear();
+        }
+        if (ImGui::Button("Load JSON", ImVec2(fullW, 0)))
+        {
+            state.annotationFileSave = false;
+            state.annotationFileTarget = state.activeGalleryImage;
+#ifdef __EMSCRIPTEN__
+            openJsonPicker(state.annotationFileBrowser);
+#else
+            state.annotationFileBrowser.dirNeedsRefresh = true;
+            state.annotationFileBrowser.fileName.clear();
+            state.annotationFileBrowser.contextLabel.clear();
+            state.annotationFileBrowser.extensionChoices = {".json",
+                                                            ""};
+            state.annotationFileBrowser.title = "Load Annotations";
+            state.annotationFileBrowser.show = true;
+#endif
+        }
+        if (ImGui::Button("Save JSON", ImVec2(fullW, 0)))
+        {
+#ifdef __EMSCRIPTEN__
+            auto& img =
+                asCanvas2D(*state.images[state.activeGalleryImage])
+                    ->image;
+            jt::Json copy = img->annotations;
+            std::string data = copy.toStringPretty();
+            if (data.empty())
+            {
+                state.annotationError.show = true;
+                state.annotationError.message =
+                    "Failed to serialize annotations.";
+            }
+            else
+            {
+                std::string fname =
+                    img->name.empty() ? std::string("annotations.json")
+                                      : img->name + ".json";
+                downloadJsonString(data.c_str(), (int)data.size(),
+                                   fname.c_str(), (int)fname.size());
+            }
+#else
+            state.annotationFileBrowser.show = true;
+            state.annotationFileSave = true;
+            state.annotationFileTarget = state.activeGalleryImage;
+            state.annotationFileBrowser.dirNeedsRefresh = true;
+            state.annotationFileBrowser.fileName.clear();
+            {
+                ImageCanvas2D* c2d =
+                    asCanvas2D(*state.images[state.activeGalleryImage]);
+                state.annotationFileBrowser.contextLabel =
+                    (c2d && c2d->image) ? c2d->image->name
+                                        : std::string();
+            }
+            state.annotationFileBrowser.extensionChoices.clear();
+            state.annotationFileBrowser.title = "Save Annotations";
+#endif
+        }
+        ImGui::EndDisabled();
+
+        ImGui::BeginDisabled(state.images.empty());
+        if (ImGui::Button("Images", ImVec2(fullW, 0)))
+            state.imageListDialog.show = true;
+        ImGui::EndDisabled();
+
+        ImGui::PopStyleVar();
+    }
+
     void renderImageGallery(AppState& state)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
-        ImVec2 origin = ImGui::GetCursorScreenPos();
+        float splitterW = 8.0f;
+        float dockW = std::clamp(avail.x * state.dockRatio, 180.0f,
+                                 avail.x * 0.4f);
+        float contentW = avail.x - dockW - splitterW;
 
-        // Reserve space for dock bar at bottom
-        float dockH = ImGui::GetFrameHeightWithSpacing() +
-                      ImGui::GetStyle().ItemSpacing.y;
-        float galleryH = avail.y - dockH;
-
-        ImGui::BeginChild("GalleryArea", ImVec2(avail.x, galleryH),
+        ImGui::BeginChild("GalleryArea", ImVec2(contentW, avail.y),
                           ImGuiChildFlags_None);
+        ImVec2 origin = ImGui::GetCursorScreenPos();
+        float galleryH = ImGui::GetContentRegionAvail().y;
 
         // Title bar height for sizing the window
         float titleH =
             ImGui::GetFrameHeight() + ImGui::GetStyle().FramePadding.y;
         ImVec2 pad = ImGui::GetStyle().WindowPadding;
-        float maxW = avail.x * 0.5f;
+        float maxW = contentW * 0.5f;
         float maxH = galleryH * 0.5f;
 
         int removeIdx = -1;
@@ -40,7 +144,8 @@ namespace shoecomp
             float dispW = canvas.width() * scale;
             float dispH = canvas.height() * scale;
 
-            float tbRows = ImGui::GetFrameHeightWithSpacing() * 3.0f;
+            // One toolbar row (view controls only) plus padding.
+            float tbRows = ImGui::GetFrameHeightWithSpacing() * 1.6f;
             float minW = 400.0f;
             float winW = std::max(dispW + pad.x * 2, minW);
             ImGui::SetNextWindowSize(
@@ -62,7 +167,7 @@ namespace shoecomp
             ImGui::SetNextWindowBgAlpha(1.0f);
             ImGui::SetNextWindowSizeConstraints(
                 ImVec2(200.0f, titleH + 10.0f),
-                ImVec2(avail.x, galleryH));
+                ImVec2(contentW, galleryH));
             if (canvas.minimized != canvas.lastMinimized)
                 ImGui::SetNextWindowCollapsed(canvas.minimized);
             int styleColorsPushed = 0;
@@ -84,7 +189,7 @@ namespace shoecomp
                 ImVec2 wp = ImGui::GetWindowPos();
                 ImVec2 ws = ImGui::GetWindowSize();
                 ImVec2 clamped(std::clamp(wp.x, origin.x,
-                                          origin.x + avail.x - ws.x),
+                                          origin.x + contentW - ws.x),
                                std::clamp(wp.y, origin.y,
                                           origin.y + galleryH - ws.y));
                 if (clamped.x != wp.x || clamped.y != wp.y)
@@ -97,7 +202,7 @@ namespace shoecomp
                     state.activeGalleryImage = i;
 
                 float toolbarH =
-                    ImGui::GetFrameHeightWithSpacing() * 3.0f * 0.85f;
+                    ImGui::GetFrameHeightWithSpacing() * 1.6f * 0.85f;
                 ImVec2 region = ImGui::GetContentRegionAvail();
                 float canvasH = region.y - toolbarH;
                 if (canvasH > 0.0f)
@@ -176,93 +281,25 @@ namespace shoecomp
 
         ImGui::EndChild();
 
-        // --- Dock bar ---
-        ImGui::Separator();
-        bool hasActive =
-            state.activeGalleryImage >= 0 &&
-            state.activeGalleryImage < (int)state.images.size();
-
-        if (ImGui::Button("Load Image"))
-        {
-            openImagePicker(state.imageLoadBrowser);
-        }
-#ifdef __EMSCRIPTEN__
-        if (ImGui::IsItemHovered())
-            setLoadBrowserHovered(&state.imageLoadBrowser);
-#endif
-
+        // --- Right-side dock ---
         ImGui::SameLine();
-        ImGui::BeginDisabled(!hasActive);
-        if (ImGui::Button("Save PNG"))
+        ImGui::Button("##DockSplitter", ImVec2(splitterW, avail.y));
+        if (ImGui::IsItemActive())
         {
-            state.imageSaveBrowser.show = true;
-            state.imageSaveTarget = state.activeGalleryImage;
-            state.imageSaveBrowser.dirNeedsRefresh = true;
-            state.imageSaveBrowser.fileName.clear();
+            // Dock is on the right: dragging right grows the content
+            // and shrinks the dock.
+            float delta = ImGui::GetIO().MouseDelta.x;
+            state.dockRatio -= delta / avail.x;
+            state.dockRatio = std::clamp(state.dockRatio, 0.12f, 0.4f);
         }
-        ImGui::SameLine();
-        if (ImGui::Button("Load JSON"))
-        {
-            state.annotationFileSave = false;
-            state.annotationFileTarget = state.activeGalleryImage;
-#ifdef __EMSCRIPTEN__
-            openJsonPicker(state.annotationFileBrowser);
-#else
-            state.annotationFileBrowser.dirNeedsRefresh = true;
-            state.annotationFileBrowser.fileName.clear();
-            state.annotationFileBrowser.contextLabel.clear();
-            state.annotationFileBrowser.extensionChoices = {".json",
-                                                            ""};
-            state.annotationFileBrowser.title = "Load Annotations";
-            state.annotationFileBrowser.show = true;
-#endif
-        }
-        ImGui::SameLine();
-        if (ImGui::Button("Save JSON"))
-        {
-#ifdef __EMSCRIPTEN__
-            auto& img =
-                asCanvas2D(*state.images[state.activeGalleryImage])
-                    ->image;
-            jt::Json copy = img->annotations;
-            std::string data = copy.toStringPretty();
-            if (data.empty())
-            {
-                state.annotationError.show = true;
-                state.annotationError.message =
-                    "Failed to serialize annotations.";
-            }
-            else
-            {
-                std::string fname =
-                    img->name.empty() ? std::string("annotations.json")
-                                      : img->name + ".json";
-                downloadJsonString(data.c_str(), (int)data.size(),
-                                   fname.c_str(), (int)fname.size());
-            }
-#else
-            state.annotationFileBrowser.show = true;
-            state.annotationFileSave = true;
-            state.annotationFileTarget = state.activeGalleryImage;
-            state.annotationFileBrowser.dirNeedsRefresh = true;
-            state.annotationFileBrowser.fileName.clear();
-            {
-                ImageCanvas2D* c2d =
-                    asCanvas2D(*state.images[state.activeGalleryImage]);
-                state.annotationFileBrowser.contextLabel =
-                    (c2d && c2d->image) ? c2d->image->name
-                                        : std::string();
-            }
-            state.annotationFileBrowser.extensionChoices.clear();
-            state.annotationFileBrowser.title = "Save Annotations";
-#endif
-        }
-        ImGui::EndDisabled();
+        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
         ImGui::SameLine();
-        ImGui::BeginDisabled(state.images.empty());
-        if (ImGui::Button("Images")) state.imageListDialog.show = true;
-        ImGui::EndDisabled();
+        ImGui::BeginChild("Dock", ImVec2(dockW, avail.y),
+                          ImGuiChildFlags_Borders);
+        renderGalleryDock(state);
+        ImGui::EndChild();
     }
 
 }  // namespace shoecomp

@@ -78,8 +78,6 @@ namespace shoecomp
             int width = 0;
             int height = 0;
             jt::Json annotations;
-            AnnotationMode annotationMode = AnnotationMode::None;
-            PointType selectedPointType = PointType::Corner;
 
             ~ImageData();
 
@@ -94,6 +92,13 @@ namespace shoecomp
 
         // --- Shared annotation style ---
         static AnnotationStyle style;
+
+        // --- Shared markup state ---
+        // Markup tooling is common to all canvases of the active
+        // kind, so the current mode + point type are shared rather
+        // than per-image. Per-image edits act on the active canvas.
+        static AnnotationMode annotationMode;
+        static PointType selectedPointType;
 
         ImageCanvas2D();
         explicit ImageCanvas2D(std::shared_ptr<ImageData> img);
@@ -116,6 +121,12 @@ namespace shoecomp
         void resetView() override;
         void renderCanvas(const char* canvasId) override;
         void renderToolbar(const char* toolbarId) override;
+
+        // Renders the shared markup controls (mode toggles, point
+        // type, undo/clear) for the right-side dock. Operates on the
+        // shared static mode/type plus `active` for per-image edits;
+        // pass nullptr when no canvas is active (buttons disabled).
+        static void renderMarkupControls(ImageCanvas2D* active);
 
         // --- Load/save interface ---
         // Append one or more freshly-constructed canvases (of this

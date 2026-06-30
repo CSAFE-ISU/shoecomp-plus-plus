@@ -181,6 +181,9 @@ namespace shoecomp
         state.viewerLeftIdx = -1;
         state.viewerRightIdx = -1;
         state.activeGalleryImage = -1;
+        state.activeComparisonViewer = 0;
+        ImageCanvas2D::annotationMode =
+            ImageCanvas2D::AnnotationMode::None;
         state.viewerLocked = false;
         state.viewerAlignments = {AlignState{}};
         state.viewerAlignmentIdx = 0;
