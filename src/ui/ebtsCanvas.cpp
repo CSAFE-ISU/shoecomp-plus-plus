@@ -11,6 +11,16 @@ namespace shoecomp
                 PointType::Core, PointType::Delta, PointType::Other};
     }
 
+    EBTSCanvas::DetectionSpec EBTSCanvas::detectionSpec() const
+    {
+        DetectionSpec spec;
+        // Class index -> point type for a friction-ridge bbox model.
+        spec.classToPointType = {
+            PointType::RidgeEnding, PointType::Bifurcation,
+            PointType::Core, PointType::Delta, PointType::Other};
+        return spec;
+    }
+
     const std::vector<std::string>& EBTSCanvas::imageExtensions() const
     {
         static const std::vector<std::string> exts = {

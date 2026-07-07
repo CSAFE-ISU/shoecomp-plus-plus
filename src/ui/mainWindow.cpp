@@ -2,6 +2,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvasKinds.h"
 #include "ui/alignDialog.h"
+#include "calc/onnxRuntime.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
 #include "ui/licenseData.h"
@@ -195,6 +196,11 @@ namespace shoecomp
         state.activeProto = makeCanvas(state.settings.activeKind);
         state.imageLoadBrowser.extensionChoices =
             state.activeProto->imageExtensions();
+
+        // Opportunistically (re)check for the optional onnxruntime
+        // library whenever the canvas kind changes. Idempotent and
+        // never throws; failure just leaves detection disabled.
+        OnnxRuntime::instance().ensureLoaded();
     }
 
     static void renderGui(AppState& state)
@@ -233,6 +239,9 @@ namespace shoecomp
         state.alignDialog.render();
         consumeAlignResults(state);
         renderAlignEditPopup(state);
+
+        state.detectDialog.render();
+        state.detectError.render();
 
         const char* brandLabel = "shoecomp";
         ImVec2 brandSize;
@@ -476,6 +485,11 @@ namespace shoecomp
         state.imageLoadError.title = "Image Load Error";
         state.imageSaveError.title = "Image Save Error";
         state.annotationError.title = "Annotation Error";
+        state.detectError.title = "Detection Error";
+
+        // First search for the optional onnxruntime library so the
+        // Detect Points button reflects availability from the start.
+        OnnxRuntime::instance().ensureLoaded();
 
         state.imageSaveBrowser.extension = ".png";
         state.imageSaveBrowser.title = "Save Image";

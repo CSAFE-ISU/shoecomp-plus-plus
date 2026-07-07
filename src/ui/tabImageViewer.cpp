@@ -3,8 +3,10 @@
 #include "ui/loadBrowser.h"
 #include "ui/saveBrowser.h"
 #include "ui/uiHelpers.h"
+#include "calc/onnxRuntime.h"
 #include <algorithm>
 #include <cmath>
+#include <string>
 
 namespace shoecomp
 {
@@ -108,6 +110,34 @@ namespace shoecomp
         if (ImGui::Button("Images", ImVec2(fullW, 0)))
             state.imageListDialog.show = true;
         ImGui::EndDisabled();
+
+        // --- Analysis section (optional ONNX detection) ---
+        bool canDetect = active && active->supportsDetection();
+        bool runtimeReady = OnnxRuntime::instance().available();
+        if (canDetect)
+        {
+            ImGui::SeparatorText("Analysis");
+            ImGui::BeginDisabled(!hasActive || !runtimeReady);
+            if (ImGui::Button("Detect Points", ImVec2(fullW, 0)))
+            {
+                if (!state.detectDialog.openFor(*active))
+                {
+                    state.detectError.show = true;
+                    state.detectError.message =
+                        "Could not start detection:\n" +
+                        std::string(state.detectDialog.statusText);
+                }
+            }
+            ImGui::EndDisabled();
+            if (!runtimeReady &&
+                ImGui::IsItemHovered(
+                    ImGuiHoveredFlags_AllowWhenDisabled))
+            {
+                ImGui::SetTooltip(
+                    "onnxruntime shared library not found.\nSee the "
+                    "README to enable automatic detection.");
+            }
+        }
 
         ImGui::PopStyleVar();
     }

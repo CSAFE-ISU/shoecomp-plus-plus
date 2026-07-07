@@ -10,6 +10,16 @@ namespace shoecomp
                 PointType::Intersection, PointType::CurveTurn};
     }
 
+    HWCanvas::DetectionSpec HWCanvas::detectionSpec() const
+    {
+        DetectionSpec spec;
+        // Class index -> point type for a handwriting bbox model.
+        spec.classToPointType = {
+            PointType::WordStart, PointType::WordEnd,
+            PointType::Intersection, PointType::CurveTurn};
+        return spec;
+    }
+
     const std::vector<std::string>& HWCanvas::imageExtensions() const
     {
         static const std::vector<std::string> exts = {

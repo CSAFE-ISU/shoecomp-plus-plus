@@ -14,6 +14,8 @@ namespace shoecomp
     {
         Kind kind() const override { return Kind::EBTSCanvas; }
         std::vector<PointType> allowedPointTypes() const override;
+        bool supportsDetection() const override { return true; }
+        DetectionSpec detectionSpec() const override;
         const std::vector<std::string>& imageExtensions()
             const override;
         int loadImages(const std::string& path,

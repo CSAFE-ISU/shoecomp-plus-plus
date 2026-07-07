@@ -16,6 +16,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageListDialog.h"
 #include "ui/alignDialog.h"
+#include "ui/detectDialog.h"
 #include "ui/settings.h"
 
 namespace shoecomp
@@ -69,12 +70,14 @@ namespace shoecomp
         SaveBrowser annotationFileBrowser;
         ImageListDialog imageListDialog;
         AlignDialog alignDialog;
+        DetectDialog detectDialog;
 
         // Error popups
         ErrorPopup imageLoadError;
         ErrorPopup imageSaveError;
         ErrorPopup annotationError;
         ErrorPopup alignmentSaveError;
+        ErrorPopup detectError;
 
         // Alignment save
         SaveBrowser alignmentSaveBrowser;

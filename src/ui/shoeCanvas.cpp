@@ -10,6 +10,14 @@ namespace shoecomp
         return {PointType::Corner, PointType::Center};
     }
 
+    ShoeCanvas::DetectionSpec ShoeCanvas::detectionSpec() const
+    {
+        DetectionSpec spec;
+        // Class index -> point type for a shoeprint bbox model.
+        spec.classToPointType = {PointType::Corner, PointType::Center};
+        return spec;
+    }
+
     const std::vector<std::string>& ShoeCanvas::imageExtensions() const
     {
         static const std::vector<std::string> exts = {

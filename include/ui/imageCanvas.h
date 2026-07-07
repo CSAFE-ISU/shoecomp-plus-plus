@@ -56,6 +56,25 @@ namespace shoecomp
             float rotation = 0.0f;
         };
 
+        // Describes how a kind's YOLO-style bbox model is run and how
+        // its outputs map onto annotation points. Consumed by the
+        // optional ONNX Runtime detection feature (see calc/onnxRuntime
+        // and ui/detectDialog). Kinds that support detection override
+        // detectionSpec(); the base leaves it unsupported.
+        struct DetectionSpec
+        {
+            int inputWidth = 640;
+            int inputHeight = 640;
+            bool nchw = true;       // NCHW layout (vs NHWC)
+            bool normalize = true;  // divide pixel values by 255
+            float confThreshold = 0.25f;
+            float iouThreshold = 0.45f;
+            // Model class index -> annotation PointType. A detection
+            // whose class index is out of range for this vector is
+            // skipped when applying results.
+            std::vector<PointType> classToPointType;
+        };
+
         // Window-collapse state, common to every canvas kind.
         // ImGui's own collapsed flag is the source of truth; these
         // mirror it for the gallery + image-list dialog.
@@ -81,6 +100,17 @@ namespace shoecomp
         // asCanvas2D() to narrow safely regardless of the concrete
         // 2D Kind (Canvas2D / ShoeCanvas / EBTSCanvas).
         virtual bool is2D() const { return false; }
+
+        // --- Optional ONNX detection interface ---
+        // Whether this canvas kind can run automatic point detection.
+        // Kinds that support it also override detectionSpec(). The
+        // base leaves the feature off so existing kinds are unaffected.
+        virtual bool supportsDetection() const { return false; }
+
+        // The detection configuration for this canvas kind (input size,
+        // thresholds, class -> PointType map). Only meaningful when
+        // supportsDetection() is true.
+        virtual DetectionSpec detectionSpec() const { return {}; }
 
         // --- Clean API used by the generic GUI ---
         virtual bool hasImage() const = 0;

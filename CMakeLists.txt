@@ -112,10 +112,12 @@ set(SC_SRCS
     src/ui/saveBrowser.cpp
     src/ui/imageListDialog.cpp
     src/ui/alignDialog.cpp
+    src/ui/detectDialog.cpp
     src/ui/syncViews.cpp
     src/ui/splash.cpp
     src/calc/align.cpp
     src/calc/rts_align.cpp
+    src/calc/onnxRuntime.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
@@ -208,4 +210,8 @@ endforeach()
 list(APPEND SC_SRCS ${SC_GENERATED_ASSET_SRCS})
 
 hello_imgui_add_app(shoecomp ${SC_SRCS})
-target_link_libraries(shoecomp PRIVATE json aligncalc png_static)
+# ${CMAKE_DL_LIBS} pulls in libdl on Linux for the runtime dlopen of the
+# optional onnxruntime library (empty on Windows/macOS). onnxruntime
+# itself is NOT built or linked -- it is loaded at runtime if present.
+target_link_libraries(shoecomp PRIVATE json aligncalc png_static
+                      ${CMAKE_DL_LIBS})
