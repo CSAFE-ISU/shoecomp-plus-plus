@@ -193,11 +193,14 @@ namespace shoecomp
             return;
         }
 
-        if (dockButton(state.viewerLocked ? "Unlock" : "Lock",
-                       ImVec2(fullW, 0)))
-            state.viewerLocked = !state.viewerLocked;
+        float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
 
-        if (dockButton("Align", ImVec2(fullW, 0)))
+        // Lock and Align share a row.
+        if (dockButton(state.viewerLocked ? "Unlock" : "Lock",
+                       ImVec2(halfW, 0)))
+            state.viewerLocked = !state.viewerLocked;
+        ImGui::SameLine();
+        if (dockButton("Align", ImVec2(halfW, 0)))
         {
             ImageCanvas2D* lsel =
                 asCanvas2D(*state.images[state.viewerLeftIdx]);
@@ -229,16 +232,37 @@ namespace shoecomp
 
         ImGui::Spacing();
         auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
-        ImGui::TextWrapped(
-            "[%d/%d] [%s]\nR:%.1f T:(%.0f,%.0f) S:%.2f",
-            state.viewerAlignmentIdx + 1,
-            (int)state.viewerAlignments.size(),
-            a.mode == AlignMode::Manual ? "Manual" : "Auto",
-            a.rotation / kDegToRad, a.dx, a.dy, a.scale);
+        ImGui::Text(u8"Alignment %d/%d \u00B7 %s",
+                    state.viewerAlignmentIdx + 1,
+                    (int)state.viewerAlignments.size(),
+                    a.mode == AlignMode::Manual ? "Manual" : "Auto");
+        if (ImGui::BeginTable("##alignInfo", 2,
+                              ImGuiTableFlags_SizingFixedFit))
+        {
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Rotation");
+            ImGui::TableNextColumn();
+            ImGui::Text(u8"%.1f\u00B0", a.rotation / kDegToRad);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Translation");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.0f, %.0f", a.dx, a.dy);
+
+            ImGui::TableNextRow();
+            ImGui::TableNextColumn();
+            ImGui::TextUnformatted("Scale");
+            ImGui::TableNextColumn();
+            ImGui::Text("%.2f", a.scale);
+            ImGui::EndTable();
+        }
         ImGui::Spacing();
 
         bool navDisabled = (int)state.viewerAlignments.size() <= 1;
-        float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+        // Previous / next alignment.
         if (navDisabled) ImGui::BeginDisabled();
         if (dockButton("<", ImVec2(halfW, 0)))
         {
@@ -266,8 +290,17 @@ namespace shoecomp
         }
         if (navDisabled) ImGui::EndDisabled();
 
+        // Edit and Delete share a row (Delete needs >1 alignment).
+        if (dockButton("Edit", ImVec2(halfW, 0)))
+        {
+            state.alignEditState =
+                state.viewerAlignments[state.viewerAlignmentIdx];
+            state.alignEditOriginal = state.alignEditState;
+            state.alignEditOpen = true;
+        }
+        ImGui::SameLine();
         if (navDisabled) ImGui::BeginDisabled();
-        if (dockButton("Delete", ImVec2(fullW, 0)))
+        if (dockButton("Delete", ImVec2(halfW, 0)))
         {
             int idx = state.viewerAlignmentIdx;
             state.viewerAlignments.erase(
@@ -280,14 +313,6 @@ namespace shoecomp
                 state.viewerLocked);
         }
         if (navDisabled) ImGui::EndDisabled();
-
-        if (dockButton("Edit", ImVec2(fullW, 0)))
-        {
-            state.alignEditState =
-                state.viewerAlignments[state.viewerAlignmentIdx];
-            state.alignEditOriginal = state.alignEditState;
-            state.alignEditOpen = true;
-        }
     }
 
     void renderImageComparison(AppState& state)
