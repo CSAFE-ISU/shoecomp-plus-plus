@@ -49,7 +49,7 @@ namespace shoecomp
             state.imageSaveBrowser.dirNeedsRefresh = true;
             state.imageSaveBrowser.fileName.clear();
         }
-        if (ImGui::Button("Load JSON", ImVec2(fullW, 0)))
+        if (ImGui::Button("Load Annotations", ImVec2(fullW, 0)))
         {
             state.annotationFileSave = false;
             state.annotationFileTarget = state.activeGalleryImage;
@@ -65,7 +65,7 @@ namespace shoecomp
             state.annotationFileBrowser.show = true;
 #endif
         }
-        if (ImGui::Button("Save JSON", ImVec2(fullW, 0)))
+        if (ImGui::Button("Save Annotations", ImVec2(fullW, 0)))
         {
 #ifdef __EMSCRIPTEN__
             auto& img =
