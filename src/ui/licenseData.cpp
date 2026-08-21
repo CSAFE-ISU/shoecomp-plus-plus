@@ -47,6 +47,9 @@ namespace shoecomp
              "SIL Open Font License",
              "https://fonts.google.com/specimen/Montserrat",
              LicMontserrat_data, LicMontserrat_size},
+            {"Material Icons", "", "Apache-2.0",
+             "https://github.com/google/material-design-icons",
+             LicMaterialIcons_data, LicMaterialIcons_size},
         };
         // clang-format on
         return entries;

@@ -180,6 +180,7 @@ set(SC_ASSET_SPECS
     "third_party/jtjson/double-conversion/LICENSE|LicDoubleConversion|raw"
     "assets/fonts/Inconsolata-OFL.txt|LicInconsolata|raw"
     "assets/fonts/Montserrat-OFL.txt|LicMontserrat|raw"
+    "assets/fonts/MaterialIcons-Apache.txt|LicMaterialIcons|raw"
 )
 set(SC_ASSET_SCRIPT
     ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)

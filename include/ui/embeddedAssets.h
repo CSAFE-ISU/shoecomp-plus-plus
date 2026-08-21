@@ -35,5 +35,7 @@ extern const unsigned int LicInconsolata_size;
 extern const unsigned char LicInconsolata_data[];
 extern const unsigned int LicMontserrat_size;
 extern const unsigned char LicMontserrat_data[];
+extern const unsigned int LicMaterialIcons_size;
+extern const unsigned char LicMaterialIcons_data[];
 
 #endif
