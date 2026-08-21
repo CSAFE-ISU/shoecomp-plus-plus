@@ -296,25 +296,23 @@ namespace shoecomp
         {
             if (ImGui::MenuItem("Image Viewer", nullptr,
                                 state.workspace == Workspace::Viewer))
-            {
                 state.workspace = Workspace::Viewer;
-                state.selectWorkspaceTab = true;
-            }
             if (ImGui::MenuItem(
                     "Image Comparison", nullptr,
                     state.workspace == Workspace::Comparison))
-            {
                 state.workspace = Workspace::Comparison;
-                state.selectWorkspaceTab = true;
-            }
-            ImGui::EndMenu();
-        }
 
-        if (ImGui::BeginMenu("File"))
-        {
+            ImGui::SeparatorText("File");
             renderFileMenu(state);
             ImGui::EndMenu();
         }
+
+        if (ImGui::MenuItem("Settings", nullptr,
+                            state.workspace == Workspace::Settings))
+            state.workspace = Workspace::Settings;
+        if (ImGui::MenuItem("About", nullptr,
+                            state.workspace == Workspace::About))
+            state.workspace = Workspace::About;
     }
 
     static void renderGui(AppState& state)
@@ -357,38 +355,20 @@ namespace shoecomp
         state.detectDialog.render();
         state.detectError.render();
 
-        if (ImGui::BeginTabBar("MainTabs"))
+        switch (state.workspace)
         {
-            // The image workspace (Viewer/Comparison) is one tab whose
-            // label follows the shoecomp menu; Settings and About are
-            // their own tabs.
-            const char* wsLabel =
-                (state.workspace == Workspace::Comparison)
-                    ? "Image Comparison###ws"
-                    : "Image Viewer###ws";
-            ImGuiTabItemFlags wsFlags =
-                state.selectWorkspaceTab ? ImGuiTabItemFlags_SetSelected
-                                         : 0;
-            if (ImGui::BeginTabItem(wsLabel, nullptr, wsFlags))
-            {
-                state.selectWorkspaceTab = false;
-                if (state.workspace == Workspace::Comparison)
-                    renderImageComparison(state);
-                else
-                    renderImageGallery(state);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Settings"))
-            {
+            case Workspace::Viewer:
+                renderImageGallery(state);
+                break;
+            case Workspace::Comparison:
+                renderImageComparison(state);
+                break;
+            case Workspace::Settings:
                 renderFilesAndSettings(state);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("About"))
-            {
+                break;
+            case Workspace::About:
                 renderAbout(state);
-                ImGui::EndTabItem();
-            }
-            ImGui::EndTabBar();
+                break;
         }
     }
 
