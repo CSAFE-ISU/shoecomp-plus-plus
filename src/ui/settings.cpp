@@ -195,6 +195,11 @@ namespace shoecomp
         return ImageCanvas::Kind::ShoeCanvas;
     }
 
+    const char* activeKindLabel(ImageCanvas::Kind k)
+    {
+        return kActiveKindNames[activeKindToIndex(k)];
+    }
+
     void renderSettingsTab(SettingsState& s, ImageCanvas& activeCanvas)
     {
         static int s_pendingThemeIdx = -1;

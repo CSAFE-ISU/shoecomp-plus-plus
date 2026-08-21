@@ -347,6 +347,22 @@ namespace shoecomp
         if (ImGui::MenuItem("About", nullptr,
                             state.workspace == Workspace::About))
             state.workspace = Workspace::About;
+
+        // Right-aligned indicator of the active image type; hovering
+        // points the user to where it can be changed.
+        std::string typeText =
+            std::string("Type: ") +
+            activeKindLabel(state.settings.activeKind);
+        float textW = ImGui::CalcTextSize(typeText.c_str()).x;
+        float rightX = ImGui::GetWindowContentRegionMax().x - textW;
+        if (rightX > ImGui::GetCursorPosX())
+            ImGui::SetCursorPosX(rightX);
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(typeText.c_str());
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Image type used for loading and comparison.\n"
+                "Change it in Settings > Active Canvas.");
     }
 
     static void renderGui(AppState& state)

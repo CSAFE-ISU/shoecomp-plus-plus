@@ -37,6 +37,10 @@ namespace shoecomp
         ImVec4 activeImageColor = ImVec4(0.75f, 0.49f, 0.0f, 1.0f);
     };
 
+    // Human-readable label for an active canvas kind (e.g. the menu
+    // bar / Settings combo names).
+    const char* activeKindLabel(ImageCanvas::Kind k);
+
     void renderSettingsTab(SettingsState& s, ImageCanvas& activeCanvas);
     void applyTheme(int themeIdx);
     void applyModernStyling();
