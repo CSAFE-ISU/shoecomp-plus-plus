@@ -77,9 +77,14 @@ namespace shoecomp
                           ImGuiChildFlags_None);
         {
             float totalW = ImGui::GetContentRegionAvail().x;
-            float gap = ImGui::GetStyle().ItemSpacing.x;
-            float boxW = std::clamp(totalW * 0.18f, 220.0f, 340.0f);
-            float sideW = (totalW - boxW - 2.0f * gap) * 0.5f;
+            float fullH = ImGui::GetContentRegionAvail().y;
+            float splitterW = 8.0f;
+            float boxW = std::clamp(totalW * state.alignBoxRatio,
+                                    200.0f, totalW * 0.5f);
+            float sideTotal =
+                std::max(0.0f, totalW - boxW - 2.0f * splitterW);
+            float leftW = sideTotal * state.viewerSplitRatio;
+            float rightW = sideTotal - leftW;
 
             // Snapshot targets before rendering so
             // we can detect which viewer changed.
@@ -88,28 +93,65 @@ namespace shoecomp
             ImageCanvas::ViewTargets r0 =
                 state.viewerRight->snapshotTargets();
 
-            ImGui::BeginChild("LeftViewer", ImVec2(sideW, 0),
+            ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerLeft->renderViewerPanel(
                 state.images, state.viewerLeftIdx, state.viewerRightIdx,
                 state.viewerLocked, "##Left");
             ImGui::EndChild();
 
+            // Splitter between the left viewer and the box: resizes
+            // the two viewers against each other.
             ImGui::SameLine();
+            ImGui::Button("##splitL", ImVec2(splitterW, fullH));
+            if (ImGui::IsItemActive() && sideTotal > 1.0f)
+            {
+                state.viewerSplitRatio +=
+                    ImGui::GetIO().MouseDelta.x / sideTotal;
+                state.viewerSplitRatio =
+                    std::clamp(state.viewerSplitRatio, 0.1f, 0.9f);
+            }
+            if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
-            // Alignment controls sit in a box between the viewers.
-            ImGui::BeginChild("AlignBox", ImVec2(boxW, 0),
-                              ImGuiChildFlags_Borders);
-            ImGui::PushStyleVar(
-                ImGuiStyleVar_ItemSpacing,
-                ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
-            renderAlignmentBox(state);
-            ImGui::PopStyleVar();
+            // Alignment box: fixed height, centered vertically in its
+            // column, with draggable width (the splitters flanking it).
+            ImGui::SameLine();
+            ImGui::BeginChild("AlignColumn", ImVec2(boxW, 0),
+                              ImGuiChildFlags_None);
+            {
+                float availH = ImGui::GetContentRegionAvail().y;
+                float boxH = std::min(
+                    availH, ImGui::GetFrameHeightWithSpacing() * 11.0f);
+                float offY = (availH - boxH) * 0.5f;
+                if (offY > 0.0f) ImGui::Dummy(ImVec2(0.0f, offY));
+                ImGui::BeginChild("AlignBox", ImVec2(0, boxH),
+                                  ImGuiChildFlags_Borders);
+                ImGui::PushStyleVar(
+                    ImGuiStyleVar_ItemSpacing,
+                    ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
+                renderAlignmentBox(state);
+                ImGui::PopStyleVar();
+                ImGui::EndChild();
+            }
             ImGui::EndChild();
 
+            // Splitter between the box and the right viewer: resizes
+            // the alignment box width.
             ImGui::SameLine();
+            ImGui::Button("##splitR", ImVec2(splitterW, fullH));
+            if (ImGui::IsItemActive() && totalW > 1.0f)
+            {
+                state.alignBoxRatio +=
+                    ImGui::GetIO().MouseDelta.x / totalW;
+                state.alignBoxRatio =
+                    std::clamp(state.alignBoxRatio, 0.1f, 0.4f);
+            }
+            if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
-            ImGui::BeginChild("RightViewer", ImVec2(sideW, 0),
+            ImGui::SameLine();
+            ImGui::BeginChild("RightViewer", ImVec2(rightW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerRight->renderViewerPanel(
                 state.images, state.viewerRightIdx, state.viewerLeftIdx,

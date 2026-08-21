@@ -40,6 +40,10 @@ namespace shoecomp
         // Image viewer selections (-1 = none)
         int viewerLeftIdx = -1;
         int viewerRightIdx = -1;
+        // Comparison layout: left viewer's share of the space beside
+        // the alignment box, and the box width as a fraction of total.
+        float viewerSplitRatio = 0.5f;
+        float alignBoxRatio = 0.18f;
 
         // Per-viewer canvas (own view state,
         // shared image data)
