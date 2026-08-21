@@ -7,6 +7,7 @@
 #include "ui/splash.h"
 #include "ui/licenseData.h"
 #include "ui/embeddedAssets.h"
+#include "ui/icons.h"
 #include "formats/png.h"
 #include "jtjson/json.h"
 #include "hello_imgui/imgui_theme.h"
@@ -462,6 +463,15 @@ namespace shoecomp
         state.monoFont = io.Fonts->AddFontFromMemoryCompressedTTF(
             InconsolataRegular_compressed_data,
             (int)InconsolataRegular_compressed_size, 16.0f * dpi);
+
+        static const ImWchar iconRanges[] = {kIconRangeMin,
+                                             kIconRangeMax, 0};
+        ImFontConfig iconCfg;
+        iconCfg.GlyphMinAdvanceX = 18.0f * dpi;
+        state.iconFont = io.Fonts->AddFontFromMemoryCompressedTTF(
+            MaterialIcons_compressed_data,
+            (int)MaterialIcons_compressed_size, 18.0f * dpi, &iconCfg,
+            iconRanges);
     }
 
     void submain(void)

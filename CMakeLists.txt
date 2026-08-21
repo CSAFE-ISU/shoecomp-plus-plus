@@ -168,6 +168,7 @@ set(SC_ASSET_SPECS
     "assets/fonts/Montserrat-Regular.ttf|MontserratRegular|compress"
     "assets/fonts/Montserrat-SemiBold.ttf|MontserratSemiBold|compress"
     "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
+    "assets/fonts/MaterialIcons-Regular.ttf|MaterialIcons|compress"
     "assets/fonts/icon.png|ShoeCompIcon|raw"
     "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
     "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"

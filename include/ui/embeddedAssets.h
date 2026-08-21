@@ -10,6 +10,9 @@ extern const unsigned char MontserratSemiBold_compressed_data[];
 extern const unsigned int InconsolataRegular_compressed_size;
 extern const unsigned char InconsolataRegular_compressed_data[];
 
+extern const unsigned int MaterialIcons_compressed_size;
+extern const unsigned char MaterialIcons_compressed_data[];
+
 extern const unsigned int ShoeCompIcon_size;
 extern const unsigned char ShoeCompIcon_data[];
 

@@ -100,6 +100,7 @@ namespace shoecomp
         ImFont* defaultFont = nullptr;  // Montserrat-Regular
         ImFont* boldFont = nullptr;     // Montserrat-SemiBold
         ImFont* monoFont = nullptr;     // Inconsolata
+        ImFont* iconFont = nullptr;     // Material Icons
 
         // App-wide settings
         SettingsState settings;
