@@ -53,8 +53,9 @@ namespace shoecomp
         if (!sel) return;
         image = sel->image;
         float toolbarH = ImGui::GetFrameHeightWithSpacing() * 1.6f;
+        float trayH = ImGui::GetFrameHeightWithSpacing();
         ImVec2 region = ImGui::GetContentRegionAvail();
-        float canvasH = region.y - toolbarH;
+        float canvasH = region.y - toolbarH - trayH;
         if (canvasH > 0.0f)
         {
             ImGui::BeginChild("##cvs", ImVec2(0, canvasH),
@@ -62,6 +63,7 @@ namespace shoecomp
             renderCanvas("##canvas");
             ImGui::EndChild();
         }
+        renderMarkupTray();
         renderToolbar(label);
     }
 
@@ -152,15 +154,6 @@ namespace shoecomp
                         state.viewerRightIdx < (int)state.images.size();
         bool hasBoth = hasLeft && hasRight;
         float fullW = ImGui::GetContentRegionAvail().x;
-
-        // --- Markup section (renders its own header) ---
-        ImageCanvas2D* lc = asCanvas2D(*state.viewerLeft);
-        ImageCanvas2D* rc = asCanvas2D(*state.viewerRight);
-        ImageCanvas2D* active =
-            (state.activeComparisonViewer == 0)
-                ? (hasLeft ? lc : (hasRight ? rc : nullptr))
-                : (hasRight ? rc : (hasLeft ? lc : nullptr));
-        ImageCanvas2D::renderMarkupControls(active);
 
         // --- Alignment section (only once both images load) ---
         if (!hasBoth) return;

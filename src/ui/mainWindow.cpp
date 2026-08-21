@@ -555,6 +555,7 @@ namespace shoecomp
             MaterialIcons_compressed_data,
             (int)MaterialIcons_compressed_size, 18.0f * dpi, &iconCfg,
             iconRanges);
+        ImageCanvas2D::iconFont = state.iconFont;
     }
 
     void submain(void)

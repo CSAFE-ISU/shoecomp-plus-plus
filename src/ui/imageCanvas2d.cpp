@@ -1,4 +1,5 @@
 #include "ui/imageCanvas2d.h"
+#include "ui/icons.h"
 #include "ui/uiHelpers.h"
 #include "ui/calcHelpers.h"
 #include "formats/png.h"
@@ -14,6 +15,7 @@ namespace shoecomp
         ImageCanvas2D::AnnotationMode::None;
     ImageCanvas2D::PointType ImageCanvas2D::selectedPointType =
         ImageCanvas2D::PointType::Corner;
+    ImFont* ImageCanvas2D::iconFont = nullptr;
 
     const std::vector<std::string>& ImageCanvas2D::imageExtensions()
         const
@@ -870,34 +872,41 @@ namespace shoecomp
         ImGui::PopID();
     }
 
-    void ImageCanvas2D::renderMarkupControls(ImageCanvas2D* active)
+    void ImageCanvas2D::renderMarkupTray()
     {
-        ImGui::SeparatorText("Markup");
         AnnotationMode& mode = annotationMode;
+        bool hasImg = (image != nullptr);
+        float h = ImGui::GetFrameHeight();
+        ImVec2 btn(h, h);
 
-        // Per-image edits need a live canvas; the mode toggles are
-        // shared and stay usable, but anything touching annotations
-        // is disabled when no canvas is active.
-        bool hasActive =
-            (active != nullptr && active->image != nullptr);
-        float fullW = ImGui::GetContentRegionAvail().x;
+        ImGui::PushID("markupTray");
 
+        auto tip = [](const char* t)
+        {
+            if (ImGui::IsItemHovered(
+                    ImGuiHoveredFlags_AllowWhenDisabled))
+                ImGui::SetTooltip("%s", t);
+        };
+
+        // Point mode toggle
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
-        if (dockButton("+ Point", ImVec2(fullW, 0)))
+        if (iconFont) ImGui::PushFont(iconFont);
+        bool pointClick =
+            ImGui::Button(ICON_MD_FIBER_MANUAL_RECORD, btn);
+        if (iconFont) ImGui::PopFont();
+        if (pointActive) ImGui::PopStyleColor();
+        tip("Add points: click on the image.\nShift+click removes the "
+            "nearest point.");
+        if (pointClick)
             mode = pointActive ? AnnotationMode::None
                                : AnnotationMode::AddPoint;
-        if (pointActive) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Click on the image to add a point.\n"
-                "Shift+click removes the nearest point.");
 
-        std::vector<PointType> allowed =
-            hasActive ? active->allowedPointTypes()
-                      : std::vector<PointType>{};
+        // Point-type selector (compact, only while placing points)
+        ImGui::SameLine();
+        std::vector<PointType> allowed = allowedPointTypes();
         int cur = 0;
         for (int i = 0; i < (int)allowed.size(); ++i)
         {
@@ -909,9 +918,9 @@ namespace shoecomp
         }
         if (!allowed.empty() && allowed[cur] != selectedPointType)
             selectedPointType = allowed[cur];
-
-        ImGui::BeginDisabled(!pointActive || !hasActive);
-        ImGui::SetNextItemWidth(fullW);
+        ImGui::BeginDisabled(mode != AnnotationMode::AddPoint);
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize("Bifurcation").x +
+                                h);
         const char* preview =
             allowed.empty() ? "" : pointTypeToString(selectedPointType);
         if (ImGui::BeginCombo("##ptType", preview))
@@ -928,50 +937,63 @@ namespace shoecomp
         }
         ImGui::EndDisabled();
 
+        // Bounds mode toggle
+        ImGui::SameLine();
         bool boundsActive = (mode == AnnotationMode::AddBounds);
         if (boundsActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
-        if (dockButton("+ Bounds", ImVec2(fullW, 0)))
+        if (iconFont) ImGui::PushFont(iconFont);
+        bool boundsClick = ImGui::Button(ICON_MD_CROP_SQUARE, btn);
+        if (iconFont) ImGui::PopFont();
+        if (boundsActive) ImGui::PopStyleColor();
+        tip("Add boundary vertices; click the first vertex to "
+            "close.\nShift+click removes.");
+        if (boundsClick)
         {
             mode = boundsActive ? AnnotationMode::None
                                 : AnnotationMode::AddBounds;
-            if (boundsActive && hasActive)
-                active->removePointsOutsideBounds();
+            if (boundsActive && hasImg) removePointsOutsideBounds();
         }
-        if (boundsActive) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Click on the image to add boundary vertices;\n"
-                "click the first vertex to close. Shift+click "
-                "removes.");
 
-        ImGui::Spacing();
-        ImGui::BeginDisabled(!hasActive);
-        float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-        if (dockButton("Undo", ImVec2(halfW, 0)))
+        // Undo
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!hasImg);
+        if (iconFont) ImGui::PushFont(iconFont);
+        bool undoClick = ImGui::Button(ICON_MD_UNDO, btn);
+        if (iconFont) ImGui::PopFont();
+        ImGui::EndDisabled();
+        tip("Undo the last point / bounds vertex");
+        if (undoClick)
         {
             const char* key = nullptr;
             if (mode == AnnotationMode::AddPoint)
                 key = "points";
             else if (mode == AnnotationMode::AddBounds)
                 key = "bounds";
-            if (key &&
-                hasAnnotationArray(active->image->annotations, key))
+            if (key && hasImg &&
+                hasAnnotationArray(image->annotations, key))
             {
-                auto& arr = active->image->annotations[key].getArray();
+                auto& arr = image->annotations[key].getArray();
                 if (!arr.empty()) arr.pop_back();
             }
         }
 
+        // Clear
         ImGui::SameLine();
-
-        if (dockButton("Clear", ImVec2(halfW, 0)))
-        {
-            active->image->annotations["bounds"].setArray();
-            active->image->annotations["points"].setArray();
-        }
+        ImGui::BeginDisabled(!hasImg);
+        if (iconFont) ImGui::PushFont(iconFont);
+        bool clearClick = ImGui::Button(ICON_MD_DELETE, btn);
+        if (iconFont) ImGui::PopFont();
         ImGui::EndDisabled();
+        tip("Clear all points and bounds");
+        if (clearClick && hasImg)
+        {
+            image->annotations["bounds"].setArray();
+            image->annotations["points"].setArray();
+        }
+
+        ImGui::PopID();
     }
 
     void ImageCanvas2D::renderAnnotationStyleSettings()

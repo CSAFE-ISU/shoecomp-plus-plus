@@ -23,12 +23,10 @@ namespace shoecomp
             ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
         float fullW = ImGui::GetContentRegionAvail().x;
 
-        // --- Markup section (renders its own header) ---
         ImageCanvas2D* active =
             hasActive
                 ? asCanvas2D(*state.images[state.activeGalleryImage])
                 : nullptr;
-        ImageCanvas2D::renderMarkupControls(active);
 
         // --- Analysis section (optional ONNX detection) ---
         bool canDetect = active && active->supportsDetection();
@@ -152,8 +150,9 @@ namespace shoecomp
 
                 float toolbarH =
                     ImGui::GetFrameHeightWithSpacing() * 1.6f * 0.85f;
+                float trayH = ImGui::GetFrameHeightWithSpacing();
                 ImVec2 region = ImGui::GetContentRegionAvail();
-                float canvasH = region.y - toolbarH;
+                float canvasH = region.y - toolbarH - trayH;
                 if (canvasH > 0.0f)
                 {
                     ImGui::BeginChild(canvasId, ImVec2(0, canvasH),
@@ -163,6 +162,8 @@ namespace shoecomp
                     canvas.renderCanvas(cid);
                     ImGui::EndChild();
                 }
+                if (ImageCanvas2D* c2d = asCanvas2D(canvas))
+                    c2d->renderMarkupTray();
                 char tbId[64];
                 snprintf(tbId, sizeof(tbId), "##gtb_%d", i);
                 canvas.renderToolbar(tbId);

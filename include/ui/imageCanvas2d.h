@@ -100,6 +100,10 @@ namespace shoecomp
         static AnnotationMode annotationMode;
         static PointType selectedPointType;
 
+        // Material Icons font used by the markup tray; set once at
+        // startup (loadStaticAssets). May be null before then.
+        static ImFont* iconFont;
+
         ImageCanvas2D();
         explicit ImageCanvas2D(std::shared_ptr<ImageData> img);
 
@@ -122,11 +126,10 @@ namespace shoecomp
         void renderCanvas(const char* canvasId) override;
         void renderToolbar(const char* toolbarId) override;
 
-        // Renders the shared markup controls (mode toggles, point
-        // type, undo/clear) for the right-side dock. Operates on the
-        // shared static mode/type plus `active` for per-image edits;
-        // pass nullptr when no canvas is active (buttons disabled).
-        static void renderMarkupControls(ImageCanvas2D* active);
+        // Renders a compact markup icon tray (mode toggles, point
+        // type, undo/clear) for this canvas's window. Mode/type are the
+        // shared statics; undo/clear act on this canvas's image.
+        void renderMarkupTray();
 
         // --- Load/save interface ---
         // Append one or more freshly-constructed canvases (of this
