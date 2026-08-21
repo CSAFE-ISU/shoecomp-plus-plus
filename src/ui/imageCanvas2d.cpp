@@ -890,15 +890,36 @@ namespace shoecomp
                                : AnnotationMode::AddPoint;
         if (pointActive) ImGui::PopStyleColor();
 
+        std::vector<PointType> allowed =
+            hasActive ? active->allowedPointTypes()
+                      : std::vector<PointType>{};
+        int cur = 0;
+        for (int i = 0; i < (int)allowed.size(); ++i)
+        {
+            if (allowed[i] == selectedPointType)
+            {
+                cur = i;
+                break;
+            }
+        }
+        if (!allowed.empty() && allowed[cur] != selectedPointType)
+            selectedPointType = allowed[cur];
+
         ImGui::BeginDisabled(!pointActive || !hasActive);
         ImGui::SetNextItemWidth(fullW);
-        int cur = static_cast<int>(selectedPointType);
-        const char* items[] = {"Corner",      "Center", "RidgeEnding",
-                               "Bifurcation", "Other",  "Core",
-                               "Delta"};
-        if (ImGui::Combo("##ptType", &cur, items, 7))
+        const char* preview =
+            allowed.empty() ? "" : pointTypeToString(selectedPointType);
+        if (ImGui::BeginCombo("##ptType", preview))
         {
-            selectedPointType = static_cast<PointType>(cur);
+            for (int i = 0; i < (int)allowed.size(); ++i)
+            {
+                bool sel = (i == cur);
+                if (ImGui::Selectable(pointTypeToString(allowed[i]),
+                                      sel))
+                    selectedPointType = allowed[i];
+                if (sel) ImGui::SetItemDefaultFocus();
+            }
+            ImGui::EndCombo();
         }
         ImGui::EndDisabled();
 
