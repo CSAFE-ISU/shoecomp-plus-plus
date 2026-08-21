@@ -204,6 +204,119 @@ namespace shoecomp
         OnnxRuntime::instance().ensureLoaded();
     }
 
+    static void renderFileMenu(AppState& state)
+    {
+        bool hasActive =
+            state.activeGalleryImage >= 0 &&
+            state.activeGalleryImage < (int)state.images.size();
+
+        if (ImGui::MenuItem("Load Image..."))
+            openImagePicker(state.imageLoadBrowser);
+#ifdef __EMSCRIPTEN__
+        if (ImGui::IsItemHovered())
+            setLoadBrowserHovered(&state.imageLoadBrowser);
+#endif
+
+        if (ImGui::MenuItem("Save PNG...", nullptr, false, hasActive))
+        {
+            state.imageSaveBrowser.show = true;
+            state.imageSaveTarget = state.activeGalleryImage;
+            state.imageSaveBrowser.dirNeedsRefresh = true;
+            state.imageSaveBrowser.fileName.clear();
+        }
+
+        if (ImGui::MenuItem("Load Annotations...", nullptr, false,
+                            hasActive))
+        {
+            state.annotationFileSave = false;
+            state.annotationFileTarget = state.activeGalleryImage;
+#ifdef __EMSCRIPTEN__
+            openJsonPicker(state.annotationFileBrowser);
+#else
+            state.annotationFileBrowser.dirNeedsRefresh = true;
+            state.annotationFileBrowser.fileName.clear();
+            state.annotationFileBrowser.contextLabel.clear();
+            state.annotationFileBrowser.extensionChoices = {".json",
+                                                            ""};
+            state.annotationFileBrowser.title = "Load Annotations";
+            state.annotationFileBrowser.show = true;
+#endif
+        }
+
+        if (ImGui::MenuItem("Save Annotations...", nullptr, false,
+                            hasActive))
+        {
+#ifdef __EMSCRIPTEN__
+            auto& img =
+                asCanvas2D(*state.images[state.activeGalleryImage])
+                    ->image;
+            jt::Json copy = img->annotations;
+            std::string data = copy.toStringPretty();
+            if (data.empty())
+            {
+                state.annotationError.show = true;
+                state.annotationError.message =
+                    "Failed to serialize annotations.";
+            }
+            else
+            {
+                std::string fname =
+                    img->name.empty() ? std::string("annotations.json")
+                                      : img->name + ".json";
+                downloadJsonString(data.c_str(), (int)data.size(),
+                                   fname.c_str(), (int)fname.size());
+            }
+#else
+            state.annotationFileBrowser.show = true;
+            state.annotationFileSave = true;
+            state.annotationFileTarget = state.activeGalleryImage;
+            state.annotationFileBrowser.dirNeedsRefresh = true;
+            state.annotationFileBrowser.fileName.clear();
+            {
+                ImageCanvas2D* c2d =
+                    asCanvas2D(*state.images[state.activeGalleryImage]);
+                state.annotationFileBrowser.contextLabel =
+                    (c2d && c2d->image) ? c2d->image->name
+                                        : std::string();
+            }
+            state.annotationFileBrowser.extensionChoices.clear();
+            state.annotationFileBrowser.title = "Save Annotations";
+#endif
+        }
+
+        ImGui::Separator();
+        if (ImGui::MenuItem("Images...", nullptr, false,
+                            !state.images.empty()))
+            state.imageListDialog.show = true;
+    }
+
+    static void renderMenus(AppState& state)
+    {
+        if (ImGui::BeginMenu("shoecomp"))
+        {
+            if (ImGui::MenuItem("Image Viewer", nullptr,
+                                state.workspace == Workspace::Viewer))
+            {
+                state.workspace = Workspace::Viewer;
+                state.selectWorkspaceTab = true;
+            }
+            if (ImGui::MenuItem(
+                    "Image Comparison", nullptr,
+                    state.workspace == Workspace::Comparison))
+            {
+                state.workspace = Workspace::Comparison;
+                state.selectWorkspaceTab = true;
+            }
+            ImGui::EndMenu();
+        }
+
+        if (ImGui::BeginMenu("File"))
+        {
+            renderFileMenu(state);
+            ImGui::EndMenu();
+        }
+    }
+
     static void renderGui(AppState& state)
     {
         applyActiveKindChange(state);
@@ -244,36 +357,25 @@ namespace shoecomp
         state.detectDialog.render();
         state.detectError.render();
 
-        const char* brandLabel = "shoecomp";
-        ImVec2 brandSize;
-        ImFont* brandFont =
-            state.boldFont ? state.boldFont : ImGui::GetFont();
-        {
-            ImGui::PushFont(brandFont);
-            brandSize = ImGui::CalcTextSize(brandLabel);
-            ImGui::PopFont();
-        }
-        ImVec2 rowStart = ImGui::GetCursorScreenPos();
-        float availW = ImGui::GetContentRegionAvail().x;
-        float pad = ImGui::GetStyle().FramePadding.x;
-        ImVec2 brandPos(
-            rowStart.x + availW - brandSize.x - pad,
-            rowStart.y +
-                (ImGui::GetFrameHeight() - brandSize.y) * 0.5f);
-        ImGui::GetWindowDrawList()->AddText(
-            brandFont, ImGui::GetFontSize(), brandPos,
-            ImGui::GetColorU32(ImGuiCol_Text), brandLabel);
-
         if (ImGui::BeginTabBar("MainTabs"))
         {
-            if (ImGui::BeginTabItem("Image Viewer"))
+            // The image workspace (Viewer/Comparison) is one tab whose
+            // label follows the shoecomp menu; Settings and About are
+            // their own tabs.
+            const char* wsLabel =
+                (state.workspace == Workspace::Comparison)
+                    ? "Image Comparison###ws"
+                    : "Image Viewer###ws";
+            ImGuiTabItemFlags wsFlags =
+                state.selectWorkspaceTab ? ImGuiTabItemFlags_SetSelected
+                                         : 0;
+            if (ImGui::BeginTabItem(wsLabel, nullptr, wsFlags))
             {
-                renderImageGallery(state);
-                ImGui::EndTabItem();
-            }
-            if (ImGui::BeginTabItem("Image Comparison"))
-            {
-                renderImageComparison(state);
+                state.selectWorkspaceTab = false;
+                if (state.workspace == Workspace::Comparison)
+                    renderImageComparison(state);
+                else
+                    renderImageGallery(state);
                 ImGui::EndTabItem();
             }
             if (ImGui::BeginTabItem("Settings"))
@@ -534,6 +636,10 @@ namespace shoecomp
             HelloImGui::WindowSizeState::Maximized;
         params.imGuiWindowParams.defaultImGuiWindowType =
             HelloImGui::DefaultImGuiWindowType::ProvideFullScreenWindow;
+        params.imGuiWindowParams.showMenuBar = true;
+        params.imGuiWindowParams.showMenu_App = false;
+        params.imGuiWindowParams.showMenu_View = false;
+        params.callbacks.ShowMenus = [&state]() { renderMenus(state); };
         params.callbacks.LoadAdditionalFonts = [&state]()
         { loadStaticAssets(state); };
         params.callbacks.PostInit = [&state]()

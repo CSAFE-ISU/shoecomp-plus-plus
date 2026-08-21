@@ -21,8 +21,21 @@
 
 namespace shoecomp
 {
+    enum class Workspace
+    {
+        Viewer = 0,
+        Comparison = 1
+    };
+
     struct AppState
     {
+        // Active image workspace, chosen from the shoecomp menu.
+        // Settings/About remain separate tabs.
+        Workspace workspace = Workspace::Viewer;
+        // Set when the shoecomp menu changes the workspace, so the
+        // workspace tab is re-selected on the next frame.
+        bool selectWorkspaceTab = false;
+
         // Loaded images
         std::vector<std::unique_ptr<ImageCanvas>> images;
 
