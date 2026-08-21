@@ -869,21 +869,17 @@ namespace shoecomp
         dl->AddCircleFilled(ind, 3.0f, kColorDialIndicator);
 
         ImGui::SameLine();
-        ImGui::AlignTextToFramePadding();
-        if (iconFont) ImGui::PushFont(iconFont);
-        ImGui::TextUnformatted(ICON_MD_ROTATE_RIGHT);
-        if (iconFont) ImGui::PopFont();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Rotation (degrees)");
-        ImGui::SameLine();
         float degs = viewState.rotationTarget / kDegToRad;
-        ImGui::SetNextItemWidth(ImGui::CalcTextSize("-360.0___").x);
+        ImGui::SetNextItemWidth(ImGui::CalcTextSize("-360.0__").x);
         if (ImGui::InputFloat("##deg", &degs, 0.0f, 0.0f, "%.1f",
                               ImGuiInputTextFlags_EnterReturnsTrue))
         {
             viewState.rotationTarget = degs * kDegToRad;
             viewState.rotation = viewState.rotationTarget;
         }
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(u8"\u00B0");
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::PopID();
