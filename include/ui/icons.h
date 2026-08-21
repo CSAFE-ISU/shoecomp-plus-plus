@@ -32,5 +32,9 @@ namespace shoecomp
 #define ICON_MD_IMAGE u8""
 #define ICON_MD_STRAIGHTEN u8""
 #define ICON_MD_TUNE u8""
+#define ICON_MD_HOME u8""
+#define ICON_MD_ZOOM_IN u8""
+#define ICON_MD_ZOOM_OUT u8""
+#define ICON_MD_ROTATE_RIGHT u8""
 
 #endif

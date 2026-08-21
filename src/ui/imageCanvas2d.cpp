@@ -807,7 +807,17 @@ namespace shoecomp
 
         float frameH = ImGui::GetFrameHeight();
 
-        if (ImGui::Button("Home"))
+        auto iconBtn = [](const char* icon, const char* tipText) -> bool
+        {
+            if (iconFont) ImGui::PushFont(iconFont);
+            bool clicked = ImGui::Button(icon);
+            if (iconFont) ImGui::PopFont();
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("%s", tipText);
+            return clicked;
+        };
+
+        if (iconBtn(ICON_MD_HOME, "Reset view (home)"))
         {
             viewState.zoomTarget = 1.0f;
             viewState.panTarget = ImVec2(0, 0);
@@ -816,14 +826,14 @@ namespace shoecomp
         }
         ImGui::SameLine();
 
-        if (ImGui::Button("Zoom+"))
+        if (iconBtn(ICON_MD_ZOOM_IN, "Zoom in"))
         {
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget * 1.25f, 0.1f, 50.0f);
         }
         ImGui::SameLine();
 
-        if (ImGui::Button("Zoom-"))
+        if (iconBtn(ICON_MD_ZOOM_OUT, "Zoom out"))
         {
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget * 0.8f, 0.1f, 50.0f);
@@ -859,9 +869,16 @@ namespace shoecomp
         dl->AddCircleFilled(ind, 3.0f, kColorDialIndicator);
 
         ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        if (iconFont) ImGui::PushFont(iconFont);
+        ImGui::TextUnformatted(ICON_MD_ROTATE_RIGHT);
+        if (iconFont) ImGui::PopFont();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Rotation (degrees)");
+        ImGui::SameLine();
         float degs = viewState.rotationTarget / kDegToRad;
         ImGui::SetNextItemWidth(ImGui::CalcTextSize("-360.0___").x);
-        if (ImGui::InputFloat("deg", &degs, 0.0f, 0.0f, "%.1f",
+        if (ImGui::InputFloat("##deg", &degs, 0.0f, 0.0f, "%.1f",
                               ImGuiInputTextFlags_EnterReturnsTrue))
         {
             viewState.rotationTarget = degs * kDegToRad;

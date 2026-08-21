@@ -291,7 +291,10 @@ namespace shoecomp
 
     static void renderMenus(AppState& state)
     {
-        if (ImGui::BeginMenu("shoecomp"))
+        if (state.boldFont) ImGui::PushFont(state.boldFont);
+        bool shoecompOpen = ImGui::BeginMenu("shoecomp");
+        if (state.boldFont) ImGui::PopFont();
+        if (shoecompOpen)
         {
             ImGui::SeparatorText("Workspaces");
             if (ImGui::MenuItem("Image Viewer", nullptr,
