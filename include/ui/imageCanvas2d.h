@@ -124,12 +124,11 @@ namespace shoecomp
             const override;
         void resetView() override;
         void renderCanvas(const char* canvasId) override;
+        // Two-row control bar: row 1 is markup tools (point + type
+        // popup, bounds | undo, clear), row 2 is view tools (home,
+        // zoom, rotation dial). Mode/type are the shared statics;
+        // annotation edits act on this canvas's image.
         void renderToolbar(const char* toolbarId) override;
-
-        // Renders a compact markup icon tray (mode toggles, point
-        // type, undo/clear) for this canvas's window. Mode/type are the
-        // shared statics; undo/clear act on this canvas's image.
-        void renderMarkupTray();
 
         // --- Load/save interface ---
         // Append one or more freshly-constructed canvases (of this

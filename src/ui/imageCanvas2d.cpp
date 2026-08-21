@@ -800,24 +800,148 @@ namespace shoecomp
         dl->PopClipRect();
     }
 
+    static ImU32 colorForPointType(ImageCanvas2D::PointType t);
+
     void ImageCanvas2D::renderToolbar(const char* toolbarId)
     {
         ImGui::PushID(toolbarId);
         ImGui::SetWindowFontScale(0.85f);
 
         float frameH = ImGui::GetFrameHeight();
+        ImVec2 btn(frameH, frameH);
+        bool hasImg = (image != nullptr);
+        AnnotationMode& mode = annotationMode;
 
-        auto iconBtn = [](const char* icon, const char* tipText) -> bool
+        auto iconBtn = [](const char* icon, const ImVec2& sz,
+                          const char* tip,
+                          bool allowDisabled = false) -> bool
         {
             if (iconFont) ImGui::PushFont(iconFont);
-            bool clicked = ImGui::Button(icon);
+            bool clicked = ImGui::Button(icon, sz);
             if (iconFont) ImGui::PopFont();
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip("%s", tipText);
+            ImGuiHoveredFlags hf =
+                allowDisabled ? ImGuiHoveredFlags_AllowWhenDisabled
+                              : ImGuiHoveredFlags_None;
+            if (tip && ImGui::IsItemHovered(hf))
+                ImGui::SetTooltip("%s", tip);
             return clicked;
         };
 
-        if (iconBtn(ICON_MD_HOME, "Reset view (home)"))
+        // A thin vertical rule that separates control groups.
+        auto vsep = [&]()
+        {
+            ImGui::SameLine();
+            float sp = ImGui::GetStyle().ItemSpacing.x;
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            float x = p.x + sp * 0.5f;
+            ImGui::GetWindowDrawList()->AddLine(
+                ImVec2(x, p.y + 2.0f), ImVec2(x, p.y + frameH - 2.0f),
+                ImGui::GetColorU32(ImGuiCol_Separator));
+            ImGui::Dummy(ImVec2(sp, frameH));
+            ImGui::SameLine();
+        };
+
+        // ---- Markup modes: point (+ type popup), bounds ----
+        std::vector<PointType> allowed = allowedPointTypes();
+        if (!allowed.empty() &&
+            std::find(allowed.begin(), allowed.end(),
+                      selectedPointType) == allowed.end())
+            selectedPointType = allowed[0];
+
+        bool pointActive = (mode == AnnotationMode::AddPoint);
+        if (pointActive)
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              colorForPointType(selectedPointType));
+        bool pointClick =
+            iconBtn(ICON_MD_FIBER_MANUAL_RECORD, btn,
+                    "Add points: click on the image.\n"
+                    "Shift+click removes the nearest point.");
+        ImGui::PopStyleColor();
+        if (pointActive) ImGui::PopStyleColor();
+        if (pointClick)
+            mode = pointActive ? AnnotationMode::None
+                               : AnnotationMode::AddPoint;
+
+        ImGui::SameLine(0.0f, 1.0f);
+        if (iconBtn(ICON_MD_ARROW_DROP_DOWN, ImVec2(0, frameH),
+                    "Choose point type"))
+            ImGui::OpenPopup("##ptTypePopup");
+        if (ImGui::BeginPopup("##ptTypePopup"))
+        {
+            for (int i = 0; i < (int)allowed.size(); ++i)
+            {
+                ImGui::PushID(i);
+                PointType t = allowed[i];
+                ImGui::ColorButton(
+                    "##sw",
+                    ImGui::ColorConvertU32ToFloat4(
+                        colorForPointType(t)),
+                    ImGuiColorEditFlags_NoTooltip |
+                        ImGuiColorEditFlags_NoPicker,
+                    ImVec2(frameH * 0.6f, frameH * 0.6f));
+                ImGui::SameLine();
+                if (ImGui::Selectable(pointTypeToString(t),
+                                      t == selectedPointType))
+                    selectedPointType = t;
+                ImGui::PopID();
+            }
+            ImGui::EndPopup();
+        }
+
+        ImGui::SameLine();
+        bool boundsActive = (mode == AnnotationMode::AddBounds);
+        if (boundsActive)
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
+        bool boundsClick =
+            iconBtn(ICON_MD_CROP_SQUARE, btn,
+                    "Add boundary vertices; click the first vertex\n"
+                    "to close. Shift+click removes.");
+        if (boundsActive) ImGui::PopStyleColor();
+        if (boundsClick)
+        {
+            mode = boundsActive ? AnnotationMode::None
+                                : AnnotationMode::AddBounds;
+            if (boundsActive && hasImg) removePointsOutsideBounds();
+        }
+
+        vsep();
+
+        // ---- Markup edits: undo, clear ----
+        ImGui::BeginDisabled(!hasImg);
+        bool undoClick =
+            iconBtn(ICON_MD_UNDO, btn,
+                    "Undo the last point / bounds vertex", true);
+        ImGui::EndDisabled();
+        if (undoClick && hasImg)
+        {
+            const char* key = nullptr;
+            if (mode == AnnotationMode::AddPoint)
+                key = "points";
+            else if (mode == AnnotationMode::AddBounds)
+                key = "bounds";
+            if (key && hasAnnotationArray(image->annotations, key))
+            {
+                auto& arr = image->annotations[key].getArray();
+                if (!arr.empty()) arr.pop_back();
+            }
+        }
+
+        ImGui::SameLine();
+        ImGui::BeginDisabled(!hasImg);
+        bool clearClick = iconBtn(ICON_MD_DELETE, btn,
+                                  "Clear all points and bounds", true);
+        ImGui::EndDisabled();
+        if (clearClick && hasImg)
+        {
+            image->annotations["bounds"].setArray();
+            image->annotations["points"].setArray();
+        }
+
+        // ---- Row 2: view controls (own row to avoid overflow) ----
+        if (iconBtn(ICON_MD_HOME, btn, "Reset view (home)"))
         {
             viewState.zoomTarget = 1.0f;
             viewState.panTarget = ImVec2(0, 0);
@@ -826,14 +950,14 @@ namespace shoecomp
         }
         ImGui::SameLine();
 
-        if (iconBtn(ICON_MD_ZOOM_IN, "Zoom in"))
+        if (iconBtn(ICON_MD_ZOOM_IN, btn, "Zoom in"))
         {
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget * 1.25f, 0.1f, 50.0f);
         }
         ImGui::SameLine();
 
-        if (iconBtn(ICON_MD_ZOOM_OUT, "Zoom out"))
+        if (iconBtn(ICON_MD_ZOOM_OUT, btn, "Zoom out"))
         {
             viewState.zoomTarget =
                 std::clamp(viewState.zoomTarget * 0.8f, 0.1f, 50.0f);
@@ -928,136 +1052,6 @@ namespace shoecomp
                 break;
         }
         return ImGui::ColorConvertFloat4ToU32(c);
-    }
-
-    void ImageCanvas2D::renderMarkupTray()
-    {
-        AnnotationMode& mode = annotationMode;
-        bool hasImg = (image != nullptr);
-        float h = ImGui::GetFrameHeight();
-        ImVec2 btn(h, h);
-
-        ImGui::PushID("markupTray");
-
-        auto tip = [](const char* t)
-        {
-            if (ImGui::IsItemHovered(
-                    ImGuiHoveredFlags_AllowWhenDisabled))
-                ImGui::SetTooltip("%s", t);
-        };
-
-        std::vector<PointType> allowed = allowedPointTypes();
-        if (!allowed.empty() &&
-            std::find(allowed.begin(), allowed.end(),
-                      selectedPointType) == allowed.end())
-            selectedPointType = allowed[0];
-
-        // Point mode toggle. The record glyph is tinted with the
-        // selected type's color so the tray shows the current type.
-        bool pointActive = (mode == AnnotationMode::AddPoint);
-        if (pointActive)
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
-        if (iconFont) ImGui::PushFont(iconFont);
-        ImGui::PushStyleColor(ImGuiCol_Text,
-                              colorForPointType(selectedPointType));
-        bool pointClick =
-            ImGui::Button(ICON_MD_FIBER_MANUAL_RECORD, btn);
-        ImGui::PopStyleColor();
-        if (iconFont) ImGui::PopFont();
-        if (pointActive) ImGui::PopStyleColor();
-        tip("Add points: click on the image.\nShift+click removes the "
-            "nearest point.");
-        if (pointClick)
-            mode = pointActive ? AnnotationMode::None
-                               : AnnotationMode::AddPoint;
-
-        // Caret opens a popup listing the point types for this kind.
-        ImGui::SameLine(0.0f, 1.0f);
-        if (iconFont) ImGui::PushFont(iconFont);
-        bool caretClick =
-            ImGui::Button(ICON_MD_ARROW_DROP_DOWN, ImVec2(0, h));
-        if (iconFont) ImGui::PopFont();
-        tip("Choose point type");
-        if (caretClick) ImGui::OpenPopup("##ptTypePopup");
-        if (ImGui::BeginPopup("##ptTypePopup"))
-        {
-            for (int i = 0; i < (int)allowed.size(); ++i)
-            {
-                ImGui::PushID(i);
-                PointType t = allowed[i];
-                ImGui::ColorButton("##sw",
-                                   ImGui::ColorConvertU32ToFloat4(
-                                       colorForPointType(t)),
-                                   ImGuiColorEditFlags_NoTooltip |
-                                       ImGuiColorEditFlags_NoPicker,
-                                   ImVec2(h * 0.6f, h * 0.6f));
-                ImGui::SameLine();
-                if (ImGui::Selectable(pointTypeToString(t),
-                                      t == selectedPointType))
-                    selectedPointType = t;
-                ImGui::PopID();
-            }
-            ImGui::EndPopup();
-        }
-
-        // Bounds mode toggle
-        ImGui::SameLine();
-        bool boundsActive = (mode == AnnotationMode::AddBounds);
-        if (boundsActive)
-            ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
-        if (iconFont) ImGui::PushFont(iconFont);
-        bool boundsClick = ImGui::Button(ICON_MD_CROP_SQUARE, btn);
-        if (iconFont) ImGui::PopFont();
-        if (boundsActive) ImGui::PopStyleColor();
-        tip("Add boundary vertices; click the first vertex to "
-            "close.\nShift+click removes.");
-        if (boundsClick)
-        {
-            mode = boundsActive ? AnnotationMode::None
-                                : AnnotationMode::AddBounds;
-            if (boundsActive && hasImg) removePointsOutsideBounds();
-        }
-
-        // Undo
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!hasImg);
-        if (iconFont) ImGui::PushFont(iconFont);
-        bool undoClick = ImGui::Button(ICON_MD_UNDO, btn);
-        if (iconFont) ImGui::PopFont();
-        ImGui::EndDisabled();
-        tip("Undo the last point / bounds vertex");
-        if (undoClick)
-        {
-            const char* key = nullptr;
-            if (mode == AnnotationMode::AddPoint)
-                key = "points";
-            else if (mode == AnnotationMode::AddBounds)
-                key = "bounds";
-            if (key && hasImg &&
-                hasAnnotationArray(image->annotations, key))
-            {
-                auto& arr = image->annotations[key].getArray();
-                if (!arr.empty()) arr.pop_back();
-            }
-        }
-
-        // Clear
-        ImGui::SameLine();
-        ImGui::BeginDisabled(!hasImg);
-        if (iconFont) ImGui::PushFont(iconFont);
-        bool clearClick = ImGui::Button(ICON_MD_DELETE, btn);
-        if (iconFont) ImGui::PopFont();
-        ImGui::EndDisabled();
-        tip("Clear all points and bounds");
-        if (clearClick && hasImg)
-        {
-            image->annotations["bounds"].setArray();
-            image->annotations["points"].setArray();
-        }
-
-        ImGui::PopID();
     }
 
     void ImageCanvas2D::renderAnnotationStyleSettings()

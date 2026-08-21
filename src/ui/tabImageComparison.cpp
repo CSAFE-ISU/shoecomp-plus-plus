@@ -52,10 +52,9 @@ namespace shoecomp
         ImageCanvas2D* sel = asCanvas2D(*images[selectedIdx]);
         if (!sel) return;
         image = sel->image;
-        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 1.6f;
-        float trayH = ImGui::GetFrameHeightWithSpacing();
+        float toolbarH = ImGui::GetFrameHeightWithSpacing() * 2.0f;
         ImVec2 region = ImGui::GetContentRegionAvail();
-        float canvasH = region.y - toolbarH - trayH;
+        float canvasH = region.y - toolbarH;
         if (canvasH > 0.0f)
         {
             ImGui::BeginChild("##cvs", ImVec2(0, canvasH),
@@ -63,7 +62,6 @@ namespace shoecomp
             renderCanvas("##canvas");
             ImGui::EndChild();
         }
-        renderMarkupTray();
         renderToolbar(label);
     }
 

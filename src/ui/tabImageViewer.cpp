@@ -39,8 +39,8 @@ namespace shoecomp
             float dispW = canvas.width() * scale;
             float dispH = canvas.height() * scale;
 
-            // One toolbar row (view controls only) plus padding.
-            float tbRows = ImGui::GetFrameHeightWithSpacing() * 1.6f;
+            // Two control rows (markup + view) plus padding.
+            float tbRows = ImGui::GetFrameHeightWithSpacing() * 2.0f;
             float minW = 400.0f;
             float winW = std::max(dispW + pad.x * 2, minW);
             ImGui::SetNextWindowSize(
@@ -97,10 +97,9 @@ namespace shoecomp
                     state.activeGalleryImage = i;
 
                 float toolbarH =
-                    ImGui::GetFrameHeightWithSpacing() * 1.6f * 0.85f;
-                float trayH = ImGui::GetFrameHeightWithSpacing();
+                    ImGui::GetFrameHeightWithSpacing() * 2.0f;
                 ImVec2 region = ImGui::GetContentRegionAvail();
-                float canvasH = region.y - toolbarH - trayH;
+                float canvasH = region.y - toolbarH;
                 if (canvasH > 0.0f)
                 {
                     ImGui::BeginChild(canvasId, ImVec2(0, canvasH),
@@ -110,8 +109,6 @@ namespace shoecomp
                     canvas.renderCanvas(cid);
                     ImGui::EndChild();
                 }
-                if (ImageCanvas2D* c2d = asCanvas2D(canvas))
-                    c2d->renderMarkupTray();
                 char tbId[64];
                 snprintf(tbId, sizeof(tbId), "##gtb_%d", i);
                 canvas.renderToolbar(tbId);
@@ -150,24 +147,30 @@ namespace shoecomp
 
         if (state.images.empty())
         {
-            // Centered, faded message when no images are loaded
+            // Centered empty state: a faded headline plus a real
+            // Load Image button so first-time users have somewhere
+            // to click.
             ImVec2 regionAvail = ImGui::GetContentRegionAvail();
             const char* msg = "Load images to begin";
 
-            // Calculate font size to occupy 60% of available width
-            float targetWidth = regionAvail.x * 0.6f;
+            // Headline sized to ~50% of the available width.
+            float targetWidth = regionAvail.x * 0.5f;
             ImVec2 baseSize = ImGui::CalcTextSize(msg);
             float scale = targetWidth / baseSize.x;
+            ImVec2 textSize(baseSize.x * scale, baseSize.y * scale);
 
-            ImGui::SetWindowFontScale(scale);
-            ImVec2 textSize = ImGui::CalcTextSize(msg);
-            ImGui::SetWindowFontScale(1.0f);
+            const char* btnLabel = "Load Image";
+            float btnW = ImGui::CalcTextSize(btnLabel).x +
+                         ImGui::GetStyle().FramePadding.x * 6.0f;
+            float btnH = ImGui::GetFrameHeight();
+            float gap = ImGui::GetFrameHeightWithSpacing();
 
-            // Center the text
-            float posX = (regionAvail.x - textSize.x) * 0.5f;
-            float posY = (regionAvail.y - textSize.y) * 0.5f;
+            float blockH = textSize.y + gap + btnH;
+            float posY =
+                std::max(0.0f, (regionAvail.y - blockH) * 0.5f);
 
-            ImGui::SetCursorPos(ImVec2(posX, posY));
+            ImGui::SetCursorPos(
+                ImVec2((regionAvail.x - textSize.x) * 0.5f, posY));
             ImGui::PushStyleColor(
                 ImGuiCol_Text,
                 ImVec4(0.5f, 0.5f, 0.5f, 0.4f));  // Faded gray
@@ -175,6 +178,11 @@ namespace shoecomp
             ImGui::TextUnformatted(msg);
             ImGui::SetWindowFontScale(1.0f);
             ImGui::PopStyleColor();
+
+            ImGui::SetCursorPos(ImVec2((regionAvail.x - btnW) * 0.5f,
+                                       posY + textSize.y + gap));
+            if (ImGui::Button(btnLabel, ImVec2(btnW, btnH)))
+                openImagePicker(state.imageLoadBrowser);
         }
 
         ImGui::EndChild();
