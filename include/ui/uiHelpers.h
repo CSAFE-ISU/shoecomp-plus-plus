@@ -90,6 +90,11 @@ namespace shoecomp
     bool popupBeginClosable(const char* title, bool& show, float wRatio,
                             float hRatio, float xOff, float yOff);
 
+    // Like ImGui::Button, but draws an outline around the button while
+    // it is hovered. Used for the stacked dock section buttons.
+    bool dockButton(const char* label,
+                    const ImVec2& size = ImVec2(0, 0));
+
     // Checks annotations[key] exists and is an array.
     bool hasAnnotationArray(const jt::Json& annotations,
                             const char* key);

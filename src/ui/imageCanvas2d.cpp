@@ -886,7 +886,7 @@ namespace shoecomp
         if (pointActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
-        if (ImGui::Button("+ Point", ImVec2(fullW, 0)))
+        if (dockButton("+ Point", ImVec2(fullW, 0)))
             mode = pointActive ? AnnotationMode::None
                                : AnnotationMode::AddPoint;
         if (pointActive) ImGui::PopStyleColor();
@@ -932,7 +932,7 @@ namespace shoecomp
         if (boundsActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
-        if (ImGui::Button("+ Bounds", ImVec2(fullW, 0)))
+        if (dockButton("+ Bounds", ImVec2(fullW, 0)))
         {
             mode = boundsActive ? AnnotationMode::None
                                 : AnnotationMode::AddBounds;
@@ -949,7 +949,7 @@ namespace shoecomp
         ImGui::Spacing();
         ImGui::BeginDisabled(!hasActive);
         float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
-        if (ImGui::Button("Undo", ImVec2(halfW, 0)))
+        if (dockButton("Undo", ImVec2(halfW, 0)))
         {
             const char* key = nullptr;
             if (mode == AnnotationMode::AddPoint)
@@ -966,7 +966,7 @@ namespace shoecomp
 
         ImGui::SameLine();
 
-        if (ImGui::Button("Clear", ImVec2(halfW, 0)))
+        if (dockButton("Clear", ImVec2(halfW, 0)))
         {
             active->image->annotations["bounds"].setArray();
             active->image->annotations["points"].setArray();

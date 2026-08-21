@@ -32,6 +32,19 @@ namespace shoecomp
         return true;
     }
 
+    bool dockButton(const char* label, const ImVec2& size)
+    {
+        bool clicked = ImGui::Button(label, size);
+        if (ImGui::IsItemHovered())
+        {
+            ImGui::GetWindowDrawList()->AddRect(
+                ImGui::GetItemRectMin(), ImGui::GetItemRectMax(),
+                ImGui::GetColorU32(ImGuiCol_Text, 0.9f),
+                ImGui::GetStyle().FrameRounding, 0, 2.0f);
+        }
+        return clicked;
+    }
+
     bool hasAnnotationArray(const jt::Json& annotations,
                             const char* key)
     {

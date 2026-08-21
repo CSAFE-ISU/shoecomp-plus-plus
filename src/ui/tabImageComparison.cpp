@@ -167,11 +167,11 @@ namespace shoecomp
 
         ImGui::SeparatorText("Alignment");
 
-        if (ImGui::Button(state.viewerLocked ? "Unlock" : "Lock",
-                          ImVec2(fullW, 0)))
+        if (dockButton(state.viewerLocked ? "Unlock" : "Lock",
+                       ImVec2(fullW, 0)))
             state.viewerLocked = !state.viewerLocked;
 
-        if (ImGui::Button("Align", ImVec2(fullW, 0)))
+        if (dockButton("Align", ImVec2(fullW, 0)))
         {
             ImageCanvas2D* lsel =
                 asCanvas2D(*state.images[state.viewerLeftIdx]);
@@ -191,7 +191,7 @@ namespace shoecomp
         }
 
         ImGui::BeginDisabled(!state.viewerLocked);
-        if (ImGui::Button("Save Alignment", ImVec2(fullW, 0)))
+        if (dockButton("Save Alignment", ImVec2(fullW, 0)))
         {
             state.alignmentSaveBrowser.show = true;
             state.alignmentSaveBrowser.dirNeedsRefresh = true;
@@ -214,7 +214,7 @@ namespace shoecomp
         bool navDisabled = (int)state.viewerAlignments.size() <= 1;
         float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
         if (navDisabled) ImGui::BeginDisabled();
-        if (ImGui::Button("<", ImVec2(halfW, 0)))
+        if (dockButton("<", ImVec2(halfW, 0)))
         {
             if (state.viewerAlignmentIdx > 0)
             {
@@ -226,7 +226,7 @@ namespace shoecomp
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button(">", ImVec2(halfW, 0)))
+        if (dockButton(">", ImVec2(halfW, 0)))
         {
             int maxIdx = (int)state.viewerAlignments.size() - 1;
             if (state.viewerAlignmentIdx < maxIdx)
@@ -241,7 +241,7 @@ namespace shoecomp
         if (navDisabled) ImGui::EndDisabled();
 
         if (navDisabled) ImGui::BeginDisabled();
-        if (ImGui::Button("Delete", ImVec2(fullW, 0)))
+        if (dockButton("Delete", ImVec2(fullW, 0)))
         {
             int idx = state.viewerAlignmentIdx;
             state.viewerAlignments.erase(
@@ -255,7 +255,7 @@ namespace shoecomp
         }
         if (navDisabled) ImGui::EndDisabled();
 
-        if (ImGui::Button("Edit", ImVec2(fullW, 0)))
+        if (dockButton("Edit", ImVec2(fullW, 0)))
         {
             state.alignEditState =
                 state.viewerAlignments[state.viewerAlignmentIdx];

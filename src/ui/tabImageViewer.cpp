@@ -32,7 +32,7 @@ namespace shoecomp
 
         // --- File section ---
         ImGui::SeparatorText("File");
-        if (ImGui::Button("Load Image", ImVec2(fullW, 0)))
+        if (dockButton("Load Image", ImVec2(fullW, 0)))
         {
             openImagePicker(state.imageLoadBrowser);
         }
@@ -42,14 +42,14 @@ namespace shoecomp
 #endif
 
         ImGui::BeginDisabled(!hasActive);
-        if (ImGui::Button("Save PNG", ImVec2(fullW, 0)))
+        if (dockButton("Save PNG", ImVec2(fullW, 0)))
         {
             state.imageSaveBrowser.show = true;
             state.imageSaveTarget = state.activeGalleryImage;
             state.imageSaveBrowser.dirNeedsRefresh = true;
             state.imageSaveBrowser.fileName.clear();
         }
-        if (ImGui::Button("Load Annotations", ImVec2(fullW, 0)))
+        if (dockButton("Load Annotations", ImVec2(fullW, 0)))
         {
             state.annotationFileSave = false;
             state.annotationFileTarget = state.activeGalleryImage;
@@ -65,7 +65,7 @@ namespace shoecomp
             state.annotationFileBrowser.show = true;
 #endif
         }
-        if (ImGui::Button("Save Annotations", ImVec2(fullW, 0)))
+        if (dockButton("Save Annotations", ImVec2(fullW, 0)))
         {
 #ifdef __EMSCRIPTEN__
             auto& img =
@@ -107,7 +107,7 @@ namespace shoecomp
         ImGui::EndDisabled();
 
         ImGui::BeginDisabled(state.images.empty());
-        if (ImGui::Button("Images", ImVec2(fullW, 0)))
+        if (dockButton("Images", ImVec2(fullW, 0)))
             state.imageListDialog.show = true;
         ImGui::EndDisabled();
 
@@ -118,7 +118,7 @@ namespace shoecomp
         {
             ImGui::SeparatorText("Analysis");
             ImGui::BeginDisabled(!hasActive || !runtimeReady);
-            if (ImGui::Button("Detect Points", ImVec2(fullW, 0)))
+            if (dockButton("Detect Points", ImVec2(fullW, 0)))
             {
                 if (!state.detectDialog.openFor(*active))
                 {
