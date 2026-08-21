@@ -835,6 +835,7 @@ namespace shoecomp
                                ImVec2(dialR * 2.0f, dialR * 2.0f));
         bool dialHov = ImGui::IsItemHovered();
         bool dialAct = ImGui::IsItemActive();
+        if (dialHov) ImGui::SetTooltip("Drag to rotate");
 
         if (dialAct)
         {
@@ -889,6 +890,10 @@ namespace shoecomp
             mode = pointActive ? AnnotationMode::None
                                : AnnotationMode::AddPoint;
         if (pointActive) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Click on the image to add a point.\n"
+                "Shift+click removes the nearest point.");
 
         std::vector<PointType> allowed =
             hasActive ? active->allowedPointTypes()
@@ -935,6 +940,11 @@ namespace shoecomp
                 active->removePointsOutsideBounds();
         }
         if (boundsActive) ImGui::PopStyleColor();
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Click on the image to add boundary vertices;\n"
+                "click the first vertex to close. Shift+click "
+                "removes.");
 
         ImGui::Spacing();
         ImGui::BeginDisabled(!hasActive);
