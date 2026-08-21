@@ -889,6 +889,51 @@ namespace shoecomp
         ImGui::PopID();
     }
 
+    static ImU32 colorForPointType(ImageCanvas2D::PointType t)
+    {
+        using PT = ImageCanvas2D::PointType;
+        const auto& s = ImageCanvas2D::style;
+        ImVec4 c;
+        switch (t)
+        {
+            case PT::Center:
+                c = s.centerColor;
+                break;
+            case PT::RidgeEnding:
+                c = s.ridgeEndingColor;
+                break;
+            case PT::Bifurcation:
+                c = s.bifurcationColor;
+                break;
+            case PT::Other:
+                c = s.otherColor;
+                break;
+            case PT::Core:
+                c = s.coreColor;
+                break;
+            case PT::Delta:
+                c = s.deltaColor;
+                break;
+            case PT::WordStart:
+                c = s.wordStartColor;
+                break;
+            case PT::WordEnd:
+                c = s.wordEndColor;
+                break;
+            case PT::Intersection:
+                c = s.intersectionColor;
+                break;
+            case PT::CurveTurn:
+                c = s.curveTurnColor;
+                break;
+            case PT::Corner:
+            default:
+                c = s.cornerColor;
+                break;
+        }
+        return ImGui::ColorConvertFloat4ToU32(c);
+    }
+
     void ImageCanvas2D::renderMarkupTray()
     {
         AnnotationMode& mode = annotationMode;
@@ -905,14 +950,24 @@ namespace shoecomp
                 ImGui::SetTooltip("%s", t);
         };
 
-        // Point mode toggle
+        std::vector<PointType> allowed = allowedPointTypes();
+        if (!allowed.empty() &&
+            std::find(allowed.begin(), allowed.end(),
+                      selectedPointType) == allowed.end())
+            selectedPointType = allowed[0];
+
+        // Point mode toggle. The record glyph is tinted with the
+        // selected type's color so the tray shows the current type.
         bool pointActive = (mode == AnnotationMode::AddPoint);
         if (pointActive)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
         if (iconFont) ImGui::PushFont(iconFont);
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              colorForPointType(selectedPointType));
         bool pointClick =
             ImGui::Button(ICON_MD_FIBER_MANUAL_RECORD, btn);
+        ImGui::PopStyleColor();
         if (iconFont) ImGui::PopFont();
         if (pointActive) ImGui::PopStyleColor();
         tip("Add points: click on the image.\nShift+click removes the "
@@ -921,38 +976,34 @@ namespace shoecomp
             mode = pointActive ? AnnotationMode::None
                                : AnnotationMode::AddPoint;
 
-        // Point-type selector (compact, only while placing points)
-        ImGui::SameLine();
-        std::vector<PointType> allowed = allowedPointTypes();
-        int cur = 0;
-        for (int i = 0; i < (int)allowed.size(); ++i)
-        {
-            if (allowed[i] == selectedPointType)
-            {
-                cur = i;
-                break;
-            }
-        }
-        if (!allowed.empty() && allowed[cur] != selectedPointType)
-            selectedPointType = allowed[cur];
-        ImGui::BeginDisabled(mode != AnnotationMode::AddPoint);
-        ImGui::SetNextItemWidth(ImGui::CalcTextSize("Bifurcation").x +
-                                h);
-        const char* preview =
-            allowed.empty() ? "" : pointTypeToString(selectedPointType);
-        if (ImGui::BeginCombo("##ptType", preview))
+        // Caret opens a popup listing the point types for this kind.
+        ImGui::SameLine(0.0f, 1.0f);
+        if (iconFont) ImGui::PushFont(iconFont);
+        bool caretClick =
+            ImGui::Button(ICON_MD_ARROW_DROP_DOWN, ImVec2(0, h));
+        if (iconFont) ImGui::PopFont();
+        tip("Choose point type");
+        if (caretClick) ImGui::OpenPopup("##ptTypePopup");
+        if (ImGui::BeginPopup("##ptTypePopup"))
         {
             for (int i = 0; i < (int)allowed.size(); ++i)
             {
-                bool sel = (i == cur);
-                if (ImGui::Selectable(pointTypeToString(allowed[i]),
-                                      sel))
-                    selectedPointType = allowed[i];
-                if (sel) ImGui::SetItemDefaultFocus();
+                ImGui::PushID(i);
+                PointType t = allowed[i];
+                ImGui::ColorButton("##sw",
+                                   ImGui::ColorConvertU32ToFloat4(
+                                       colorForPointType(t)),
+                                   ImGuiColorEditFlags_NoTooltip |
+                                       ImGuiColorEditFlags_NoPicker,
+                                   ImVec2(h * 0.6f, h * 0.6f));
+                ImGui::SameLine();
+                if (ImGui::Selectable(pointTypeToString(t),
+                                      t == selectedPointType))
+                    selectedPointType = t;
+                ImGui::PopID();
             }
-            ImGui::EndCombo();
+            ImGui::EndPopup();
         }
-        ImGui::EndDisabled();
 
         // Bounds mode toggle
         ImGui::SameLine();
