@@ -294,6 +294,7 @@ namespace shoecomp
     {
         if (ImGui::BeginMenu("shoecomp"))
         {
+            ImGui::SeparatorText("Workspaces");
             if (ImGui::MenuItem("Image Viewer", nullptr,
                                 state.workspace == Workspace::Viewer))
                 state.workspace = Workspace::Viewer;
