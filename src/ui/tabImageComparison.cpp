@@ -67,6 +67,8 @@ namespace shoecomp
         renderToolbar(label);
     }
 
+    static void renderAlignmentBox(AppState& state);
+
     static void renderComparisonContent(AppState& state, float contentW,
                                         float contentH)
     {
@@ -75,11 +77,9 @@ namespace shoecomp
                           ImGuiChildFlags_None);
         {
             float totalW = ImGui::GetContentRegionAvail().x;
-            float splitterW = 8.0f;
-            float leftW =
-                totalW * state.viewerSplitRatio - splitterW * 0.5f;
-            float rightW = totalW * (1.0f - state.viewerSplitRatio) -
-                           splitterW * 0.5f;
+            float gap = ImGui::GetStyle().ItemSpacing.x;
+            float boxW = std::clamp(totalW * 0.18f, 220.0f, 340.0f);
+            float sideW = (totalW - boxW - 2.0f * gap) * 0.5f;
 
             // Snapshot targets before rendering so
             // we can detect which viewer changed.
@@ -88,7 +88,7 @@ namespace shoecomp
             ImageCanvas::ViewTargets r0 =
                 state.viewerRight->snapshotTargets();
 
-            ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
+            ImGui::BeginChild("LeftViewer", ImVec2(sideW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerLeft->renderViewerPanel(
                 state.images, state.viewerLeftIdx, state.viewerRightIdx,
@@ -97,35 +97,24 @@ namespace shoecomp
 
             ImGui::SameLine();
 
-            // Draggable splitter
-            float height = ImGui::GetContentRegionAvail().y;
-            ImGui::Button("##Splitter", ImVec2(splitterW, height));
-            if (ImGui::IsItemActive())
-            {
-                float delta = ImGui::GetIO().MouseDelta.x;
-                state.viewerSplitRatio += delta / totalW;
-                state.viewerSplitRatio =
-                    std::clamp(state.viewerSplitRatio, 0.1f, 0.9f);
-            }
-            if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-                ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+            // Alignment controls sit in a box between the viewers.
+            ImGui::BeginChild("AlignBox", ImVec2(boxW, 0),
+                              ImGuiChildFlags_Borders);
+            ImGui::PushStyleVar(
+                ImGuiStyleVar_ItemSpacing,
+                ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
+            renderAlignmentBox(state);
+            ImGui::PopStyleVar();
+            ImGui::EndChild();
 
             ImGui::SameLine();
 
-            ImGui::BeginChild("RightViewer", ImVec2(rightW, 0),
+            ImGui::BeginChild("RightViewer", ImVec2(sideW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerRight->renderViewerPanel(
                 state.images, state.viewerRightIdx, state.viewerLeftIdx,
                 state.viewerLocked, "##Right");
             ImGui::EndChild();
-
-            // Track which viewer is active for markup edits.
-            ImageCanvas2D* lc = asCanvas2D(*state.viewerLeft);
-            ImageCanvas2D* rc = asCanvas2D(*state.viewerRight);
-            if (lc && lc->viewState.isHovered)
-                state.activeComparisonViewer = 0;
-            else if (rc && rc->viewState.isHovered)
-                state.activeComparisonViewer = 1;
 
             // Apply locked sync with alignment
             // offset after both viewers render.
@@ -146,7 +135,7 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
-    static void renderComparisonDock(AppState& state)
+    static void renderAlignmentBox(AppState& state)
     {
         bool hasLeft = state.viewerLeftIdx >= 0 &&
                        state.viewerLeftIdx < (int)state.images.size();
@@ -155,10 +144,14 @@ namespace shoecomp
         bool hasBoth = hasLeft && hasRight;
         float fullW = ImGui::GetContentRegionAvail().x;
 
-        // --- Alignment section (only once both images load) ---
-        if (!hasBoth) return;
-
         ImGui::SeparatorText("Alignment");
+
+        // Alignment needs both viewers populated.
+        if (!hasBoth)
+        {
+            ImGui::TextWrapped("Select an image in each viewer.");
+            return;
+        }
 
         if (dockButton(state.viewerLocked ? "Unlock" : "Lock",
                        ImVec2(fullW, 0)))
@@ -260,37 +253,7 @@ namespace shoecomp
     void renderImageComparison(AppState& state)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
-        float splitterW = 8.0f;
-        float dockW = std::clamp(avail.x * state.dockRatio, 180.0f,
-                                 avail.x * 0.4f);
-        float contentW = avail.x - dockW - splitterW;
-
-        renderComparisonContent(state, contentW, avail.y);
-
-        // --- Right-side dock ---
-        ImGui::SameLine();
-        ImGui::Button("##DockSplitter", ImVec2(splitterW, avail.y));
-        if (ImGui::IsItemActive())
-        {
-            float delta = ImGui::GetIO().MouseDelta.x;
-            state.dockRatio -= delta / avail.x;
-            state.dockRatio = std::clamp(state.dockRatio, 0.12f, 0.4f);
-        }
-        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-
-        ImGui::SameLine();
-        ImGui::BeginChild("Dock", ImVec2(dockW, avail.y),
-                          ImGuiChildFlags_Borders);
-        // Roomier vertical rhythm so the stacked buttons don't look
-        // cramped. Pushed here (not inside the dock fn) so the early
-        // returns there can't unbalance the style stack.
-        ImGui::PushStyleVar(
-            ImGuiStyleVar_ItemSpacing,
-            ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
-        renderComparisonDock(state);
-        ImGui::PopStyleVar();
-        ImGui::EndChild();
+        renderComparisonContent(state, avail.x, avail.y);
     }
 
 }  // namespace shoecomp

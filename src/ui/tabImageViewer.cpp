@@ -10,62 +10,10 @@
 
 namespace shoecomp
 {
-    static void renderGalleryDock(AppState& state)
-    {
-        bool hasActive =
-            state.activeGalleryImage >= 0 &&
-            state.activeGalleryImage < (int)state.images.size();
-
-        // Slightly roomier vertical rhythm than the global style so
-        // the stacked buttons don't look cramped in the narrow dock.
-        ImGui::PushStyleVar(
-            ImGuiStyleVar_ItemSpacing,
-            ImVec2(ImGui::GetStyle().ItemSpacing.x, 6.0f));
-        float fullW = ImGui::GetContentRegionAvail().x;
-
-        ImageCanvas2D* active =
-            hasActive
-                ? asCanvas2D(*state.images[state.activeGalleryImage])
-                : nullptr;
-
-        // --- Analysis section (optional ONNX detection) ---
-        bool canDetect = active && active->supportsDetection();
-        bool runtimeReady = OnnxRuntime::instance().available();
-        if (canDetect)
-        {
-            ImGui::SeparatorText("Analysis");
-            ImGui::BeginDisabled(!hasActive || !runtimeReady);
-            if (dockButton("Detect Points", ImVec2(fullW, 0)))
-            {
-                if (!state.detectDialog.openFor(*active))
-                {
-                    state.detectError.show = true;
-                    state.detectError.message =
-                        "Could not start detection:\n" +
-                        std::string(state.detectDialog.statusText);
-                }
-            }
-            ImGui::EndDisabled();
-            if (!runtimeReady &&
-                ImGui::IsItemHovered(
-                    ImGuiHoveredFlags_AllowWhenDisabled))
-            {
-                ImGui::SetTooltip(
-                    "onnxruntime shared library not found.\nSee the "
-                    "README to enable automatic detection.");
-            }
-        }
-
-        ImGui::PopStyleVar();
-    }
-
     void renderImageGallery(AppState& state)
     {
         ImVec2 avail = ImGui::GetContentRegionAvail();
-        float splitterW = 8.0f;
-        float dockW = std::clamp(avail.x * state.dockRatio, 180.0f,
-                                 avail.x * 0.4f);
-        float contentW = avail.x - dockW - splitterW;
+        float contentW = avail.x;
 
         ImGui::BeginChild("GalleryArea", ImVec2(contentW, avail.y),
                           ImGuiChildFlags_None);
@@ -229,26 +177,6 @@ namespace shoecomp
             ImGui::PopStyleColor();
         }
 
-        ImGui::EndChild();
-
-        // --- Right-side dock ---
-        ImGui::SameLine();
-        ImGui::Button("##DockSplitter", ImVec2(splitterW, avail.y));
-        if (ImGui::IsItemActive())
-        {
-            // Dock is on the right: dragging right grows the content
-            // and shrinks the dock.
-            float delta = ImGui::GetIO().MouseDelta.x;
-            state.dockRatio -= delta / avail.x;
-            state.dockRatio = std::clamp(state.dockRatio, 0.12f, 0.4f);
-        }
-        if (ImGui::IsItemHovered() || ImGui::IsItemActive())
-            ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
-
-        ImGui::SameLine();
-        ImGui::BeginChild("Dock", ImVec2(dockW, avail.y),
-                          ImGuiChildFlags_Borders);
-        renderGalleryDock(state);
         ImGui::EndChild();
     }
 

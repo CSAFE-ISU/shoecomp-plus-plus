@@ -183,7 +183,6 @@ namespace shoecomp
         state.viewerLeftIdx = -1;
         state.viewerRightIdx = -1;
         state.activeGalleryImage = -1;
-        state.activeComparisonViewer = 0;
         ImageCanvas2D::annotationMode =
             ImageCanvas2D::AnnotationMode::None;
         state.viewerLocked = false;
@@ -305,6 +304,37 @@ namespace shoecomp
 
             ImGui::SeparatorText("File");
             renderFileMenu(state);
+
+            ImGui::SeparatorText("Tools");
+            {
+                bool hasActive =
+                    state.activeGalleryImage >= 0 &&
+                    state.activeGalleryImage < (int)state.images.size();
+                ImageCanvas2D* active =
+                    hasActive
+                        ? asCanvas2D(
+                              *state.images[state.activeGalleryImage])
+                        : nullptr;
+                bool canDetect = active && active->supportsDetection();
+                bool runtimeReady = OnnxRuntime::instance().available();
+                if (ImGui::MenuItem("Detect Points...", nullptr, false,
+                                    canDetect && runtimeReady))
+                {
+                    if (!state.detectDialog.openFor(*active))
+                    {
+                        state.detectError.show = true;
+                        state.detectError.message =
+                            "Could not start detection:\n" +
+                            std::string(state.detectDialog.statusText);
+                    }
+                }
+                if (!runtimeReady &&
+                    ImGui::IsItemHovered(
+                        ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip(
+                        "onnxruntime shared library not found.\nSee "
+                        "the README to enable automatic detection.");
+            }
             ImGui::EndMenu();
         }
 
