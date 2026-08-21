@@ -178,8 +178,8 @@ namespace shoecomp
     }
 
     // Active-canvas combo lists only the user-selectable kinds.
-    static const char* kActiveKindNames[] = {"ShoeCanvas", "EBTSCanvas",
-                                             "HWCanvas"};
+    static const char* kActiveKindNames[] = {
+        "Shoe prints", "Fingerprint (EBTS)", "Handwriting"};
 
     static int activeKindToIndex(ImageCanvas::Kind k)
     {
