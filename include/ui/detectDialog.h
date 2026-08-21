@@ -51,6 +51,8 @@ namespace shoecomp
         char statusText[160]{};
         bool statusIsError = false;
 
+        DetectDialog() { weightsBrowser.title = "Load ONNX Model"; }
+
         // Opens the dialog for |canvas| (which must supportDetection()
         // and hold an image). Snapshots pixels immediately. Returns
         // false and sets statusText if the readback fails.

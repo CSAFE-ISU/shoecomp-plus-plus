@@ -47,7 +47,6 @@ namespace shoecomp
         statusText[0] = '\0';
         statusIsError = false;
 
-        weightsBrowser.title = "Load ONNX Model";
         weightsBrowser.extension = ".onnx";
         weightsBrowser.extensionChoices = {".onnx"};
         weightsBrowser.loadCorrespondingJson = false;
