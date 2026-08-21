@@ -15,19 +15,32 @@ namespace shoecomp
                                 0.2f))
             return;
 
-        ImGui::TextDisabled("Minimize  Name");
-        ImGui::Separator();
-
         int popRemoveIdx = -1;
-        for (int i = 0; i < (int)images.size(); ++i)
+        if (ImGui::BeginTable(
+                "##imglist", 3,
+                ImGuiTableFlags_RowBg | ImGuiTableFlags_SizingFixedFit))
         {
-            ImGui::PushID(i);
-            if (ImGui::Button("X")) popRemoveIdx = i;
-            ImGui::SameLine();
-            ImGui::Checkbox("Minimize", &images[i]->minimized);
-            ImGui::SameLine();
-            ImGui::Text("%s", images[i]->name().c_str());
-            ImGui::PopID();
+            ImGui::TableSetupColumn("##remove",
+                                    ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Minimize",
+                                    ImGuiTableColumnFlags_WidthFixed);
+            ImGui::TableSetupColumn("Name",
+                                    ImGuiTableColumnFlags_WidthStretch);
+            ImGui::TableHeadersRow();
+
+            for (int i = 0; i < (int)images.size(); ++i)
+            {
+                ImGui::PushID(i);
+                ImGui::TableNextRow();
+                ImGui::TableSetColumnIndex(0);
+                if (ImGui::Button("X")) popRemoveIdx = i;
+                ImGui::TableSetColumnIndex(1);
+                ImGui::Checkbox("##min", &images[i]->minimized);
+                ImGui::TableSetColumnIndex(2);
+                ImGui::TextUnformatted(images[i]->name().c_str());
+                ImGui::PopID();
+            }
+            ImGui::EndTable();
         }
         if (popRemoveIdx >= 0)
         {
