@@ -113,8 +113,6 @@ namespace shoecomp
     void renderLockToggle(bool& locked);
     void renderImageGallery(AppState& state);
     void renderFilesAndSettings(AppState& state);
-    void renderSettings(AppState& state);
-    //
     void submain(void);
 } /* namespace shoecomp */
 
