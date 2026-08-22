@@ -202,11 +202,16 @@ namespace shoecomp
 
     void renderSettingsTab(SettingsState& s, ImageCanvas& activeCanvas)
     {
+        // The General section is fully deferred: theme, font scale, and
+        // active canvas are all edited into pending state and only
+        // committed by "Update Settings" below.
         static int s_pendingThemeIdx = -1;
         if (s_pendingThemeIdx < 0) s_pendingThemeIdx = s.themeIdx;
         static int s_pendingActiveKind = -1;
         if (s_pendingActiveKind < 0)
             s_pendingActiveKind = activeKindToIndex(s.activeKind);
+        static float s_pendingFontScale = -1.0f;
+        if (s_pendingFontScale < 0.0f) s_pendingFontScale = s.fontScale;
 
         float btnH = ImGui::GetFrameHeightWithSpacing() +
                      ImGui::GetStyle().ItemSpacing.y * 2;
@@ -233,20 +238,14 @@ namespace shoecomp
                 ImGui::Combo("##Theme", &s_pendingThemeIdx, themeNames);
 
                 settingsTableRow("Font Scale");
-                ImGui::SliderFloat("##FontScale", &s.fontScale, 0.5f,
-                                   4.0f, "%.2f");
-                s.fontScale = std::round(s.fontScale / 0.05f) * 0.05f;
+                ImGui::SliderFloat("##FontScale", &s_pendingFontScale,
+                                   0.5f, 4.0f, "%.2f");
+                s_pendingFontScale =
+                    std::round(s_pendingFontScale / 0.05f) * 0.05f;
 
-                // The active canvas kind applies immediately (it is a
-                // soft reset of the gallery), unlike theme/font which
-                // wait for "Update Settings".
                 settingsTableRow("Active Canvas");
-                if (ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
-                                 kActiveKindNames, 3))
-                {
-                    s.activeKind =
-                        activeIndexToKind(s_pendingActiveKind);
-                }
+                ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
+                             kActiveKindNames, 3);
 
                 ImGui::EndTable();
             }
@@ -314,12 +313,26 @@ namespace shoecomp
         if (regionW > btnW)
             ImGui::SetCursorPosX(ImGui::GetCursorPosX() +
                                  (regionW - btnW) * 0.5f);
+
+        // Nothing to commit unless a pending General value differs from
+        // what is live; disable the button so its deferred nature
+        // reads.
+        bool dirty =
+            s_pendingThemeIdx != s.themeIdx ||
+            s_pendingFontScale != s.fontScale ||
+            s_pendingActiveKind != activeKindToIndex(s.activeKind);
+        ImGui::BeginDisabled(!dirty);
         if (ImGui::Button("Update Settings", ImVec2(btnW, 0.0f)))
         {
             s.themeIdx = s_pendingThemeIdx;
+            s.fontScale = s_pendingFontScale;
+            // Committing the active kind triggers a soft reset of the
+            // gallery in applyActiveKindChange on the next frame.
+            s.activeKind = activeIndexToKind(s_pendingActiveKind);
             applyTheme(s.themeIdx);
             ImGui::GetIO().FontGlobalScale = s.fontScale;
         }
+        ImGui::EndDisabled();
     }
 
     static void* settingsReadOpen(ImGuiContext*,
