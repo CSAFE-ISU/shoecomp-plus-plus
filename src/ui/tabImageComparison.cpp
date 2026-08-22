@@ -241,13 +241,13 @@ namespace shoecomp
         {
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Rotation");
+            ImGui::TextUnformatted(u8"\u03B8");  // theta: rotation
             ImGui::TableNextColumn();
             ImGui::Text(u8"%.1f\u00B0", a.rotation / kDegToRad);
 
             ImGui::TableNextRow();
             ImGui::TableNextColumn();
-            ImGui::TextUnformatted("Translation");
+            ImGui::TextUnformatted(u8"\u0394");  // delta: translation
             ImGui::TableNextColumn();
             ImGui::Text("%.0f, %.0f", a.dx, a.dy);
 
