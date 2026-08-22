@@ -405,7 +405,7 @@ namespace shoecomp
 
     void ImageCanvas3D::renderAnnotationStyleSettings()
     {
-        ImGui::SeparatorText("Surface annotations");
+        if (!ImGui::CollapsingHeader("Annotations")) return;
         ImGui::ColorEdit4("Peak color",
                           &ImageCanvas2D::style.peakColor.x,
                           ImGuiColorEditFlags_NoInputs);
