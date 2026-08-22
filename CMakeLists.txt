@@ -123,6 +123,7 @@ set(SC_SRCS
     src/formats/jpegLoader.cpp
     src/formats/EBTSLoader.cpp
     src/formats/annotationIo.cpp
+    src/formats/x3pLoader.cpp
     src/formats/platforms.cpp
     src/main.cpp
 )
@@ -216,4 +217,8 @@ hello_imgui_add_app(shoecomp ${SC_SRCS})
 # optional onnxruntime library (empty on Windows/macOS). onnxruntime
 # itself is NOT built or linked -- it is loaded at runtime if present.
 target_link_libraries(shoecomp PRIVATE json aligncalc png_static
-                      ${CMAKE_DL_LIBS})
+                      zlibstatic ${CMAKE_DL_LIBS})
+# zlib headers (zlib.h / zconf.h) for the x3p ZIP-container reader.
+target_include_directories(shoecomp PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib
+    ${CMAKE_CURRENT_BINARY_DIR}/third_party/zlib)
