@@ -463,6 +463,34 @@ namespace shoecomp
         return params_.modelToGrid(model, col, row);
     }
 
+    bool SurfaceRenderer::readPixelsRGBA(
+        std::vector<unsigned char>& out, int& w, int& h)
+    {
+        Impl& d = *impl_;
+        if (!d.fbo || lastW_ <= 0 || lastH_ <= 0) return false;
+        w = lastW_;
+        h = lastH_;
+        out.assign((size_t)w * h * 4, 0);
+        GLint prevFbo = 0;
+        glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
+        glBindFramebuffer(GL_FRAMEBUFFER, d.fbo);
+        glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, out.data());
+        glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
+        // GL origin is bottom-left; flip rows to top-down.
+        const size_t rowBytes = (size_t)w * 4;
+        std::vector<unsigned char> tmp(rowBytes);
+        for (int y = 0; y < h / 2; ++y)
+        {
+            unsigned char* a = out.data() + (size_t)y * rowBytes;
+            unsigned char* b =
+                out.data() + (size_t)(h - 1 - y) * rowBytes;
+            std::copy(a, a + rowBytes, tmp.data());
+            std::copy(b, b + rowBytes, a);
+            std::copy(tmp.data(), tmp.data() + rowBytes, b);
+        }
+        return true;
+    }
+
     void SurfaceRenderer::releaseGL()
     {
         if (impl_) impl_->release();
@@ -484,6 +512,11 @@ namespace shoecomp
     }
     bool SurfaceRenderer::pick(int, int, const OrbitCamera&,
                                const Eigen::Affine3f&, int&, int&)
+    {
+        return false;
+    }
+    bool SurfaceRenderer::readPixelsRGBA(std::vector<unsigned char>&,
+                                         int&, int&)
     {
         return false;
     }

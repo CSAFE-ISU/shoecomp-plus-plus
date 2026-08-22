@@ -442,16 +442,11 @@ namespace shoecomp
             state.imageSaveTarget >= (int)state.images.size() ||
             state.imageSaveInProgress.load())
             return;
-        ImageCanvas2D* c2d =
-            asCanvas2D(*state.images[state.imageSaveTarget]);
-        if (!c2d) return;
-        auto& img = c2d->image;
+        ImageCanvas& canvas = *state.images[state.imageSaveTarget];
 
-        int w = img->width;
-        int h = img->height;
-        auto buffer =
-            std::make_shared<std::vector<unsigned char>>(w * h * 4);
-        if (!saveTextureRGBA(img->textureId, w, h, buffer->data()))
+        int w = 0, h = 0;
+        auto buffer = std::make_shared<std::vector<unsigned char>>();
+        if (!canvas.captureViewRGBA(*buffer, w, h) || w <= 0 || h <= 0)
             return;
 
         state.imageSaveInProgress = true;

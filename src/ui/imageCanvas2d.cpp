@@ -196,6 +196,16 @@ namespace shoecomp
         return saveAnnotationsToFile(path, image->annotations);
     }
 
+    bool ImageCanvas2D::captureViewRGBA(std::vector<unsigned char>& out,
+                                        int& w, int& h) const
+    {
+        if (!image) return false;
+        w = image->width;
+        h = image->height;
+        out.assign((size_t)w * h * 4, 0);
+        return saveTextureRGBA(image->textureId, w, h, out.data());
+    }
+
     int ImageCanvas2D::loadAnnotations(const std::string& path,
                                        std::string& err)
     {

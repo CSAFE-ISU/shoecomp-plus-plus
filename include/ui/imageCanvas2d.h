@@ -150,6 +150,9 @@ namespace shoecomp
         int loadAnnotations(const std::string& path,
                             std::string& err) override;
 
+        bool captureViewRGBA(std::vector<unsigned char>& out, int& w,
+                             int& h) const override;
+
         ViewTargets snapshotTargets() const override;
         void renderViewerPanel(
             std::vector<std::unique_ptr<ImageCanvas>>& images,

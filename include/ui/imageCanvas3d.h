@@ -94,6 +94,9 @@ namespace shoecomp
         int loadAnnotations(const std::string& path,
                             std::string& err) override;
 
+        bool captureViewRGBA(std::vector<unsigned char>& out, int& w,
+                             int& h) const override;
+
         // --- comparison API ---
         ViewTargets snapshotTargets() const override
         {

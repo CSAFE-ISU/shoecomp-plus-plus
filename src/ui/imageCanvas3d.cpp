@@ -396,6 +396,13 @@ namespace shoecomp
         return 0;
     }
 
+    bool ImageCanvas3D::captureViewRGBA(std::vector<unsigned char>& out,
+                                        int& w, int& h) const
+    {
+        return const_cast<SurfaceRenderer&>(renderer).readPixelsRGBA(
+            out, w, h);
+    }
+
     void ImageCanvas3D::renderAnnotationStyleSettings()
     {
         ImGui::SeparatorText("Surface annotations");

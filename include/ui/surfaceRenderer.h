@@ -99,6 +99,12 @@ namespace shoecomp
 
         const SurfaceModelParams& params() const { return params_; }
 
+        // Read the last-rendered frame's color buffer as top-down RGBA8
+        // (row 0 = top, matching the displayed view). Returns false if
+        // nothing has been rendered or on a non-GL build.
+        bool readPixelsRGBA(std::vector<unsigned char>& out, int& w,
+                            int& h);
+
         // Release all GPU resources (GL context must be current).
         void releaseGL();
 

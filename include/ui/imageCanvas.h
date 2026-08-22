@@ -137,6 +137,18 @@ namespace shoecomp
         // set). Save/load the current image's annotations to/from a
         // JSON file, returning 0 on success. The base leaves these
         // unsupported; ImageCanvas2D and ImageCanvas3D override them.
+        // Capture the current rendered view as top-down RGBA8 into
+        // |out| (sizing it), returning the dimensions in |w|/|h|. Used
+        // by Save PNG. The base returns false (unsupported).
+        virtual bool captureViewRGBA(std::vector<unsigned char>& out,
+                                     int& w, int& h) const
+        {
+            (void)out;
+            (void)w;
+            (void)h;
+            return false;
+        }
+
         virtual int loadImages(
             const std::string& path,
             std::vector<std::unique_ptr<ImageCanvas>>& out,
