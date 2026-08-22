@@ -247,8 +247,16 @@ namespace shoecomp
                     std::round(s_pendingFontScale / 0.05f) * 0.05f;
 
                 settingsTableRow("Active Canvas");
+#ifdef __EMSCRIPTEN__
+                // The 3D (x3p) view needs desktop OpenGL, so hide it on
+                // the web build (last entry in kActiveKindNames).
+                const int kindCount =
+                    IM_ARRAYSIZE(kActiveKindNames) - 1;
+#else
+                const int kindCount = IM_ARRAYSIZE(kActiveKindNames);
+#endif
                 ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
-                             kActiveKindNames, 4);
+                             kActiveKindNames, kindCount);
 
                 ImGui::EndTable();
             }
@@ -356,7 +364,14 @@ namespace shoecomp
         if (sscanf(line, "themeIdx=%d", &i) == 1)
             s->themeIdx = i;
         else if (sscanf(line, "activeKind=%d", &i) == 1)
+        {
             s->activeKind = (ImageCanvas::Kind)i;
+#ifdef __EMSCRIPTEN__
+            if (s->activeKind == ImageCanvas::Kind::X3P ||
+                s->activeKind == ImageCanvas::Kind::Canvas3D)
+                s->activeKind = ImageCanvas::Kind::ShoeCanvas;
+#endif
+        }
         else if (sscanf(line, "fontScale=%f", &f) == 1)
             s->fontScale = f;
         else if (sscanf(line, "cursorRadius=%f", &f) == 1)
