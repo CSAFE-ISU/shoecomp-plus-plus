@@ -45,7 +45,8 @@ namespace shoecomp
             WordStart = 7,
             WordEnd = 8,
             Intersection = 9,
-            CurveTurn = 10
+            CurveTurn = 10,
+            Peak = 11
         };
 
         // Snapshot of a viewer's animation targets, captured

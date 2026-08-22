@@ -115,6 +115,7 @@ set(SC_SRCS
     src/ui/detectDialog.cpp
     src/ui/syncViews.cpp
     src/ui/surfaceRenderer.cpp
+    src/ui/imageCanvas3d.cpp
     src/ui/splash.cpp
     src/calc/align.cpp
     src/calc/rts_align.cpp

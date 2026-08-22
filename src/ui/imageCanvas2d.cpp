@@ -60,6 +60,8 @@ namespace shoecomp
                 return "Intersection";
             case PointType::CurveTurn:
                 return "CurveTurn";
+            case PointType::Peak:
+                return "Peak";
             case PointType::Corner:
             default:
                 return "Corner";
@@ -94,6 +96,7 @@ namespace shoecomp
         if (s == "WordEnd") return PointType::WordEnd;
         if (s == "Intersection") return PointType::Intersection;
         if (s == "CurveTurn") return PointType::CurveTurn;
+        if (s == "Peak") return PointType::Peak;
         return PointType::Corner;
     }
 
@@ -1059,6 +1062,9 @@ namespace shoecomp
                 break;
             case PT::CurveTurn:
                 c = s.curveTurnColor;
+                break;
+            case PT::Peak:
+                c = s.peakColor;
                 break;
             case PT::Corner:
             default:
