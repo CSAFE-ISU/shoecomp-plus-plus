@@ -12,6 +12,9 @@ namespace shoecomp
                 return std::make_unique<EBTSCanvas>();
             case ImageCanvas::Kind::HWCanvas:
                 return std::make_unique<HWCanvas>();
+            case ImageCanvas::Kind::X3P:
+            case ImageCanvas::Kind::Canvas3D:
+                return std::make_unique<X3PImage>();
             case ImageCanvas::Kind::Canvas2D:
             default:
                 return std::make_unique<ImageCanvas2D>();

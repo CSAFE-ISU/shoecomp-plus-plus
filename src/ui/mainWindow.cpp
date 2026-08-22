@@ -185,13 +185,24 @@ namespace shoecomp
         state.activeGalleryImage = -1;
         ImageCanvas2D::annotationMode =
             ImageCanvas2D::AnnotationMode::None;
+        ImageCanvas3D::markupMode = ImageCanvas3D::Mode::None;
         state.viewerLocked = false;
         state.viewerAlignments = {AlignState{}};
         state.viewerAlignmentIdx = 0;
         state.alignEditOpen = false;
         state.alignEditPopupVisible = false;
-        state.viewerLeft = std::make_unique<ImageCanvas2D>();
-        state.viewerRight = std::make_unique<ImageCanvas2D>();
+        // Comparison viewers must match the active kind's canvas family
+        // (2D rasters vs. 3D surfaces); only same-kind pairs compare.
+        if (state.settings.activeKind == ImageCanvas::Kind::X3P)
+        {
+            state.viewerLeft = std::make_unique<ImageCanvas3D>();
+            state.viewerRight = std::make_unique<ImageCanvas3D>();
+        }
+        else
+        {
+            state.viewerLeft = std::make_unique<ImageCanvas2D>();
+            state.viewerRight = std::make_unique<ImageCanvas2D>();
+        }
 
         state.activeProto = makeCanvas(state.settings.activeKind);
         state.imageLoadBrowser.extensionChoices =

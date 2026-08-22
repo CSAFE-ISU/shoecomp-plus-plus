@@ -179,12 +179,14 @@ namespace shoecomp
 
     // Active-canvas combo lists only the user-selectable kinds.
     static const char* kActiveKindNames[] = {
-        "Shoe prints", "Fingerprint (EBTS)", "Handwriting"};
+        "Shoe prints", "Fingerprint (EBTS)", "Handwriting",
+        "3D surface (x3p)"};
 
     static int activeKindToIndex(ImageCanvas::Kind k)
     {
         if (k == ImageCanvas::Kind::EBTSCanvas) return 1;
         if (k == ImageCanvas::Kind::HWCanvas) return 2;
+        if (k == ImageCanvas::Kind::X3P) return 3;
         return 0;
     }
 
@@ -192,6 +194,7 @@ namespace shoecomp
     {
         if (idx == 1) return ImageCanvas::Kind::EBTSCanvas;
         if (idx == 2) return ImageCanvas::Kind::HWCanvas;
+        if (idx == 3) return ImageCanvas::Kind::X3P;
         return ImageCanvas::Kind::ShoeCanvas;
     }
 
@@ -245,7 +248,7 @@ namespace shoecomp
 
                 settingsTableRow("Active Canvas");
                 ImGui::Combo("##ActiveCanvas", &s_pendingActiveKind,
-                             kActiveKindNames, 3);
+                             kActiveKindNames, 4);
 
                 ImGui::EndTable();
             }

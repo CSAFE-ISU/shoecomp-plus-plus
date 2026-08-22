@@ -4,6 +4,7 @@
 #include "ui/shoeCanvas.h"
 #include "ui/ebtsCanvas.h"
 #include "ui/hwCanvas.h"
+#include "ui/imageCanvas3d.h"
 #include <memory>
 
 namespace shoecomp
