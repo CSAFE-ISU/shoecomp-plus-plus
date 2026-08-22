@@ -6,7 +6,9 @@
 #include "formats/x3pAnnotationIo.h"
 #include "imgui.h"
 #include "ui/calcHelpers.h"    // ImVec2 arithmetic operators
+#include "ui/icons.h"          // Material icon codepoints
 #include "ui/imageCanvas2d.h"  // shared AnnotationStyle (style statics)
+#include "ui/uiHelpers.h"      // kDegToRad
 
 namespace shoecomp
 {
@@ -314,37 +316,73 @@ namespace shoecomp
     {
         ImGui::PushID(toolbarId);
         ImGui::SetWindowFontScale(0.85f);
+
+        float frameH = ImGui::GetFrameHeight();
+        ImVec2 btn(frameH, frameH);
         bool hasImg = surface != nullptr;
 
+        auto iconBtn = [](const char* icon, const ImVec2& sz,
+                          const char* tip,
+                          bool allowDisabled = false) -> bool
+        {
+            ImFont* f = ImageCanvas2D::iconFont;
+            if (f) ImGui::PushFont(f);
+            bool clicked = ImGui::Button(icon, sz);
+            if (f) ImGui::PopFont();
+            ImGuiHoveredFlags hf =
+                allowDisabled ? ImGuiHoveredFlags_AllowWhenDisabled
+                              : ImGuiHoveredFlags_None;
+            if (tip && ImGui::IsItemHovered(hf))
+                ImGui::SetTooltip("%s", tip);
+            return clicked;
+        };
+        auto vsep = [&]()
+        {
+            ImGui::SameLine();
+            float sp = ImGui::GetStyle().ItemSpacing.x;
+            ImVec2 p = ImGui::GetCursorScreenPos();
+            float x = p.x + sp * 0.5f;
+            ImGui::GetWindowDrawList()->AddLine(
+                ImVec2(x, p.y + 2.0f), ImVec2(x, p.y + frameH - 2.0f),
+                ImGui::GetColorU32(ImGuiCol_Separator));
+            ImGui::Dummy(ImVec2(sp, frameH));
+            ImGui::SameLine();
+        };
+
+        // ---- Row 1: markup ----
         bool ptOn = markupMode == Mode::AddPoint;
         bool bndOn = markupMode == Mode::AddBounds;
 
-        ImGui::BeginDisabled(!hasImg);
         if (ptOn)
             ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(0.75f, 0.2f, 0.2f, 1.0f));
-        if (ImGui::Button("Peak"))
-            markupMode = ptOn ? Mode::None : Mode::AddPoint;
+                                  ImVec4(0.8f, 0.2f, 0.2f, 0.7f));
+        ImGui::PushStyleColor(ImGuiCol_Text,
+                              ImageCanvas2D::style.peakColor);
+        bool ptClick =
+            iconBtn(ICON_MD_FIBER_MANUAL_RECORD, btn,
+                    "Place Peak points: click a surface point.\n"
+                    "Shift+click removes the nearest.");
+        ImGui::PopStyleColor();
         if (ptOn) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Place Peak points: click a surface point; "
-                "Shift+click to remove");
+        if (ptClick) markupMode = ptOn ? Mode::None : Mode::AddPoint;
 
         ImGui::SameLine();
         if (bndOn)
             ImGui::PushStyleColor(ImGuiCol_Button,
-                                  ImVec4(0.2f, 0.6f, 0.2f, 1.0f));
-        if (ImGui::Button("Bounds"))
-            markupMode = bndOn ? Mode::None : Mode::AddBounds;
+                                  ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
+        bool bndClick =
+            iconBtn(ICON_MD_CROP_SQUARE, btn,
+                    "Mark a boundary: click points around a region.");
         if (bndOn) ImGui::PopStyleColor();
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Mark a boundary: click points around a region");
+        if (bndClick) markupMode = bndOn ? Mode::None : Mode::AddBounds;
 
-        ImGui::SameLine();
-        if (ImGui::Button("Undo") && surface &&
-            surface->annotations.isObject())
+        vsep();
+
+        ImGui::BeginDisabled(!hasImg);
+        bool undoClick =
+            iconBtn(ICON_MD_UNDO, btn,
+                    "Undo the last point / bounds vertex", true);
+        if (undoClick && surface && surface->annotations.isObject())
         {
             const char* key =
                 (markupMode == Mode::AddBounds) ? "bounds" : "points";
@@ -355,20 +393,57 @@ namespace shoecomp
             }
         }
         ImGui::SameLine();
-        if (ImGui::Button("Clear") && surface &&
-            surface->annotations.isObject())
+        bool clearClick = iconBtn(ICON_MD_DELETE, btn,
+                                  "Clear all points and bounds", true);
+        if (clearClick && surface && surface->annotations.isObject())
         {
             surface->annotations["points"].setArray();
             surface->annotations["bounds"].setArray();
         }
         ImGui::EndDisabled();
 
+        // ---- Row 2: view + numeric rotation ----
+        if (iconBtn(ICON_MD_HOME, btn, "Reset view (home)"))
+            resetView();
         ImGui::SameLine();
-        if (ImGui::Button("Reset view")) resetView();
+        if (iconBtn(ICON_MD_ZOOM_IN, btn, "Zoom in"))
+            camera.distance =
+                std::clamp(camera.distance * 0.9f, 0.05f, 30.0f);
+        ImGui::SameLine();
+        if (iconBtn(ICON_MD_ZOOM_OUT, btn, "Zoom out"))
+            camera.distance =
+                std::clamp(camera.distance * 1.111f, 0.05f, 30.0f);
+
+        vsep();
+
+        float itemW = ImGui::CalcTextSize("-360.0__").x;
+        float yawDeg = std::fmod(camera.yaw / kDegToRad, 360.0f);
+        if (yawDeg > 180.0f) yawDeg -= 360.0f;
+        if (yawDeg < -180.0f) yawDeg += 360.0f;
+        ImGui::SetNextItemWidth(itemW);
+        if (ImGui::InputFloat("##yaw", &yawDeg, 0.0f, 0.0f, "%.1f",
+                              ImGuiInputTextFlags_EnterReturnsTrue))
+            camera.yaw = yawDeg * kDegToRad;
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Reset camera. Drag=orbit, wheel=zoom, "
-                "Ctrl/Right/Middle-drag=pan");
+            ImGui::SetTooltip("Azimuth (degrees)");
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(u8"\u00B0");
+
+        ImGui::SameLine();
+        float pitchDeg = camera.pitch / kDegToRad;
+        ImGui::SetNextItemWidth(itemW);
+        if (ImGui::InputFloat("##pitch", &pitchDeg, 0.0f, 0.0f, "%.1f",
+                              ImGuiInputTextFlags_EnterReturnsTrue))
+        {
+            pitchDeg = std::clamp(pitchDeg, -83.0f, 83.0f);
+            camera.pitch = pitchDeg * kDegToRad;
+        }
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Elevation (degrees)");
+        ImGui::SameLine();
+        ImGui::AlignTextToFramePadding();
+        ImGui::TextUnformatted(u8"\u00B0");
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::PopID();
