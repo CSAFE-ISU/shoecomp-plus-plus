@@ -1,5 +1,38 @@
 #include "calc/onnxRuntime.h"
 
+#ifdef __EMSCRIPTEN__
+
+// The web (Emscripten) build cannot load a native onnxruntime shared
+// library at runtime (no dlopen/LoadLibrary, no /proc/self/exe), so the
+// detection feature is compiled out entirely and every entry point
+// reports the runtime as unavailable.
+namespace shoecomp
+{
+    OnnxRuntime& OnnxRuntime::instance()
+    {
+        static OnnxRuntime inst;
+        return inst;
+    }
+
+    bool OnnxRuntime::ensureLoaded()
+    {
+        triedLoad_ = true;
+        available_ = false;
+        lastError_ = "web version does not support onnxRuntime";
+        return false;
+    }
+
+    bool runYoloDetection(const std::string&, const DetectionInput&,
+                          std::vector<Detection>&, std::string& err,
+                          const std::atomic<bool>*)
+    {
+        err = "web version does not support onnxRuntime";
+        return false;
+    }
+}  // namespace shoecomp
+
+#else  // !__EMSCRIPTEN__
+
 #include "onnxruntime/onnxruntime_c_api.h"
 
 #include <algorithm>
@@ -604,3 +637,5 @@ namespace shoecomp
         return true;
     }
 }  // namespace shoecomp
+
+#endif  // __EMSCRIPTEN__
