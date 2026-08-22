@@ -189,6 +189,8 @@ namespace shoecomp
         state.viewerLocked = false;
         state.viewerAlignments = {AlignState{}};
         state.viewerAlignmentIdx = 0;
+        state.viewerAlignments3D = {Align3DState{}};
+        state.viewerAlignmentIdx3D = 0;
         state.alignEditOpen = false;
         state.alignEditPopupVisible = false;
         // Comparison viewers must match the active kind's canvas family
@@ -497,19 +499,41 @@ namespace shoecomp
         }
     }
 
+    static jt::Json vec3ToJson(const Eigen::Vector3f& v)
+    {
+        jt::Json arr;
+        arr.setArray();
+        arr.getArray().push_back(jt::Json((double)v.x()));
+        arr.getArray().push_back(jt::Json((double)v.y()));
+        arr.getArray().push_back(jt::Json((double)v.z()));
+        return arr;
+    }
+
     static void onAlignmentSaveOk(AppState& state,
                                   const std::string& fullPath)
     {
-        auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
         jt::Json obj;
         obj.setObject();
-        obj["mode"] = jt::Json(
-            a.mode == AlignMode::Manual ? "Manual" : "Automatic");
-        obj["rotation"] = jt::Json((double)a.rotation);
-        obj["dx"] = jt::Json((double)a.dx);
-        obj["dy"] = jt::Json((double)a.dy);
-        obj["scale"] = jt::Json((double)a.scale);
-        obj["info"] = a.info;
+        if (state.viewerLeft && state.viewerLeft->is3D())
+        {
+            auto& a =
+                state.viewerAlignments3D[state.viewerAlignmentIdx3D];
+            obj["translation"] = vec3ToJson(a.translation);
+            obj["rotationDeg"] = vec3ToJson(a.rotationDeg);
+            obj["scale"] = jt::Json((double)a.scale);
+            obj["info"] = a.info;
+        }
+        else
+        {
+            auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
+            obj["mode"] = jt::Json(
+                a.mode == AlignMode::Manual ? "Manual" : "Automatic");
+            obj["rotation"] = jt::Json((double)a.rotation);
+            obj["dx"] = jt::Json((double)a.dx);
+            obj["dy"] = jt::Json((double)a.dy);
+            obj["scale"] = jt::Json((double)a.scale);
+            obj["info"] = a.info;
+        }
 
         std::ofstream ofs(fullPath);
         if (!ofs)

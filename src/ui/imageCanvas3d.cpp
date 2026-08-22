@@ -13,6 +13,30 @@ namespace shoecomp
     ImageCanvas3D::Mode ImageCanvas3D::markupMode =
         ImageCanvas3D::Mode::None;
 
+    Eigen::Affine3f Align3DState::matrix() const
+    {
+        const float d2r = 3.14159265358979323846f / 180.0f;
+        Eigen::Affine3f m = Eigen::Affine3f::Identity();
+        m.translate(translation);
+        m.rotate(Eigen::AngleAxisf(rotationDeg.z() * d2r,
+                                   Eigen::Vector3f::UnitZ()));
+        m.rotate(Eigen::AngleAxisf(rotationDeg.y() * d2r,
+                                   Eigen::Vector3f::UnitY()));
+        m.rotate(Eigen::AngleAxisf(rotationDeg.x() * d2r,
+                                   Eigen::Vector3f::UnitX()));
+        m.scale(scale != 0.0f ? scale : 1.0f);
+        return m;
+    }
+
+    void ImageCanvas3D::sync3DCameras(ImageCanvas3D& other, bool locked)
+    {
+        if (!locked) return;
+        if (cameraDirty)
+            other.camera = camera;
+        else if (other.cameraDirty)
+            camera = other.camera;
+    }
+
     ImageCanvas3D::ImageCanvas3D() = default;
     ImageCanvas3D::ImageCanvas3D(std::shared_ptr<Surface3D> surf)
         : surface(std::move(surf))
@@ -424,7 +448,7 @@ namespace shoecomp
         {
             ImGui::BeginChild("##cvs3d", ImVec2(0, canvasH),
                               ImGuiChildFlags_None);
-            renderCanvas("##canvas3d");
+            render3DView("##canvas3d", compareXform, true);
             ImGui::EndChild();
         }
         renderToolbar(label);

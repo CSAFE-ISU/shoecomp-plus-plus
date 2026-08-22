@@ -1,5 +1,6 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas2d.h"
+#include "ui/imageCanvas3d.h"
 #include "ui/uiHelpers.h"
 #include <algorithm>
 #include <cmath>
@@ -91,6 +92,23 @@ namespace shoecomp
             ImageCanvas::ViewTargets r0 =
                 state.viewerRight->snapshotTargets();
 
+            bool is3D = state.viewerLeft && state.viewerLeft->is3D();
+            if (is3D)
+            {
+                ImageCanvas3D* L = asCanvas3D(*state.viewerLeft);
+                ImageCanvas3D* R = asCanvas3D(*state.viewerRight);
+                if (L) L->compareXform = Eigen::Affine3f::Identity();
+                if (R)
+                    R->compareXform =
+                        (state.viewerLocked &&
+                         !state.viewerAlignments3D.empty())
+                            ? state
+                                  .viewerAlignments3D
+                                      [state.viewerAlignmentIdx3D]
+                                  .matrix()
+                            : Eigen::Affine3f::Identity();
+            }
+
             ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerLeft->renderViewerPanel(
@@ -156,9 +174,16 @@ namespace shoecomp
                 state.viewerLocked, "##Right");
             ImGui::EndChild();
 
-            // Apply locked sync with alignment
-            // offset after both viewers render.
-            if (state.viewerLocked && !state.alignEditPopupVisible)
+            if (is3D)
+            {
+                if (state.viewerLocked)
+                {
+                    ImageCanvas3D* L = asCanvas3D(*state.viewerLeft);
+                    ImageCanvas3D* R = asCanvas3D(*state.viewerRight);
+                    if (L && R) L->sync3DCameras(*R, true);
+                }
+            }
+            else if (state.viewerLocked && !state.alignEditPopupVisible)
             {
                 state.viewerLeft->syncPair(
                     *state.viewerRight, l0, r0,
@@ -175,8 +200,99 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    static void render3DAlignBox(AppState& state)
+    {
+        float fullW = ImGui::GetContentRegionAvail().x;
+        float halfW = (fullW - ImGui::GetStyle().ItemSpacing.x) * 0.5f;
+
+        ImGui::SeparatorText("Alignment");
+
+        bool hasLeft = state.viewerLeftIdx >= 0 &&
+                       state.viewerLeftIdx < (int)state.images.size();
+        bool hasRight = state.viewerRightIdx >= 0 &&
+                        state.viewerRightIdx < (int)state.images.size();
+        if (!(hasLeft && hasRight))
+        {
+            ImGui::TextWrapped("Select an image in each viewer.");
+            return;
+        }
+
+        if (dockButton(state.viewerLocked ? "Unlock" : "Lock",
+                       ImVec2(fullW, 0)))
+            state.viewerLocked = !state.viewerLocked;
+
+        ImGui::BeginDisabled(!state.viewerLocked);
+        if (dockButton("Save Alignment", ImVec2(fullW, 0)))
+        {
+            state.alignmentSaveBrowser.show = true;
+            state.alignmentSaveBrowser.dirNeedsRefresh = true;
+            state.alignmentSaveBrowser.fileName.clear();
+        }
+        ImGui::EndDisabled();
+
+        if (!state.viewerLocked) return;
+
+        ImGui::Spacing();
+        Align3DState& a =
+            state.viewerAlignments3D[state.viewerAlignmentIdx3D];
+        ImGui::Text("Alignment %d/%d", state.viewerAlignmentIdx3D + 1,
+                    (int)state.viewerAlignments3D.size());
+
+        ImGui::SetNextItemWidth(fullW);
+        ImGui::DragFloat3("##t3d", a.translation.data(), 0.005f, -5.0f,
+                          5.0f, "%.3f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Translate (model units)");
+        ImGui::SetNextItemWidth(fullW);
+        ImGui::DragFloat3("##r3d", a.rotationDeg.data(), 0.5f, -180.0f,
+                          180.0f, u8"%.1f°");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("Rotate (degrees)");
+        ImGui::SetNextItemWidth(fullW);
+        ImGui::DragFloat("##s3d", &a.scale, 0.01f, 0.1f, 5.0f, "%.2f");
+        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale");
+
+        ImGui::Spacing();
+        bool navDisabled = (int)state.viewerAlignments3D.size() <= 1;
+        if (navDisabled) ImGui::BeginDisabled();
+        if (dockButton("<", ImVec2(halfW, 0)) &&
+            state.viewerAlignmentIdx3D > 0)
+            state.viewerAlignmentIdx3D--;
+        ImGui::SameLine();
+        if (dockButton(">", ImVec2(halfW, 0)) &&
+            state.viewerAlignmentIdx3D <
+                (int)state.viewerAlignments3D.size() - 1)
+            state.viewerAlignmentIdx3D++;
+        if (navDisabled) ImGui::EndDisabled();
+
+        if (dockButton("Add", ImVec2(halfW, 0)))
+        {
+            state.viewerAlignments3D.push_back(Align3DState{});
+            state.viewerAlignmentIdx3D =
+                (int)state.viewerAlignments3D.size() - 1;
+        }
+        ImGui::SameLine();
+        if (navDisabled) ImGui::BeginDisabled();
+        if (dockButton("Delete", ImVec2(halfW, 0)))
+        {
+            int idx = state.viewerAlignmentIdx3D;
+            state.viewerAlignments3D.erase(
+                state.viewerAlignments3D.begin() + idx);
+            if (idx >= (int)state.viewerAlignments3D.size())
+                idx = (int)state.viewerAlignments3D.size() - 1;
+            state.viewerAlignmentIdx3D = idx;
+        }
+        if (navDisabled) ImGui::EndDisabled();
+    }
+
     static void renderAlignmentBox(AppState& state)
     {
+        if (state.viewerLeft && state.viewerLeft->is3D())
+        {
+            render3DAlignBox(state);
+            return;
+        }
+
         bool hasLeft = state.viewerLeftIdx >= 0 &&
                        state.viewerLeftIdx < (int)state.images.size();
         bool hasRight = state.viewerRightIdx >= 0 &&

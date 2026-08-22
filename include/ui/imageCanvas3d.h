@@ -12,6 +12,18 @@
 
 namespace shoecomp
 {
+    // Manual 3D alignment for the comparison workspace. See
+    // .claude/x3p-notes.md.
+    struct Align3DState
+    {
+        Eigen::Vector3f translation = Eigen::Vector3f::Zero();
+        Eigen::Vector3f rotationDeg = Eigen::Vector3f::Zero();
+        float scale = 1.0f;
+        jt::Json info;
+
+        Eigen::Affine3f matrix() const;
+    };
+
     // Base for 3D surface canvases. Owns the Surface3D (shared, like
     // ImageCanvas2D::ImageData), an orbit camera, and an OpenGL
     // SurfaceRenderer. Implements the ImageCanvas interface with an
@@ -35,6 +47,10 @@ namespace shoecomp
         // The surface the renderer's GPU mesh was last built from, so
         // shared viewers rebuild only when their selection changes.
         const Surface3D* meshSource = nullptr;
+
+        // Model transform for the comparison-viewer path (identity in
+        // the gallery).
+        Eigen::Affine3f compareXform = Eigen::Affine3f::Identity();
 
         // Shared markup mode (mirrors ImageCanvas2D's static markup
         // state), reset on active-kind change.
@@ -113,6 +129,10 @@ namespace shoecomp
         // projection).
         Eigen::Vector3f modelPosOf(int col, int row) const;
         void ensureMesh();  // (re)build GPU mesh if the surface changed
+
+        // Copy the orbit camera to/from |other| toward whichever side
+        // moved it this frame (when locked).
+        void sync3DCameras(ImageCanvas3D& other, bool locked);
 
        private:
         void addAnnotation(int col, int row);

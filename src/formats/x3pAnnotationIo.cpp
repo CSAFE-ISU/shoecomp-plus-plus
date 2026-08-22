@@ -16,8 +16,6 @@ namespace shoecomp
         return 0;
     }
 
-    // Every point/bound stores the physical coordinates {x,y,z} and the
-    // grid anchor {col,row}; points additionally carry a "type".
     static bool validElement(const jt::Json& el, bool wantType)
     {
         if (!el.isObject()) return false;
@@ -29,7 +27,6 @@ namespace shoecomp
         {
             if (!el.contains("type") || !el["type"].isString())
                 return false;
-            // Peak is the only annotation type for x3p surfaces.
             if (el["type"].getString() != "Peak") return false;
         }
         return true;

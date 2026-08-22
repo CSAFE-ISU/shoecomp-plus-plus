@@ -14,6 +14,7 @@
 #include "ui/loadBrowser.h"
 #include "ui/saveBrowser.h"
 #include "ui/imageCanvas2d.h"
+#include "ui/imageCanvas3d.h"
 #include "ui/imageListDialog.h"
 #include "ui/alignDialog.h"
 #include "ui/detectDialog.h"
@@ -60,6 +61,9 @@ namespace shoecomp
         bool viewerLocked = false;
         std::vector<AlignState> viewerAlignments{AlignState{}};
         int viewerAlignmentIdx = 0;
+        // Manual 3D alignments (active-kind is a 3D surface).
+        std::vector<Align3DState> viewerAlignments3D{Align3DState{}};
+        int viewerAlignmentIdx3D = 0;
 
         // Active gallery image (last-focused
         // window, -1 = none)
