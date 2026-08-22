@@ -140,14 +140,14 @@ namespace shoecomp
         // count loaded, or -1 and sets `err` on failure / unsupported
         // format. Acts as a prototype/factory: does not mutate `this`.
         // The base (Canvas2D) accepts PNG only; subclasses widen this.
-        virtual int loadImages(
-            const std::string& path,
-            std::vector<std::unique_ptr<ImageCanvas>>& out,
-            std::string& err) const;
+        int loadImages(const std::string& path,
+                       std::vector<std::unique_ptr<ImageCanvas>>& out,
+                       std::string& err) const override;
 
-        // Annotation persistence is uniform (JSON) across all kinds.
-        int saveAnnotations(const std::string& path) const;
-        int loadAnnotations(const std::string& path, std::string& err);
+        // Annotation persistence is uniform (JSON) across 2D kinds.
+        int saveAnnotations(const std::string& path) const override;
+        int loadAnnotations(const std::string& path,
+                            std::string& err) override;
 
         ViewTargets snapshotTargets() const override;
         void renderViewerPanel(

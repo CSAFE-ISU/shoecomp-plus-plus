@@ -8,9 +8,10 @@
 
 namespace shoecomp
 {
-    // Construct a fresh 2D canvas of the given kind. Unknown/Canvas2D
-    // falls back to a plain ImageCanvas2D.
-    std::unique_ptr<ImageCanvas2D> makeCanvas(ImageCanvas::Kind kind);
+    // Construct a fresh canvas of the given kind (returned by base
+    // pointer so both 2D and 3D kinds flow through the same active-kind
+    // pipeline). Unknown/Canvas2D falls back to a plain ImageCanvas2D.
+    std::unique_ptr<ImageCanvas> makeCanvas(ImageCanvas::Kind kind);
 }  // namespace shoecomp
 
 #endif

@@ -2,7 +2,7 @@
 
 namespace shoecomp
 {
-    std::unique_ptr<ImageCanvas2D> makeCanvas(ImageCanvas::Kind kind)
+    std::unique_ptr<ImageCanvas> makeCanvas(ImageCanvas::Kind kind)
     {
         switch (kind)
         {

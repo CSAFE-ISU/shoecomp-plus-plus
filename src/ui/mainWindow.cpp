@@ -461,12 +461,12 @@ namespace shoecomp
         if (state.annotationFileTarget < 0 ||
             state.annotationFileTarget >= (int)state.images.size())
             return;
-        ImageCanvas2D* c2d =
-            asCanvas2D(*state.images[state.annotationFileTarget]);
-        if (!c2d) return;
+        // saveAnnotations/loadAnnotations are on the base interface, so
+        // this works for any canvas kind (2D rasters and 3D surfaces).
+        ImageCanvas& canvas = *state.images[state.annotationFileTarget];
         if (state.annotationFileSave)
         {
-            if (c2d->saveAnnotations(fullPath) != 0)
+            if (canvas.saveAnnotations(fullPath) != 0)
             {
                 state.annotationError.show = true;
                 state.annotationError.message =
@@ -478,7 +478,7 @@ namespace shoecomp
         else
         {
             std::string annErr;
-            if (c2d->loadAnnotations(fullPath, annErr) != 0)
+            if (canvas.loadAnnotations(fullPath, annErr) != 0)
             {
                 state.annotationError.show = true;
                 state.annotationError.message = annErr;

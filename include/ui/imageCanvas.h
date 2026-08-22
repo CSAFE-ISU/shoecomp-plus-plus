@@ -28,7 +28,9 @@ namespace shoecomp
             Canvas2D,
             ShoeCanvas,
             EBTSCanvas,
-            HWCanvas
+            HWCanvas,
+            Canvas3D,
+            X3P
         };
 
         enum class PointType : uint8_t
@@ -101,6 +103,10 @@ namespace shoecomp
         // 2D Kind (Canvas2D / ShoeCanvas / EBTSCanvas).
         virtual bool is2D() const { return false; }
 
+        // True for any canvas in the ImageCanvas3D family (x3p
+        // surfaces). Used by asCanvas3D() to narrow safely.
+        virtual bool is3D() const { return false; }
+
         // --- Optional ONNX detection interface ---
         // Whether this canvas kind can run automatic point detection.
         // Kinds that support it also override detectionSpec(). The
@@ -123,6 +129,35 @@ namespace shoecomp
         virtual void resetView() = 0;
         virtual void renderCanvas(const char* canvasId) = 0;
         virtual void renderToolbar(const char* toolbarId) = 0;
+
+        // --- Load / annotation persistence (generic across kinds) ---
+        // Prototype/factory: parse |path|, append the constructed
+        // canvas(es) to |out|, and return the count (or -1 with |err|
+        // set). Save/load the current image's annotations to/from a
+        // JSON file, returning 0 on success. The base leaves these
+        // unsupported; ImageCanvas2D and ImageCanvas3D override them.
+        virtual int loadImages(
+            const std::string& path,
+            std::vector<std::unique_ptr<ImageCanvas>>& out,
+            std::string& err) const
+        {
+            (void)path;
+            (void)out;
+            err = "loading is not supported for this canvas kind";
+            return -1;
+        }
+        virtual int saveAnnotations(const std::string& path) const
+        {
+            (void)path;
+            return -1;
+        }
+        virtual int loadAnnotations(const std::string& path,
+                                    std::string& err)
+        {
+            (void)path;
+            err = "annotations are not supported for this canvas kind";
+            return -1;
+        }
 
         // --- Comparison-viewer interface ---
         // These operate on `this` viewer plus a same-Kind partner.

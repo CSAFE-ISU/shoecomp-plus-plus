@@ -54,7 +54,7 @@ namespace shoecomp
         // supplies the file-picker extension list. Rebuilt on tag
         // change. `lastActiveKind` tracks the applied kind so a change
         // in settings triggers the soft reset.
-        std::unique_ptr<ImageCanvas2D> activeProto;
+        std::unique_ptr<ImageCanvas> activeProto;
         ImageCanvas::Kind lastActiveKind =
             ImageCanvas::Kind::ShoeCanvas;
         bool viewerLocked = false;
