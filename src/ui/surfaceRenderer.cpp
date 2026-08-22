@@ -229,18 +229,8 @@ namespace shoecomp
             "in float vT;\n"
             "out vec4 FragColor;\n"
             "uniform vec3 uLightDir;\n"
-            "vec3 viridis(float t){\n"
-            "  const vec3 c0=vec3(0.2777,0.0054,0.3341);\n"
-            "  const vec3 c1=vec3(0.1051,1.4046,1.3846);\n"
-            "  const vec3 c2=vec3(-0.3309,0.2148,0.0951);\n"
-            "  const vec3 c3=vec3(-4.6342,-5.7991,-19.3324);\n"
-            "  const vec3 c4=vec3(6.2283,14.1799,56.6906);\n"
-            "  const vec3 c5=vec3(4.7764,-13.7451,-65.3530);\n"
-            "  const vec3 c6=vec3(-5.4355,4.6459,26.3124);\n"
-            "  return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*(c5+t*c6)))));\n"
-            "}\n"
             "void main(){\n"
-            "  vec3 base = viridis(clamp(vT,0.0,1.0));\n"
+            "  vec3 base = vec3(0.902, 0.749, 0.596);\n"
             "  vec3 n = normalize(vNormal);\n"
             "  float d = abs(dot(n, normalize(uLightDir)));\n"
             "  float amb = 0.35;\n"
@@ -404,7 +394,7 @@ namespace shoecomp
 
         glBindFramebuffer(GL_FRAMEBUFFER, d.fbo);
         glViewport(0, 0, w, h);
-        glClearColor(0.10f, 0.11f, 0.13f, 1.0f);
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
