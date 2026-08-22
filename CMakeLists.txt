@@ -126,6 +126,7 @@ set(SC_SRCS
     src/formats/EBTSLoader.cpp
     src/formats/annotationIo.cpp
     src/formats/x3pLoader.cpp
+    src/formats/x3pAnnotationIo.cpp
     src/formats/platforms.cpp
     src/main.cpp
 )

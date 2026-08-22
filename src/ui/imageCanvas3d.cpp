@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 
+#include "formats/x3pAnnotationIo.h"
 #include "imgui.h"
 #include "ui/calcHelpers.h"    // ImVec2 arithmetic operators
 #include "ui/imageCanvas2d.h"  // shared AnnotationStyle (style statics)
@@ -347,6 +348,28 @@ namespace shoecomp
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::PopID();
+    }
+
+    int ImageCanvas3D::saveAnnotations(const std::string& path) const
+    {
+        if (!surface) return -1;
+        return saveX3PAnnotations(path, surface->annotations);
+    }
+
+    int ImageCanvas3D::loadAnnotations(const std::string& path,
+                                       std::string& err)
+    {
+        if (!surface)
+        {
+            err = "No surface loaded.";
+            return -1;
+        }
+        if (loadX3PAnnotations(path, surface->annotations) != 0)
+        {
+            err = "Failed to load annotations from:\n" + path;
+            return -1;
+        }
+        return 0;
     }
 
     void ImageCanvas3D::renderAnnotationStyleSettings()

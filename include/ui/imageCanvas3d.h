@@ -73,6 +73,11 @@ namespace shoecomp
         void renderCanvas(const char* canvasId) override;
         void renderToolbar(const char* toolbarId) override;
 
+        // --- annotation persistence (both {x,y,z} + {col,row}) ---
+        int saveAnnotations(const std::string& path) const override;
+        int loadAnnotations(const std::string& path,
+                            std::string& err) override;
+
         // --- comparison API ---
         ViewTargets snapshotTargets() const override
         {
