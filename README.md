@@ -14,6 +14,37 @@ and comparisons.
 [hello1]: https://github.com/pthom/hello_imgui/
 [hello2]: https://github.com/pthom/hello_imgui_template/
 
+## 3D surface topography (x3p)
+
+Besides 2D raster images, `shoecomp` can load and view **x3p**
+surface-topography files (ISO 25178-72 / ISO5436_2) as interactive lit
+3D surfaces. Pick **3D surface (x3p)** as the active canvas in *Settings
+> Active Canvas*, then load a `.x3p` file.
+
+- **Supported layout:** the common **SUR** case — incremental X/Y axes
+  with an absolute Z axis, so the height data is a dense matrix. Float
+  (`F`/`D`) and integer (`I`/`L`) data types are read; invalid samples
+  become holes. Non-conforming files fail with a clear message rather
+  than a guess.
+- **View:** a height-colormapped (viridis), Lambert-lit mesh with an
+  orbit camera — **drag** to orbit, **wheel** to zoom,
+  **Ctrl/Right/Middle-drag** to pan. Place **Peak** points and **bounds**
+  polygons by clicking the surface (Shift+click removes).
+- **Annotations** save to JSON with both the physical coordinates
+  (metres, `{x,y,z}`) and the grid index (`{col,row}`, the re-load
+  anchor).
+- **Comparison:** load two surfaces side by side, **Lock** to sync the
+  orbit cameras, and adjust a **manual alignment** (translate / rotate /
+  scale) so the two register; alignments save to JSON. *Automatic 3D
+  registration is planned future work.*
+- **Save PNG** captures the current 3D view.
+
+The 3D **view** requires a desktop **OpenGL** backend (the default on
+Windows / macOS / Linux). On other backends (web/WebGL2, Metal, DX11) the
+view shows a "3D view not available on this build" placeholder, but x3p
+loading and JSON annotation save/load still work. The ZIP container is
+read with the vendored **zlib** submodule; no new dependencies are added.
+
 ## Optional automatic point detection (ONNX Runtime)
 
 `shoecomp` can run a YOLO-style object-detection model on the active
