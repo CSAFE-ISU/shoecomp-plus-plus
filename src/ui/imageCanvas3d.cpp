@@ -6,6 +6,7 @@
 #include "formats/x3pAnnotationIo.h"
 #include "imgui.h"
 #include "ui/calcHelpers.h"    // ImVec2 arithmetic operators
+#include "ui/eulerAngles.h"    // shared pitch/yaw/roll convention
 #include "ui/icons.h"          // Material icon codepoints
 #include "ui/imageCanvas2d.h"  // shared AnnotationStyle (style statics)
 #include "ui/uiHelpers.h"      // kDegToRad
@@ -17,15 +18,10 @@ namespace shoecomp
 
     Eigen::Affine3f Align3DState::matrix() const
     {
-        const float d2r = 3.14159265358979323846f / 180.0f;
         Eigen::Affine3f m = Eigen::Affine3f::Identity();
         m.translate(translation);
-        m.rotate(Eigen::AngleAxisf(rotationDeg.z() * d2r,
-                                   Eigen::Vector3f::UnitZ()));
-        m.rotate(Eigen::AngleAxisf(rotationDeg.y() * d2r,
-                                   Eigen::Vector3f::UnitY()));
-        m.rotate(Eigen::AngleAxisf(rotationDeg.x() * d2r,
-                                   Eigen::Vector3f::UnitX()));
+        m.rotate(eulerToMatrix(rotationDeg.x(), rotationDeg.y(),
+                               rotationDeg.z()));
         m.scale(scale != 0.0f ? scale : 1.0f);
         return m;
     }
