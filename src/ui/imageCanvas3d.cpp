@@ -450,41 +450,52 @@ namespace shoecomp
 
         ImGuiIO& io = ImGui::GetIO();
         float dialR = frameH * 0.5f;
-        ImVec2 dialCursor = ImGui::GetCursorScreenPos();
-        ImVec2 dialCenter(dialCursor.x + dialR, dialCursor.y + dialR);
-        ImGui::InvisibleButton("##yawdial",
-                               ImVec2(dialR * 2.0f, dialR * 2.0f));
-        bool dialHov = ImGui::IsItemHovered();
-        bool dialAct = ImGui::IsItemActive();
-        if (dialHov) ImGui::SetTooltip("Drag to rotate (azimuth)");
-
-        static float dialPrevAngle = 0.0f;
-        if (dialAct)
-        {
-            float angle = atan2f(io.MousePos.y - dialCenter.y,
-                                 io.MousePos.x - dialCenter.x);
-            if (ImGui::IsItemActivated()) { dialPrevAngle = angle; }
-            else
-            {
-                const float kPi = 180.0f * kDegToRad;
-                float delta = angle - dialPrevAngle;
-                if (delta > kPi)
-                    delta -= 2.0f * kPi;
-                else if (delta < -kPi)
-                    delta += 2.0f * kPi;
-                camera.yaw += delta;
-                cameraDirty = true;
-                dialPrevAngle = angle;
-            }
-        }
-
         ImDrawList* ddl = ImGui::GetWindowDrawList();
-        ImU32 ringCol =
-            dialHov || dialAct ? kColorDialRingHover : kColorDialRing;
-        ddl->AddCircle(dialCenter, dialR, ringCol, 24, 2.0f);
-        ImVec2 dialInd = dialCenter + (direction(camera.yaw) * dialR);
-        ddl->AddLine(dialCenter, dialInd, kColorDialIndicator, 2.0f);
-        ddl->AddCircleFilled(dialInd, 3.0f, kColorDialIndicator);
+        auto rotDial = [&](const char* id, float& angleRad,
+                           const char* tip, bool clampAngle, float lo,
+                           float hi)
+        {
+            static float prevAngle = 0.0f;
+            ImVec2 c = ImGui::GetCursorScreenPos();
+            ImVec2 center(c.x + dialR, c.y + dialR);
+            ImGui::InvisibleButton(id,
+                                   ImVec2(dialR * 2.0f, dialR * 2.0f));
+            bool hov = ImGui::IsItemHovered();
+            bool act = ImGui::IsItemActive();
+            if (hov) ImGui::SetTooltip("%s", tip);
+            if (act)
+            {
+                float a = atan2f(io.MousePos.y - center.y,
+                                 io.MousePos.x - center.x);
+                if (ImGui::IsItemActivated()) { prevAngle = a; }
+                else
+                {
+                    const float kPi = 180.0f * kDegToRad;
+                    float d = a - prevAngle;
+                    if (d > kPi)
+                        d -= 2.0f * kPi;
+                    else if (d < -kPi)
+                        d += 2.0f * kPi;
+                    angleRad += d;
+                    if (clampAngle)
+                        angleRad = std::clamp(angleRad, lo, hi);
+                    cameraDirty = true;
+                    prevAngle = a;
+                }
+            }
+            ImU32 ring =
+                (hov || act) ? kColorDialRingHover : kColorDialRing;
+            ddl->AddCircle(center, dialR, ring, 24, 2.0f);
+            ImVec2 ind = center + (direction(angleRad) * dialR);
+            ddl->AddLine(center, ind, kColorDialIndicator, 2.0f);
+            ddl->AddCircleFilled(ind, 3.0f, kColorDialIndicator);
+        };
+
+        rotDial("##yawdial", camera.yaw, "Azimuth: drag to rotate",
+                false, 0.0f, 0.0f);
+        ImGui::SameLine();
+        rotDial("##pitchdial", camera.pitch, "Elevation: drag to tilt",
+                true, -1.45f, 1.45f);
         ImGui::SameLine();
 
         float itemW = ImGui::CalcTextSize("-360.0__").x;
