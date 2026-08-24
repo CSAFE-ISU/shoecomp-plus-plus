@@ -462,7 +462,10 @@ namespace shoecomp
         ImGui::SetNextItemWidth(itemW);
         if (ImGui::InputFloat("##yaw", &yawDeg, 0.0f, 0.0f, "%.1f",
                               ImGuiInputTextFlags_EnterReturnsTrue))
+        {
             camera.yaw = yawDeg * kDegToRad;
+            cameraDirty = true;
+        }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Azimuth (degrees)");
         ImGui::SameLine();
@@ -477,6 +480,7 @@ namespace shoecomp
         {
             pitchDeg = std::clamp(pitchDeg, -83.0f, 83.0f);
             camera.pitch = pitchDeg * kDegToRad;
+            cameraDirty = true;
         }
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip("Elevation (degrees)");
