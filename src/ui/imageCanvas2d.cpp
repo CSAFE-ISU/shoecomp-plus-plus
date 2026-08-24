@@ -975,13 +975,25 @@ namespace shoecomp
         bool dialAct = ImGui::IsItemActive();
         if (dialHov) ImGui::SetTooltip("Drag to rotate");
 
+        static float dialPrevAngle = 0.0f;
         if (dialAct)
         {
             ImGuiIO& dio = ImGui::GetIO();
             float angle = atan2f(dio.MousePos.y - dialCenter.y,
                                  dio.MousePos.x - dialCenter.x);
-            viewState.rotationTarget = angle;
-            viewState.rotation = angle;
+            if (ImGui::IsItemActivated()) { dialPrevAngle = angle; }
+            else
+            {
+                const float kPi = 180.0f * kDegToRad;
+                float delta = angle - dialPrevAngle;
+                if (delta > kPi)
+                    delta -= 2.0f * kPi;
+                else if (delta < -kPi)
+                    delta += 2.0f * kPi;
+                viewState.rotationTarget += delta;
+                viewState.rotation = viewState.rotationTarget;
+                dialPrevAngle = angle;
+            }
         }
 
         ImDrawList* dl = ImGui::GetWindowDrawList();
