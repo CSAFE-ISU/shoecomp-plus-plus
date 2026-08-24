@@ -604,10 +604,12 @@ namespace shoecomp
         float scaleX = avail.x / (float)image->width;
         float scaleY = avail.y / (float)image->height;
         float baseScale = std::min(scaleX, scaleY);
-        if (viewState.zoomTarget <= 0.0f)
+        if (viewState.refitRequested)
+        {
             viewState.zoomTarget = scaleX / baseScale;
-        if (viewState.zoom <= 0.0f)
             viewState.zoom = viewState.zoomTarget;
+            viewState.refitRequested = false;
+        }
 
         ImVec2 canvasPos = ImGui::GetCursorScreenPos();
 

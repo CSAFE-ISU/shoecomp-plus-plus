@@ -37,7 +37,7 @@ namespace shoecomp
                                       selected))
                 {
                     selectedIdx = i;
-                    viewState.zoom = viewState.zoomTarget = 0.0f;
+                    viewState.refitRequested = true;
                     viewState.pan = viewState.panTarget = ImVec2(0, 0);
                 }
                 if (selected) ImGui::SetItemDefaultFocus();

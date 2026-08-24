@@ -66,6 +66,10 @@ namespace shoecomp
             // button; consumed by the locked-viewer sync.
             bool homeRequested = false;
 
+            // One-shot flag: refit zoom to the canvas
+            // width on the next renderCanvas.
+            bool refitRequested = false;
+
             bool contains(const ImVec2& pt) const;
             ImVec2 canvasCenter() const;
         };
