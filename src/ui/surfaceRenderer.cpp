@@ -348,6 +348,11 @@ namespace shoecomp
     {
         SurfaceMesh mesh;
         buildSurfaceMesh(surf, mesh);
+        uploadMesh(mesh);
+    }
+
+    void SurfaceRenderer::uploadMesh(const SurfaceMesh& mesh)
+    {
         params_ = mesh.params;
         Impl& d = *impl_;
         if (!d.vao) glGenVertexArrays(1, &d.vao);
@@ -495,6 +500,7 @@ namespace shoecomp
     SurfaceRenderer::~SurfaceRenderer() = default;
     bool SurfaceRenderer::supported() { return false; }
     void SurfaceRenderer::setSurface(const Surface3D&) {}
+    void SurfaceRenderer::uploadMesh(const SurfaceMesh&) {}
     uintptr_t SurfaceRenderer::render(int, int, const OrbitCamera&,
                                       const Eigen::Affine3f&)
     {

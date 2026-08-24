@@ -44,7 +44,11 @@ namespace shoecomp
         : surface(std::move(surf))
     {
     }
-    ImageCanvas3D::~ImageCanvas3D() { renderer.releaseGL(); }
+    ImageCanvas3D::~ImageCanvas3D()
+    {
+        if (meshThread_.joinable()) meshThread_.join();
+        renderer.releaseGL();
+    }
 
     const std::string& ImageCanvas3D::name() const
     {
@@ -68,10 +72,29 @@ namespace shoecomp
 
     void ImageCanvas3D::ensureMesh()
     {
-        if (!surface) return;
+        if (!surface || !SurfaceRenderer::supported()) return;
+
+        if (meshBuilding_ && meshReady_)
+        {
+            if (meshThread_.joinable()) meshThread_.join();
+            renderer.uploadMesh(pendingMesh_);
+            pendingMesh_ = SurfaceMesh{};
+            meshBuilding_ = false;
+        }
+
         if (meshSource == surface.get()) return;
-        renderer.setSurface(*surface);
+        if (meshBuilding_) return;
+
         meshSource = surface.get();
+        meshBuilding_ = true;
+        meshReady_ = false;
+        std::shared_ptr<Surface3D> s = surface;
+        meshThread_ = std::thread(
+            [this, s]()
+            {
+                buildSurfaceMesh(*s, pendingMesh_);
+                meshReady_ = true;
+            });
     }
 
     Eigen::Vector3f ImageCanvas3D::modelPosOf(int col, int row) const
@@ -225,6 +248,15 @@ namespace shoecomp
         {
             dl->AddRectFilled(canvasPos, canvasPos + avail,
                               IM_COL32(24, 27, 31, 255));
+            if (meshBuilding_)
+            {
+                const char* msg = "Building surface...";
+                ImVec2 ts = ImGui::CalcTextSize(msg);
+                dl->AddText(
+                    ImVec2(canvasPos.x + (avail.x - ts.x) * 0.5f,
+                           canvasPos.y + (avail.y - ts.y) * 0.5f),
+                    IM_COL32(200, 200, 200, 255), msg);
+            }
         }
 
         // --- markup: click (no drag) places / removes a point ---

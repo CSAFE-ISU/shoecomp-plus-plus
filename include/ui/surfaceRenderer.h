@@ -81,6 +81,11 @@ namespace shoecomp
         // Upload |surf| as the GPU mesh (GL context must be current).
         void setSurface(const Surface3D& surf);
 
+        // Upload a pre-built mesh as the GPU mesh (GL context must be
+        // current). Lets the caller build the mesh off-thread and do
+        // only the upload here.
+        void uploadMesh(const SurfaceMesh& mesh);
+
         // Render at pixel size (w,h) with |cam|; |modelXform| is an
         // extra transform applied to the surface (identity in the
         // gallery, the alignment transform in comparison). Returns the

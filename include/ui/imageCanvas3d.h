@@ -1,8 +1,10 @@
 #ifndef SHOECOMP_UI_IMAGE_CANVAS_3D_H
 #define SHOECOMP_UI_IMAGE_CANVAS_3D_H
 
+#include <atomic>
 #include <memory>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include "aligncalc/eigen/Eigen/Geometry"
@@ -140,6 +142,14 @@ namespace shoecomp
        private:
         void addAnnotation(int col, int row);
         void removeNearestPoint(int col, int row);
+
+        // Background mesh build. buildSurfaceMesh (the ~1.5M-triangle
+        // CPU cost) runs on meshThread_ into pendingMesh_; ensureMesh
+        // uploads it to the GPU on the main/GL thread once meshReady_.
+        std::thread meshThread_;
+        std::atomic<bool> meshBuilding_{false};
+        std::atomic<bool> meshReady_{false};
+        SurfaceMesh pendingMesh_;
     };
 
     // Concrete x3p surface canvas.
