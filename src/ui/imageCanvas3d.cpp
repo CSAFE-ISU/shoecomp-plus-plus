@@ -416,6 +416,45 @@ namespace shoecomp
 
         vsep();
 
+        ImGuiIO& io = ImGui::GetIO();
+        float dialR = frameH * 0.5f;
+        ImVec2 dialCursor = ImGui::GetCursorScreenPos();
+        ImVec2 dialCenter(dialCursor.x + dialR, dialCursor.y + dialR);
+        ImGui::InvisibleButton("##yawdial",
+                               ImVec2(dialR * 2.0f, dialR * 2.0f));
+        bool dialHov = ImGui::IsItemHovered();
+        bool dialAct = ImGui::IsItemActive();
+        if (dialHov) ImGui::SetTooltip("Drag to rotate (azimuth)");
+
+        static float dialPrevAngle = 0.0f;
+        if (dialAct)
+        {
+            float angle = atan2f(io.MousePos.y - dialCenter.y,
+                                 io.MousePos.x - dialCenter.x);
+            if (ImGui::IsItemActivated()) { dialPrevAngle = angle; }
+            else
+            {
+                const float kPi = 180.0f * kDegToRad;
+                float delta = angle - dialPrevAngle;
+                if (delta > kPi)
+                    delta -= 2.0f * kPi;
+                else if (delta < -kPi)
+                    delta += 2.0f * kPi;
+                camera.yaw += delta;
+                cameraDirty = true;
+                dialPrevAngle = angle;
+            }
+        }
+
+        ImDrawList* ddl = ImGui::GetWindowDrawList();
+        ImU32 ringCol =
+            dialHov || dialAct ? kColorDialRingHover : kColorDialRing;
+        ddl->AddCircle(dialCenter, dialR, ringCol, 24, 2.0f);
+        ImVec2 dialInd = dialCenter + (direction(camera.yaw) * dialR);
+        ddl->AddLine(dialCenter, dialInd, kColorDialIndicator, 2.0f);
+        ddl->AddCircleFilled(dialInd, 3.0f, kColorDialIndicator);
+        ImGui::SameLine();
+
         float itemW = ImGui::CalcTextSize("-360.0__").x;
         float yawDeg = std::fmod(camera.yaw / kDegToRad, 360.0f);
         if (yawDeg > 180.0f) yawDeg -= 360.0f;
