@@ -12,17 +12,21 @@ namespace shoecomp
     // alignment transform. pitch = X (right), yaw = Y (up), roll = Z
     // (forward). Composed R = Rz(roll) * Ry(yaw) * Rx(pitch). Angles in
     // degrees. See .claude/x3p-notes.md for rationale.
+    inline Eigen::Matrix3f eulerToMatrixRad(float pitch, float yaw,
+                                            float roll)
+    {
+        return (Eigen::AngleAxisf(roll, Eigen::Vector3f::UnitZ()) *
+                Eigen::AngleAxisf(yaw, Eigen::Vector3f::UnitY()) *
+                Eigen::AngleAxisf(pitch, Eigen::Vector3f::UnitX()))
+            .toRotationMatrix();
+    }
+
     inline Eigen::Matrix3f eulerToMatrix(float pitchDeg, float yawDeg,
                                          float rollDeg)
     {
         const float d2r = 3.14159265358979323846f / 180.0f;
-        return (Eigen::AngleAxisf(rollDeg * d2r,
-                                  Eigen::Vector3f::UnitZ()) *
-                Eigen::AngleAxisf(yawDeg * d2r,
-                                  Eigen::Vector3f::UnitY()) *
-                Eigen::AngleAxisf(pitchDeg * d2r,
-                                  Eigen::Vector3f::UnitX()))
-            .toRotationMatrix();
+        return eulerToMatrixRad(pitchDeg * d2r, yawDeg * d2r,
+                                rollDeg * d2r);
     }
 
     // Inverse of eulerToMatrix: decompose a rotation matrix into

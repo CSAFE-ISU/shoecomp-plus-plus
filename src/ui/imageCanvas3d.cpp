@@ -209,11 +209,12 @@ namespace shoecomp
              ImGui::IsMouseDragging(ImGuiMouseButton_Right));
         if (panning)
         {
-            Eigen::Vector3f e = camera.eye();
-            Eigen::Vector3f fwd = (camera.target - e).normalized();
+            Eigen::Matrix3f R =
+                eulerToMatrixRad(camera.pitch, camera.yaw, camera.roll);
             Eigen::Vector3f right =
-                fwd.cross(Eigen::Vector3f(0, 1, 0)).normalized();
-            Eigen::Vector3f up = right.cross(fwd);
+                R.transpose() * Eigen::Vector3f(1, 0, 0);
+            Eigen::Vector3f up =
+                R.transpose() * Eigen::Vector3f(0, 1, 0);
             float k = camera.distance * 0.0016f;
             camera.target +=
                 (-io.MouseDelta.x * right + io.MouseDelta.y * up) * k;
@@ -224,7 +225,6 @@ namespace shoecomp
         {
             camera.yaw -= io.MouseDelta.x * 0.01f;
             camera.pitch += io.MouseDelta.y * 0.01f;
-            camera.pitch = std::clamp(camera.pitch, -1.45f, 1.45f);
             cameraDirty = true;
         }
 
@@ -488,7 +488,7 @@ namespace shoecomp
         };
 
         rotDial("##pitchdial", camera.pitch, "Pitch: drag to tilt",
-                true, -1.45f, 1.45f);
+                false, 0.0f, 0.0f);
         ImGui::SameLine();
         rotDial("##yawdial", camera.yaw, "Yaw: drag to rotate", false,
                 0.0f, 0.0f);

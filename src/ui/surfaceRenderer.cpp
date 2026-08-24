@@ -4,6 +4,8 @@
 #include <cmath>
 #include <cstdint>
 
+#include "ui/eulerAngles.h"
+
 // GL headers only on the OpenGL backend; everything else here is
 // deliberately GL-free so it stays testable and portable.
 #if defined(HELLOIMGUI_HAS_OPENGL)
@@ -18,34 +20,25 @@ namespace shoecomp
     // =================================================================
     Eigen::Vector3f OrbitCamera::eye() const
     {
-        float cp = std::cos(pitch), sp = std::sin(pitch);
-        float cy = std::cos(yaw), sy = std::sin(yaw);
-        Eigen::Vector3f dir(cp * sy, sp, cp * cy);
-        return target + distance * dir;
+        // Turntable: fixed viewpoint straight in front of the target
+        // (looking down -Z). The pitch/yaw/roll angles rotate the
+        // scene, not the eye.
+        return target + Eigen::Vector3f(0.0f, 0.0f, distance);
     }
 
     Eigen::Matrix4f OrbitCamera::view() const
     {
-        Eigen::Vector3f e = eye();
-        Eigen::Vector3f f = (target - e).normalized();
-        Eigen::Vector3f up(0.0f, 1.0f, 0.0f);
-        if (roll != 0.0f) up = Eigen::AngleAxisf(roll, f) * up;
-        Eigen::Vector3f s = f.cross(up).normalized();
-        Eigen::Vector3f u = s.cross(f);
-        Eigen::Matrix4f M = Eigen::Matrix4f::Identity();
-        M(0, 0) = s.x();
-        M(0, 1) = s.y();
-        M(0, 2) = s.z();
-        M(1, 0) = u.x();
-        M(1, 1) = u.y();
-        M(1, 2) = u.z();
-        M(2, 0) = -f.x();
-        M(2, 1) = -f.y();
-        M(2, 2) = -f.z();
-        M(0, 3) = -s.dot(e);
-        M(1, 3) = -u.dot(e);
-        M(2, 3) = f.dot(e);
-        return M;
+        // Rotate the scene about the target by R(pitch,yaw,roll) (the
+        // shared convention), then translate it in front of a fixed
+        // camera at distance along +Z. view = Td * R *
+        // Translate(-target).
+        Eigen::Matrix4f Rot = Eigen::Matrix4f::Identity();
+        Rot.block<3, 3>(0, 0) = eulerToMatrixRad(pitch, yaw, roll);
+        Eigen::Matrix4f Ti = Eigen::Matrix4f::Identity();
+        Ti.block<3, 1>(0, 3) = -target;
+        Eigen::Matrix4f Td = Eigen::Matrix4f::Identity();
+        Td(2, 3) = -distance;
+        return Td * Rot * Ti;
     }
 
     Eigen::Matrix4f OrbitCamera::proj(float aspect) const
