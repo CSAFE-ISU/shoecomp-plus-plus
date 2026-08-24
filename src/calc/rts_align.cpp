@@ -76,15 +76,20 @@ namespace shoecomp
         for (const auto& match : results)
         {
             tform.estimate(match, true);
+
+            double scale = params.sameScale ? 1.0 : tform.scale;
+            if (!params.sameScale && params.scaleRange > 0.0)
+            {
+                double lo = 1.0 / params.scaleRange;
+                double hi = params.scaleRange;
+                if (scale < lo || scale > hi) continue;
+            }
+
             aligns.push_back(AlignState{});
             aligns.back().rotation = tform.rotation /* in radians */;
             aligns.back().dx = tform.dx;
             aligns.back().dy = tform.dy;
-            if (params.sameScale) { aligns.back().scale = 1.0; }
-            else
-            {
-                aligns.back().scale = tform.scale;
-            }
+            aligns.back().scale = scale;
             aligns.back().mode = AlignMode::Automatic;
 
             // Store matched points in info
