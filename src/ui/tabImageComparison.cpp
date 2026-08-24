@@ -247,7 +247,7 @@ namespace shoecomp
         ImGui::DragFloat3("##r3d", a.rotationDeg.data(), 0.5f, -180.0f,
                           180.0f, u8"%.1f°");
         if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Rotate (degrees)");
+            ImGui::SetTooltip("Rotate: pitch, yaw, roll (degrees)");
         ImGui::SetNextItemWidth(fullW);
         ImGui::DragFloat("##s3d", &a.scale, 0.01f, 0.1f, 5.0f, "%.2f");
         if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale");
