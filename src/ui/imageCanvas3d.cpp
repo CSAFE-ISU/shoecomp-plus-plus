@@ -487,45 +487,14 @@ namespace shoecomp
             ddl->AddCircleFilled(ind, 3.0f, kColorDialIndicator);
         };
 
-        rotDial("##yawdial", camera.yaw, "Azimuth: drag to rotate",
-                false, 0.0f, 0.0f);
-        ImGui::SameLine();
-        rotDial("##pitchdial", camera.pitch, "Elevation: drag to tilt",
+        rotDial("##pitchdial", camera.pitch, "Pitch: drag to tilt",
                 true, -1.45f, 1.45f);
         ImGui::SameLine();
-
-        float itemW = ImGui::CalcTextSize("-360.0__").x;
-        float yawDeg = std::fmod(camera.yaw / kDegToRad, 360.0f);
-        if (yawDeg > 180.0f) yawDeg -= 360.0f;
-        if (yawDeg < -180.0f) yawDeg += 360.0f;
-        ImGui::SetNextItemWidth(itemW);
-        if (ImGui::InputFloat("##yaw", &yawDeg, 0.0f, 0.0f, "%.1f",
-                              ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-            camera.yaw = yawDeg * kDegToRad;
-            cameraDirty = true;
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Azimuth (degrees)");
+        rotDial("##yawdial", camera.yaw, "Yaw: drag to rotate", false,
+                0.0f, 0.0f);
         ImGui::SameLine();
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(u8"\u00B0");
-
-        ImGui::SameLine();
-        float pitchDeg = camera.pitch / kDegToRad;
-        ImGui::SetNextItemWidth(itemW);
-        if (ImGui::InputFloat("##pitch", &pitchDeg, 0.0f, 0.0f, "%.1f",
-                              ImGuiInputTextFlags_EnterReturnsTrue))
-        {
-            pitchDeg = std::clamp(pitchDeg, -83.0f, 83.0f);
-            camera.pitch = pitchDeg * kDegToRad;
-            cameraDirty = true;
-        }
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Elevation (degrees)");
-        ImGui::SameLine();
-        ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(u8"\u00B0");
+        rotDial("##rolldial", camera.roll, "Roll: drag to spin", false,
+                0.0f, 0.0f);
 
         ImGui::SetWindowFontScale(1.0f);
         ImGui::PopID();
