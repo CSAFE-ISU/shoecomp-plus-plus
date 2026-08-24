@@ -29,6 +29,7 @@ namespace shoecomp
         Eigen::Vector3f e = eye();
         Eigen::Vector3f f = (target - e).normalized();
         Eigen::Vector3f up(0.0f, 1.0f, 0.0f);
+        if (roll != 0.0f) up = Eigen::AngleAxisf(roll, f) * up;
         Eigen::Vector3f s = f.cross(up).normalized();
         Eigen::Vector3f u = s.cross(f);
         Eigen::Matrix4f M = Eigen::Matrix4f::Identity();
