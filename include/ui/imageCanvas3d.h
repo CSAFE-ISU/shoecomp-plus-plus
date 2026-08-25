@@ -5,6 +5,7 @@
 #include <memory>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "aligncalc/eigen/Eigen/Geometry"
@@ -40,7 +41,8 @@ namespace shoecomp
         {
             None,
             AddPoint,
-            AddBounds
+            AddBounds,
+            AddPeakRegion
         };
 
         std::shared_ptr<Surface3D> surface;
@@ -214,11 +216,28 @@ namespace shoecomp
         // Face view (orientation only) when fit; else top-down.
         void resetView() override;
 
+        // In-progress peak-region loop (grid cells, col/row), committed
+        // to surface->annotations["peaks"] on close.
+        std::vector<std::pair<int, int>> loopScratch;
+
        protected:
-        // Bullet markup row = the base point/bounds row + a
-        // Fit-cylinder button and radius/curvature readout.
+        // Bullet markup: peak-region loops only (no single points /
+        // bounds). Overrides the shared markup seams.
+        void handleMarkupPick(int col, int row, bool remove) override;
+        void drawAnnotationOverlay(ImDrawList* dl,
+                                   const Eigen::Matrix4f& mvp,
+                                   const ImVec2& canvasPos,
+                                   const ImVec2& avail) override;
         void renderMarkupToolbar(const ImVec2& btn, bool hasImg,
                                  float frameH) override;
+
+       private:
+        // Commit loopScratch as a peaks[] element (loop cells + 5-D
+        // descriptor when a fit exists); clears the scratch.
+        void commitPeakRegion();
+        // Remove the committed peak whose loop centroid is nearest the
+        // picked cell.
+        void removeNearestPeak(int col, int row);
     };
 
     // Narrowing helpers, mirroring asCanvas2D().

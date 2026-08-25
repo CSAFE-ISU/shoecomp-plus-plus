@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 
 #include "formats/x3pAnnotationIo.h"
 #include "imgui.h"
@@ -619,6 +620,7 @@ namespace shoecomp
         surf->annotations.setObject();
         surf->annotations["points"].setArray();
         surf->annotations["bounds"].setArray();
+        surf->annotations["peaks"].setArray();
         auto canvas = make(std::move(surf));
         canvas->ensureMesh();
         out.push_back(std::move(canvas));
@@ -730,12 +732,274 @@ namespace shoecomp
             ImageCanvas3D::resetView();
     }
 
+    void X3PBulletLand::handleMarkupPick(int col, int row, bool remove)
+    {
+        if (remove)
+        {
+            if (!loopScratch.empty())
+                loopScratch.pop_back();
+            else
+                removeNearestPeak(col, row);
+            return;
+        }
+        if (loopScratch.size() >= 3)
+        {
+            int dc = col - loopScratch.front().first;
+            int dr = row - loopScratch.front().second;
+            double dist = std::sqrt((double)dc * dc + (double)dr * dr);
+            double thr =
+                surface ? std::max(4.0, 0.02 * std::max(surface->sizeX,
+                                                        surface->sizeY))
+                        : 6.0;
+            if (dist <= thr)
+            {
+                commitPeakRegion();
+                return;
+            }
+        }
+        loopScratch.push_back({col, row});
+    }
+
+    void X3PBulletLand::commitPeakRegion()
+    {
+        if (!surface || loopScratch.size() < 3)
+        {
+            loopScratch.clear();
+            return;
+        }
+        if (!surface->annotations.isObject())
+            surface->annotations.setObject();
+        if (!surface->annotations["peaks"].isArray())
+            surface->annotations["peaks"].setArray();
+
+        jt::Json pk;
+        pk.setObject();
+        jt::Json loop;
+        loop.setArray();
+        for (const auto& cr : loopScratch)
+        {
+            int c = cr.first, r = cr.second;
+            float zv = surface->z(r, c);
+            jt::Json v;
+            v.setObject();
+            v["col"] = c;
+            v["row"] = r;
+            v["x"] = surface->px(c);
+            v["y"] = surface->py(r);
+            v["z"] = surface->pz(zv);
+            loop.getArray().push_back(std::move(v));
+        }
+        pk["loop"] = std::move(loop);
+
+        // 5-D descriptor needs the cylinder frame; store angles in
+        // degrees, lengths/height in metres.
+        if (hasFit)
+        {
+            PeakRegion5D d;
+            if (peakRegion5D(fit, *surface, loopScratch, d))
+            {
+                const double r2d = 180.0 / 3.14159265358979323846;
+                pk["sStart"] = d.sStart;
+                pk["length"] = d.length;
+                pk["dHeight"] = d.dHeight;
+                pk["thetaStart"] = d.thetaStart * r2d;
+                pk["thetaEnd"] = d.thetaEnd * r2d;
+            }
+        }
+        surface->annotations["peaks"].getArray().push_back(
+            std::move(pk));
+        loopScratch.clear();
+    }
+
+    void X3PBulletLand::removeNearestPeak(int col, int row)
+    {
+        if (!surface || !surface->annotations.isObject()) return;
+        if (!surface->annotations["peaks"].isArray()) return;
+        auto& arr = surface->annotations["peaks"].getArray();
+        long best = -1;
+        double bestD = 1e300;
+        for (int i = 0; i < (int)arr.size(); ++i)
+        {
+            if (!arr[i].isObject() || !arr[i].contains("loop"))
+                continue;
+            if (!arr[i]["loop"].isArray()) continue;
+            auto& loop = arr[i]["loop"].getArray();
+            double cc = 0, rr = 0;
+            int n = 0;
+            for (auto& v : loop)
+            {
+                if (!v.isObject()) continue;
+                cc += v["col"].getNumber();
+                rr += v["row"].getNumber();
+                ++n;
+            }
+            if (!n) continue;
+            double dc = cc / n - col, dr = rr / n - row;
+            double d = dc * dc + dr * dr;
+            if (d < bestD)
+            {
+                bestD = d;
+                best = i;
+            }
+        }
+        if (best >= 0) arr.erase(arr.begin() + best);
+    }
+
+    void X3PBulletLand::drawAnnotationOverlay(
+        ImDrawList* dl, const Eigen::Matrix4f& mvp,
+        const ImVec2& canvasPos, const ImVec2& avail)
+    {
+        // Legacy points/bounds still drawn read-only.
+        ImageCanvas3D::drawAnnotationOverlay(dl, mvp, canvasPos, avail);
+        if (!surface || !surface->annotations.isObject()) return;
+
+        ImU32 peakCol = ImGui::ColorConvertFloat4ToU32(
+            ImageCanvas2D::style.peakColor);
+        ImU32 activeCol = IM_COL32(255, 210, 60, 255);
+        float thick = ImageCanvas2D::style.boundsLineThickness;
+        float rad = ImageCanvas2D::style.pointRadius;
+
+        auto projectCell = [&](int c, int r, ImVec2& out) -> bool
+        {
+            return projectPoint(mvp, modelPosOf(c, r), canvasPos, avail,
+                                out);
+        };
+
+        if (surface->annotations["peaks"].isArray())
+        {
+            for (auto& pk : surface->annotations["peaks"].getArray())
+            {
+                if (!pk.isObject()) continue;
+                std::vector<ImVec2> pts;
+                if (pk.contains("loop") && pk["loop"].isArray() &&
+                    !pk["loop"].getArray().empty())
+                {
+                    for (auto& v : pk["loop"].getArray())
+                    {
+                        if (!v.isObject()) continue;
+                        ImVec2 sp;
+                        if (projectCell((int)v["col"].getNumber(),
+                                        (int)v["row"].getNumber(), sp))
+                            pts.push_back(sp);
+                    }
+                }
+                else if (hasFit && pk.contains("sStart"))
+                {
+                    // Reconstruct the (theta,s) rectangle when a peak
+                    // was loaded from 5-D only.
+                    const double d2r = 3.14159265358979323846 / 180.0;
+                    double s0 = pk["sStart"].getNumber();
+                    double s1 = s0 + pk["length"].getNumber();
+                    double t0 = pk["thetaStart"].getNumber() * d2r;
+                    double t1 = pk["thetaEnd"].getNumber() * d2r;
+                    double corners[4][2] = {
+                        {t0, s0}, {t1, s0}, {t1, s1}, {t0, s1}};
+                    for (auto& cc : corners)
+                    {
+                        Eigen::Vector3d p = fromCylindrical(
+                            fit, cc[0], cc[1], fit.radius);
+                        int c = (int)std::lround(
+                            (p.x() - surface->offX) / surface->incX);
+                        int r = (int)std::lround(
+                            (p.y() - surface->offY) / surface->incY);
+                        ImVec2 sp;
+                        if (projectCell(c, r, sp)) pts.push_back(sp);
+                    }
+                }
+                if (pts.empty()) continue;
+
+                ImVec2 cen(0, 0);
+                for (auto& p : pts)
+                {
+                    cen.x += p.x;
+                    cen.y += p.y;
+                }
+                cen.x /= pts.size();
+                cen.y /= pts.size();
+                for (size_t i = 0; i < pts.size(); ++i)
+                    dl->AddLine(pts[i], pts[(i + 1) % pts.size()],
+                                peakCol, thick);
+                for (auto& p : pts)
+                    dl->AddCircleFilled(p, rad - 1.0f, peakCol);
+
+                if (pk.contains("dHeight"))
+                {
+                    double span = pk["thetaEnd"].getNumber() -
+                                  pk["thetaStart"].getNumber();
+                    char buf[96];
+                    snprintf(buf, sizeof buf,
+                             "dr %.1fum  span %.1fdeg  L %.2fmm",
+                             pk["dHeight"].getNumber() * 1e6, span,
+                             pk["length"].getNumber() * 1000.0);
+                    dl->AddText(ImVec2(cen.x + 4.0f, cen.y), peakCol,
+                                buf);
+                }
+            }
+        }
+
+        // In-progress loop.
+        if (!loopScratch.empty())
+        {
+            std::vector<ImVec2> pts;
+            for (const auto& cr : loopScratch)
+            {
+                ImVec2 sp;
+                if (projectCell(cr.first, cr.second, sp))
+                    pts.push_back(sp);
+            }
+            for (size_t i = 0; i + 1 < pts.size(); ++i)
+                dl->AddLine(pts[i], pts[i + 1], activeCol, thick);
+            for (auto& p : pts) dl->AddCircleFilled(p, rad, activeCol);
+        }
+    }
+
     void X3PBulletLand::renderMarkupToolbar(const ImVec2& btn,
                                             bool hasImg, float frameH)
     {
-        ImageCanvas3D::renderMarkupToolbar(btn, hasImg, frameH);
+        bool loopOn = markupMode == Mode::AddPeakRegion;
+
+        if (loopOn)
+            ImGui::PushStyleColor(ImGuiCol_Button,
+                                  ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
+        bool loopClick = iconBtn(
+            ICON_MD_CROP_FREE, btn,
+            "Mark a peak region: click cells around a striation,\n"
+            "then click near the first point to close.");
+        if (loopOn) ImGui::PopStyleColor();
+        if (loopClick)
+        {
+            if (loopOn && loopScratch.size() >= 3) commitPeakRegion();
+            loopScratch.clear();
+            markupMode = loopOn ? Mode::None : Mode::AddPeakRegion;
+        }
 
         vsep(frameH);
+
+        ImGui::BeginDisabled(!hasImg);
+        if (iconBtn(ICON_MD_UNDO, btn,
+                    "Undo the last region vertex / region", true))
+        {
+            if (!loopScratch.empty())
+                loopScratch.pop_back();
+            else if (surface && surface->annotations.isObject() &&
+                     surface->annotations["peaks"].isArray())
+            {
+                auto& arr = surface->annotations["peaks"].getArray();
+                if (!arr.empty()) arr.pop_back();
+            }
+        }
+        ImGui::SameLine();
+        if (iconBtn(ICON_MD_DELETE, btn, "Clear all peak regions",
+                    true))
+        {
+            loopScratch.clear();
+            if (surface && surface->annotations.isObject())
+                surface->annotations["peaks"].setArray();
+        }
+        ImGui::EndDisabled();
+
+        vsep(frameH);
+
         ImGui::BeginDisabled(!hasImg);
         if (iconBtn(ICON_MD_STRAIGHTEN, btn,
                     "Fit cylinder & open the down-the-axis face view"))

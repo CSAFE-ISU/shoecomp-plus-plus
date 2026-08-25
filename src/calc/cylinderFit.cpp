@@ -1,5 +1,7 @@
 #include "calc/cylinderFit.h"
 
+#include <algorithm>
+#include <climits>
 #include <cmath>
 #include <vector>
 
@@ -207,5 +209,85 @@ namespace shoecomp
         r = rho.norm();
         theta = wrapPi(std::atan2(rho.dot(fit.e2), rho.dot(fit.e1)) -
                        fit.thetaOrigin);
+    }
+
+    Eigen::Vector3d fromCylindrical(const CylinderFit& fit,
+                                    double theta, double s, double r)
+    {
+        double a = theta + fit.thetaOrigin;
+        return fit.center + s * fit.axis +
+               r * (std::cos(a) * fit.e1 + std::sin(a) * fit.e2);
+    }
+
+    namespace
+    {
+        // Even-odd point-in-polygon on a (col,row) loop; test point is
+        // the cell center (x,y).
+        bool pointInPoly(const std::vector<std::pair<int, int>>& poly,
+                         double x, double y)
+        {
+            bool in = false;
+            size_t n = poly.size();
+            for (size_t i = 0, j = n - 1; i < n; j = i++)
+            {
+                double xi = poly[i].first, yi = poly[i].second;
+                double xj = poly[j].first, yj = poly[j].second;
+                if (((yi > y) != (yj > y)) &&
+                    (x < (xj - xi) * (y - yi) / (yj - yi) + xi))
+                    in = !in;
+            }
+            return in;
+        }
+    }  // namespace
+
+    bool peakRegion5D(const CylinderFit& fit, const Surface3D& surf,
+                      const std::vector<std::pair<int, int>>& loop,
+                      PeakRegion5D& out)
+    {
+        out = PeakRegion5D{};
+        if (loop.size() < 3) return false;
+
+        int cMin = INT_MAX, cMax = INT_MIN, rMin = INT_MAX,
+            rMax = INT_MIN;
+        for (const auto& v : loop)
+        {
+            cMin = std::min(cMin, v.first);
+            cMax = std::max(cMax, v.first);
+            rMin = std::min(rMin, v.second);
+            rMax = std::max(rMax, v.second);
+        }
+        cMin = std::max(cMin, 0);
+        rMin = std::max(rMin, 0);
+        cMax = std::min(cMax, surf.sizeX - 1);
+        rMax = std::min(rMax, surf.sizeY - 1);
+
+        double sMin = 1e300, sMax = -1e300, tMin = 1e300, tMax = -1e300;
+        double drMax = -1e300;
+        bool any = false;
+        for (int r = rMin; r <= rMax; ++r)
+            for (int c = cMin; c <= cMax; ++c)
+            {
+                if (!pointInPoly(loop, c, r)) continue;
+                float zv = surf.z(r, c);
+                if (!std::isfinite(zv)) continue;
+                Eigen::Vector3d p(surf.px(c), surf.py(r), surf.pz(zv));
+                double th, s, rr;
+                toCylindrical(fit, p, th, s, rr);
+                double dr = rr - fit.radius;
+                sMin = std::min(sMin, s);
+                sMax = std::max(sMax, s);
+                tMin = std::min(tMin, th);
+                tMax = std::max(tMax, th);
+                drMax = std::max(drMax, dr);
+                any = true;
+            }
+        if (!any) return false;
+
+        out.sStart = sMin;
+        out.length = sMax - sMin;
+        out.thetaStart = tMin;
+        out.thetaEnd = tMax;
+        out.dHeight = drMax;  // signed; convex ridge => positive
+        return true;
     }
 }  // namespace shoecomp

@@ -2,6 +2,8 @@
 #define SHOECOMP_CALC_CYLINDER_FIT_H
 
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "aligncalc/eigen/Eigen/Core"
 #include "aligncalc/eigen/Eigen/Geometry"
@@ -44,6 +46,10 @@ namespace shoecomp
     void toCylindrical(const CylinderFit& fit, const Eigen::Vector3d& p,
                        double& theta, double& s, double& r);
 
+    // Inverse of toCylindrical: the physical point at (theta, s, r).
+    Eigen::Vector3d fromCylindrical(const CylinderFit& fit,
+                                    double theta, double s, double r);
+
     // 5-D descriptor of a peak region (physical metres + radians):
     // axial start, angular span on the face, height above the fitted
     // curvature, axial length.
@@ -55,6 +61,19 @@ namespace shoecomp
         double dHeight = 0.0;
         double length = 0.0;
     };
+
+    // Reduce a peak region (a closed loop of grid cells, given as
+    // (col,row) pairs) to its 5-D descriptor under |fit|: iterate the
+    // finite grid cells inside the loop polygon, convert each to
+    // cylindrical coords, and aggregate. sStart/length span the axial
+    // extent, thetaStart/thetaEnd the angular extent, and dHeight is
+    // the max signed (r - R) — positive for a ridge raised above a
+    // convex fit. Returns false if the loop is degenerate or encloses
+    // no valid cell.
+    bool peakRegion5D(
+        const CylinderFit& fit, const Surface3D& surf,
+        const std::vector<std::pair<int, int>>& loopColRow,
+        PeakRegion5D& out);
 }  // namespace shoecomp
 
 #endif
