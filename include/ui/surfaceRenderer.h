@@ -22,9 +22,9 @@ namespace shoecomp
     // in normalized model units (the surface is scaled to ~unit size).
     struct OrbitCamera
     {
-        float yaw = 0.7f;
-        float pitch = 0.9f;
-        float roll = 0.0f;  // tilt about the view/forward axis
+        float yaw = 0.0f;
+        float pitch = 0.0f;  // 0 = top-down height-map (home) view
+        float roll = 0.0f;   // tilt about the view/forward axis
         float distance = 2.6f;
         Eigen::Vector3f target = Eigen::Vector3f::Zero();
         float fovY = 0.8f;

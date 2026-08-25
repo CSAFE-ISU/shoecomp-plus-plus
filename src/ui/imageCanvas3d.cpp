@@ -64,7 +64,12 @@ namespace shoecomp
         return none;
     }
 
-    void ImageCanvas3D::resetView() { camera = OrbitCamera{}; }
+    void ImageCanvas3D::resetView()
+    {
+        camera.pitch = 0.0f;
+        camera.yaw = 0.0f;
+        camera.roll = 0.0f;
+    }
 
     void ImageCanvas3D::ensureMesh()
     {
@@ -432,7 +437,10 @@ namespace shoecomp
 
         // ---- Row 2: view + numeric rotation ----
         if (iconBtn(ICON_MD_HOME, btn, "Reset view (home)"))
+        {
             resetView();
+            cameraDirty = true;
+        }
         ImGui::SameLine();
         if (iconBtn(ICON_MD_ZOOM_IN, btn, "Zoom in"))
             camera.distance =
