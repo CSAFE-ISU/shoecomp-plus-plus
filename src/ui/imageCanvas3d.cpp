@@ -539,6 +539,14 @@ namespace shoecomp
             err = "Failed to load annotations from:\n" + path;
             return -1;
         }
+        // The loaded object may omit sections; ensure the standard
+        // arrays exist so overlay/markup can index them without
+        // inserting stray null keys.
+        if (surface->annotations.isObject())
+            for (const char* k : {"points", "bounds", "peaks"})
+                if (!surface->annotations.contains(k) ||
+                    !surface->annotations[k].isArray())
+                    surface->annotations[k].setArray();
         return 0;
     }
 
@@ -713,11 +721,38 @@ namespace shoecomp
         if (!fitCylinder(*surface, f, fitError)) return;
         fit = f;
         hasFit = true;
+        if (surface->annotations.isObject())
+            surface->annotations["cylinder"] = cylinderToJson(fit);
         homeCamera = faceCameraFromFit(fit, *surface, camera);
         camera.pitch = homeCamera.pitch;
         camera.yaw = homeCamera.yaw;
         camera.roll = homeCamera.roll;
         cameraDirty = true;
+    }
+
+    int X3PBulletLand::loadAnnotations(const std::string& path,
+                                       std::string& err)
+    {
+        int rc = ImageCanvas3D::loadAnnotations(path, err);
+        if (rc != 0) return rc;
+
+        hasFit = false;
+        if (surface && surface->annotations.isObject() &&
+            surface->annotations.contains("cylinder"))
+        {
+            CylinderFit f;
+            if (cylinderFromJson(surface->annotations["cylinder"], f))
+            {
+                fit = f;
+                hasFit = true;
+                homeCamera = faceCameraFromFit(fit, *surface, camera);
+                camera.pitch = homeCamera.pitch;
+                camera.yaw = homeCamera.yaw;
+                camera.roll = homeCamera.roll;
+                cameraDirty = true;
+            }
+        }
+        return 0;
     }
 
     void X3PBulletLand::resetView()

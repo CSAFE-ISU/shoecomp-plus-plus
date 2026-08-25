@@ -216,6 +216,11 @@ namespace shoecomp
         // Face view (orientation only) when fit; else top-down.
         void resetView() override;
 
+        // Reconstruct the fit + face view from a loaded "cylinder"
+        // object (after the base loads the annotation JSON).
+        int loadAnnotations(const std::string& path,
+                            std::string& err) override;
+
         // In-progress peak-region loop (grid cells, col/row), committed
         // to surface->annotations["peaks"] on close.
         std::vector<std::pair<int, int>> loopScratch;
