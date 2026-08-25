@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "aligncalc/eigen/Eigen/Geometry"
+#include "calc/cylinderFit.h"
 #include "formats/x3p.h"
 #include "ui/imageCanvas.h"
 #include "ui/surfaceRenderer.h"
@@ -197,6 +198,27 @@ namespace shoecomp
         int loadImages(const std::string& path,
                        std::vector<std::unique_ptr<ImageCanvas>>& out,
                        std::string& err) const override;
+
+        // Cylinder canonical frame (physical metres) + the derived
+        // down-the-axis face-view camera pose.
+        CylinderFit fit;
+        bool hasFit = false;
+        std::string fitError;
+        OrbitCamera homeCamera;
+
+        // Fit the cylinder to the surface and derive the face camera.
+        // On success sets hasFit and seeds the live camera to the face
+        // view; on failure sets fitError and leaves hasFit false.
+        void computeFit();
+
+        // Face view (orientation only) when fit; else top-down.
+        void resetView() override;
+
+       protected:
+        // Bullet markup row = the base point/bounds row + a
+        // Fit-cylinder button and radius/curvature readout.
+        void renderMarkupToolbar(const ImVec2& btn, bool hasImg,
+                                 float frameH) override;
     };
 
     // Narrowing helpers, mirroring asCanvas2D().

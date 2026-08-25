@@ -595,6 +595,15 @@ namespace shoecomp
             }
         }
 
+        // Bullet-land x3p: optionally fit the cylinder + open the face
+        // view as each surface loads (keeps loadImages const).
+        if (state.settings.autoFitCylinder)
+        {
+            for (auto& c : loaded)
+                if (c->kind() == ImageCanvas::Kind::X3PBulletLand)
+                    static_cast<X3PBulletLand*>(c.get())->computeFit();
+        }
+
         for (auto& c : loaded) state.images.push_back(std::move(c));
     }
 

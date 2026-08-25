@@ -268,6 +268,16 @@ namespace shoecomp
 
         ImGui::Spacing();
 
+        // Live (not deferred): only affects future loads.
+        ImGui::Checkbox("Auto-fit cylinder for bullet-land x3p on load",
+                        &s.autoFitCylinder);
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "When a Bullet land (x3p) surface loads, fit the "
+                "cylinder\nand open the down-the-axis face view.");
+
+        ImGui::Spacing();
+
         // Annotations section (owned by ImageCanvas)
         activeCanvas.renderAnnotationStyleSettings();
 
@@ -385,6 +395,8 @@ namespace shoecomp
             s->correspondingRadius = f;
         else if (sscanf(line, "hoverThreshold=%f", &f) == 1)
             s->hoverThreshold = f;
+        else if (sscanf(line, "autoFitCylinder=%d", &i) == 1)
+            s->autoFitCylinder = (i != 0);
         else
         {
             float a, b, c, d;
@@ -413,6 +425,8 @@ namespace shoecomp
         buf->appendf("correspondingRadius=%.4f\n",
                      s->correspondingRadius);
         buf->appendf("hoverThreshold=%.4f\n", s->hoverThreshold);
+        buf->appendf("autoFitCylinder=%d\n",
+                     s->autoFitCylinder ? 1 : 0);
         buf->appendf("activeImageColor=%.4f,%.4f,%.4f,%.4f\n",
                      s->activeImageColor.x, s->activeImageColor.y,
                      s->activeImageColor.z, s->activeImageColor.w);
