@@ -12,6 +12,9 @@
 #include "ui/imageCanvas.h"
 #include "ui/surfaceRenderer.h"
 
+struct ImDrawList;
+struct ImVec2;
+
 namespace shoecomp
 {
     // Manual 3D alignment for the comparison workspace. See
@@ -139,6 +142,23 @@ namespace shoecomp
         // moved it this frame (when locked).
         void sync3DCameras(ImageCanvas3D& other, bool locked);
 
+       protected:
+        // Markup seams shared by render3DView/renderToolbar. The base
+        // bodies implement the generic point/bounds markup;
+        // X3PBulletLand overrides them for cylinder peak regions.
+        virtual void handleMarkupPick(int col, int row, bool remove);
+        virtual void drawAnnotationOverlay(ImDrawList* dl,
+                                           const Eigen::Matrix4f& mvp,
+                                           const ImVec2& canvasPos,
+                                           const ImVec2& avail);
+        virtual void renderMarkupToolbar(const ImVec2& btn, bool hasImg,
+                                         float frameH);
+
+        // Toolbar drawing helpers (icon button + vertical separator).
+        bool iconBtn(const char* icon, const ImVec2& sz,
+                     const char* tip, bool allowDisabled = false);
+        void vsep(float frameH);
+
        private:
         void addAnnotation(int col, int row);
         void removeNearestPoint(int col, int row);
@@ -157,6 +177,21 @@ namespace shoecomp
     {
         using ImageCanvas3D::ImageCanvas3D;
         Kind kind() const override { return Kind::X3P; }
+        const std::vector<std::string>& imageExtensions()
+            const override;
+        int loadImages(const std::string& path,
+                       std::vector<std::unique_ptr<ImageCanvas>>& out,
+                       std::string& err) const override;
+    };
+
+    // Bullet-land x3p surface: a half-slice of a hollow cylinder. Adds
+    // the cylinder canonical frame + 5-D peak regions on top of the
+    // generic 3D surface (fit/region behavior lands in later phases;
+    // for now it loads and orbits like a plain x3p surface).
+    struct X3PBulletLand : public ImageCanvas3D
+    {
+        using ImageCanvas3D::ImageCanvas3D;
+        Kind kind() const override { return Kind::X3PBulletLand; }
         const std::vector<std::string>& imageExtensions()
             const override;
         int loadImages(const std::string& path,

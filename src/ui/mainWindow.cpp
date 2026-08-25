@@ -195,7 +195,9 @@ namespace shoecomp
         state.alignEditPopupVisible = false;
         // Comparison viewers must match the active kind's canvas family
         // (2D rasters vs. 3D surfaces); only same-kind pairs compare.
-        if (state.settings.activeKind == ImageCanvas::Kind::X3P)
+        if (state.settings.activeKind == ImageCanvas::Kind::X3P ||
+            state.settings.activeKind ==
+                ImageCanvas::Kind::X3PBulletLand)
         {
             state.viewerLeft = std::make_unique<ImageCanvas3D>();
             state.viewerRight = std::make_unique<ImageCanvas3D>();

@@ -272,12 +272,7 @@ namespace shoecomp
                 int py = (int)(rel.y * fbs);
                 int col = 0, row = 0;
                 if (renderer.pick(px, py, camera, modelXform, col, row))
-                {
-                    if (io.KeyShift)
-                        removeNearestPoint(col, row);
-                    else
-                        addAnnotation(col, row);
-                }
+                    handleMarkupPick(col, row, io.KeyShift);
             }
         }
 
@@ -285,59 +280,69 @@ namespace shoecomp
         Eigen::Matrix4f mvp = camera.proj(avail.x / avail.y) *
                               camera.view() * modelXform.matrix();
         dl->PushClipRect(canvasPos, canvasPos + avail, true);
-        if (surface->annotations.isObject())
-        {
-            ImU32 peakCol = ImGui::ColorConvertFloat4ToU32(
-                ImageCanvas2D::style.peakColor);
-            ImU32 boundsCol = ImGui::ColorConvertFloat4ToU32(
-                ImageCanvas2D::style.boundsColor);
-            float rad = ImageCanvas2D::style.pointRadius;
+        drawAnnotationOverlay(dl, mvp, canvasPos, avail);
+        dl->PopClipRect();
+    }
 
-            if (surface->annotations["points"].isArray())
+    void ImageCanvas3D::handleMarkupPick(int col, int row, bool remove)
+    {
+        if (remove)
+            removeNearestPoint(col, row);
+        else
+            addAnnotation(col, row);
+    }
+
+    void ImageCanvas3D::drawAnnotationOverlay(
+        ImDrawList* dl, const Eigen::Matrix4f& mvp,
+        const ImVec2& canvasPos, const ImVec2& avail)
+    {
+        if (!surface || !surface->annotations.isObject()) return;
+        ImU32 peakCol = ImGui::ColorConvertFloat4ToU32(
+            ImageCanvas2D::style.peakColor);
+        ImU32 boundsCol = ImGui::ColorConvertFloat4ToU32(
+            ImageCanvas2D::style.boundsColor);
+        float rad = ImageCanvas2D::style.pointRadius;
+
+        if (surface->annotations["points"].isArray())
+        {
+            for (auto& p : surface->annotations["points"].getArray())
             {
-                for (auto& p :
-                     surface->annotations["points"].getArray())
+                if (!p.isObject()) continue;
+                Eigen::Vector3f mp =
+                    modelPosOf((int)p["col"].getNumber(),
+                               (int)p["row"].getNumber());
+                ImVec2 sp;
+                if (projectPoint(mvp, mp, canvasPos, avail, sp))
                 {
-                    if (!p.isObject()) continue;
-                    Eigen::Vector3f mp =
-                        modelPosOf((int)p["col"].getNumber(),
-                                   (int)p["row"].getNumber());
-                    ImVec2 sp;
-                    if (projectPoint(mvp, mp, canvasPos, avail, sp))
-                    {
-                        dl->AddCircleFilled(sp, rad, peakCol);
-                        dl->AddCircle(sp, rad, IM_COL32(0, 0, 0, 200));
-                    }
+                    dl->AddCircleFilled(sp, rad, peakCol);
+                    dl->AddCircle(sp, rad, IM_COL32(0, 0, 0, 200));
                 }
-            }
-            if (surface->annotations["bounds"].isArray())
-            {
-                auto& bnd = surface->annotations["bounds"].getArray();
-                std::vector<ImVec2> pts;
-                pts.reserve(bnd.size());
-                for (auto& b : bnd)
-                {
-                    if (!b.isObject()) continue;
-                    Eigen::Vector3f mp =
-                        modelPosOf((int)b["col"].getNumber(),
-                                   (int)b["row"].getNumber());
-                    ImVec2 sp;
-                    if (projectPoint(mvp, mp, canvasPos, avail, sp))
-                        pts.push_back(sp);
-                }
-                for (size_t i = 0; i + 1 < pts.size(); ++i)
-                    dl->AddLine(
-                        pts[i], pts[i + 1], boundsCol,
-                        ImageCanvas2D::style.boundsLineThickness);
-                if (pts.size() >= 3 && markupMode != Mode::AddBounds)
-                    dl->AddLine(
-                        pts.back(), pts.front(), boundsCol,
-                        ImageCanvas2D::style.boundsLineThickness);
-                for (const ImVec2& sp : pts)
-                    dl->AddCircleFilled(sp, rad - 1.0f, boundsCol);
             }
         }
-        dl->PopClipRect();
+        if (surface->annotations["bounds"].isArray())
+        {
+            auto& bnd = surface->annotations["bounds"].getArray();
+            std::vector<ImVec2> pts;
+            pts.reserve(bnd.size());
+            for (auto& b : bnd)
+            {
+                if (!b.isObject()) continue;
+                Eigen::Vector3f mp =
+                    modelPosOf((int)b["col"].getNumber(),
+                               (int)b["row"].getNumber());
+                ImVec2 sp;
+                if (projectPoint(mvp, mp, canvasPos, avail, sp))
+                    pts.push_back(sp);
+            }
+            for (size_t i = 0; i + 1 < pts.size(); ++i)
+                dl->AddLine(pts[i], pts[i + 1], boundsCol,
+                            ImageCanvas2D::style.boundsLineThickness);
+            if (pts.size() >= 3 && markupMode != Mode::AddBounds)
+                dl->AddLine(pts.back(), pts.front(), boundsCol,
+                            ImageCanvas2D::style.boundsLineThickness);
+            for (const ImVec2& sp : pts)
+                dl->AddCircleFilled(sp, rad - 1.0f, boundsCol);
+        }
     }
 
     void ImageCanvas3D::renderCanvas(const char* canvasId)
@@ -345,44 +350,37 @@ namespace shoecomp
         render3DView(canvasId, Eigen::Affine3f::Identity(), true);
     }
 
-    void ImageCanvas3D::renderToolbar(const char* toolbarId)
+    bool ImageCanvas3D::iconBtn(const char* icon, const ImVec2& sz,
+                                const char* tip, bool allowDisabled)
     {
-        ImGui::PushID(toolbarId);
-        ImGui::SetWindowFontScale(0.85f);
+        ImFont* f = ImageCanvas2D::iconFont;
+        if (f) ImGui::PushFont(f);
+        bool clicked = ImGui::Button(icon, sz);
+        if (f) ImGui::PopFont();
+        ImGuiHoveredFlags hf = allowDisabled
+                                   ? ImGuiHoveredFlags_AllowWhenDisabled
+                                   : ImGuiHoveredFlags_None;
+        if (tip && ImGui::IsItemHovered(hf))
+            ImGui::SetTooltip("%s", tip);
+        return clicked;
+    }
 
-        float frameH = ImGui::GetFrameHeight();
-        ImVec2 btn(frameH, frameH);
-        bool hasImg = surface != nullptr;
+    void ImageCanvas3D::vsep(float frameH)
+    {
+        ImGui::SameLine();
+        float sp = ImGui::GetStyle().ItemSpacing.x;
+        ImVec2 p = ImGui::GetCursorScreenPos();
+        float x = p.x + sp * 0.5f;
+        ImGui::GetWindowDrawList()->AddLine(
+            ImVec2(x, p.y + 2.0f), ImVec2(x, p.y + frameH - 2.0f),
+            ImGui::GetColorU32(ImGuiCol_Separator));
+        ImGui::Dummy(ImVec2(sp, frameH));
+        ImGui::SameLine();
+    }
 
-        auto iconBtn = [](const char* icon, const ImVec2& sz,
-                          const char* tip,
-                          bool allowDisabled = false) -> bool
-        {
-            ImFont* f = ImageCanvas2D::iconFont;
-            if (f) ImGui::PushFont(f);
-            bool clicked = ImGui::Button(icon, sz);
-            if (f) ImGui::PopFont();
-            ImGuiHoveredFlags hf =
-                allowDisabled ? ImGuiHoveredFlags_AllowWhenDisabled
-                              : ImGuiHoveredFlags_None;
-            if (tip && ImGui::IsItemHovered(hf))
-                ImGui::SetTooltip("%s", tip);
-            return clicked;
-        };
-        auto vsep = [&]()
-        {
-            ImGui::SameLine();
-            float sp = ImGui::GetStyle().ItemSpacing.x;
-            ImVec2 p = ImGui::GetCursorScreenPos();
-            float x = p.x + sp * 0.5f;
-            ImGui::GetWindowDrawList()->AddLine(
-                ImVec2(x, p.y + 2.0f), ImVec2(x, p.y + frameH - 2.0f),
-                ImGui::GetColorU32(ImGuiCol_Separator));
-            ImGui::Dummy(ImVec2(sp, frameH));
-            ImGui::SameLine();
-        };
-
-        // ---- Row 1: markup ----
+    void ImageCanvas3D::renderMarkupToolbar(const ImVec2& btn,
+                                            bool hasImg, float frameH)
+    {
         bool ptOn = markupMode == Mode::AddPoint;
         bool bndOn = markupMode == Mode::AddBounds;
 
@@ -409,7 +407,7 @@ namespace shoecomp
         if (bndOn) ImGui::PopStyleColor();
         if (bndClick) markupMode = bndOn ? Mode::None : Mode::AddBounds;
 
-        vsep();
+        vsep(frameH);
 
         ImGui::BeginDisabled(!hasImg);
         bool undoClick =
@@ -434,6 +432,19 @@ namespace shoecomp
             surface->annotations["bounds"].setArray();
         }
         ImGui::EndDisabled();
+    }
+
+    void ImageCanvas3D::renderToolbar(const char* toolbarId)
+    {
+        ImGui::PushID(toolbarId);
+        ImGui::SetWindowFontScale(0.85f);
+
+        float frameH = ImGui::GetFrameHeight();
+        ImVec2 btn(frameH, frameH);
+        bool hasImg = surface != nullptr;
+
+        // ---- Row 1: markup (kind-specific) ----
+        renderMarkupToolbar(btn, hasImg, frameH);
 
         // ---- Row 2: view + numeric rotation ----
         if (iconBtn(ICON_MD_HOME, btn, "Reset view (home)"))
@@ -450,7 +461,7 @@ namespace shoecomp
             camera.distance =
                 std::clamp(camera.distance * 1.111f, 0.05f, 30.0f);
 
-        vsep();
+        vsep(frameH);
 
         ImGuiIO& io = ImGui::GetIO();
         float dialR = frameH * 0.5f;
@@ -595,6 +606,25 @@ namespace shoecomp
         renderToolbar(label);
     }
 
+    // --- x3p surface loading (shared by the x3p canvas kinds) ---
+    static int loadX3PSurface(
+        const std::string& path,
+        std::vector<std::unique_ptr<ImageCanvas>>& out,
+        std::string& err,
+        std::unique_ptr<ImageCanvas3D> (*make)(
+            std::shared_ptr<Surface3D>))
+    {
+        auto surf = std::make_shared<Surface3D>();
+        if (!loadX3P(path, *surf, err)) return -1;
+        surf->annotations.setObject();
+        surf->annotations["points"].setArray();
+        surf->annotations["bounds"].setArray();
+        auto canvas = make(std::move(surf));
+        canvas->ensureMesh();
+        out.push_back(std::move(canvas));
+        return 1;
+    }
+
     // --- X3PImage ---
     const std::vector<std::string>& X3PImage::imageExtensions() const
     {
@@ -607,14 +637,30 @@ namespace shoecomp
         std::vector<std::unique_ptr<ImageCanvas>>& out,
         std::string& err) const
     {
-        auto surf = std::make_shared<Surface3D>();
-        if (!loadX3P(path, *surf, err)) return -1;
-        surf->annotations.setObject();
-        surf->annotations["points"].setArray();
-        surf->annotations["bounds"].setArray();
-        auto canvas = std::make_unique<X3PImage>(surf);
-        canvas->ensureMesh();
-        out.push_back(std::move(canvas));
-        return 1;
+        return loadX3PSurface(
+            path, out, err,
+            [](std::shared_ptr<Surface3D> s)
+                -> std::unique_ptr<ImageCanvas3D>
+            { return std::make_unique<X3PImage>(std::move(s)); });
+    }
+
+    // --- X3PBulletLand ---
+    const std::vector<std::string>& X3PBulletLand::imageExtensions()
+        const
+    {
+        static const std::vector<std::string> exts = {".x3p", ".X3P"};
+        return exts;
+    }
+
+    int X3PBulletLand::loadImages(
+        const std::string& path,
+        std::vector<std::unique_ptr<ImageCanvas>>& out,
+        std::string& err) const
+    {
+        return loadX3PSurface(
+            path, out, err,
+            [](std::shared_ptr<Surface3D> s)
+                -> std::unique_ptr<ImageCanvas3D>
+            { return std::make_unique<X3PBulletLand>(std::move(s)); });
     }
 }  // namespace shoecomp

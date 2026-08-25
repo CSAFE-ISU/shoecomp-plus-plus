@@ -30,7 +30,8 @@ namespace shoecomp
             EBTSCanvas,
             HWCanvas,
             Canvas3D,
-            X3P
+            X3P,
+            X3PBulletLand
         };
 
         enum class PointType : uint8_t

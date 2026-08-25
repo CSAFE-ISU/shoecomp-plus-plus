@@ -180,13 +180,17 @@ namespace shoecomp
     // Active-canvas combo lists only the user-selectable kinds.
     static const char* kActiveKindNames[] = {
         "Shoe prints", "Fingerprint (EBTS)", "Handwriting",
-        "3D surface (x3p)"};
+        "Bullet land (x3p)"};
 
     static int activeKindToIndex(ImageCanvas::Kind k)
     {
         if (k == ImageCanvas::Kind::EBTSCanvas) return 1;
         if (k == ImageCanvas::Kind::HWCanvas) return 2;
-        if (k == ImageCanvas::Kind::X3P) return 3;
+        // The generic X3P kind (dropped from the combo) shares the x3p
+        // slot's label with the bullet-land kind.
+        if (k == ImageCanvas::Kind::X3P ||
+            k == ImageCanvas::Kind::X3PBulletLand)
+            return 3;
         return 0;
     }
 
@@ -194,7 +198,7 @@ namespace shoecomp
     {
         if (idx == 1) return ImageCanvas::Kind::EBTSCanvas;
         if (idx == 2) return ImageCanvas::Kind::HWCanvas;
-        if (idx == 3) return ImageCanvas::Kind::X3P;
+        if (idx == 3) return ImageCanvas::Kind::X3PBulletLand;
         return ImageCanvas::Kind::ShoeCanvas;
     }
 
@@ -368,6 +372,7 @@ namespace shoecomp
             s->activeKind = (ImageCanvas::Kind)i;
 #ifdef __EMSCRIPTEN__
             if (s->activeKind == ImageCanvas::Kind::X3P ||
+                s->activeKind == ImageCanvas::Kind::X3PBulletLand ||
                 s->activeKind == ImageCanvas::Kind::Canvas3D)
                 s->activeKind = ImageCanvas::Kind::ShoeCanvas;
 #endif
