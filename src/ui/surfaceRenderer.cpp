@@ -69,14 +69,11 @@ namespace shoecomp
         return true;
     }
 
-    void buildSurfaceMesh(const Surface3D& surf, SurfaceMesh& out)
+    SurfaceModelParams computeModelParams(const Surface3D& surf)
     {
+        SurfaceModelParams P;
         const int X = surf.sizeX, Y = surf.sizeY;
-        out.vertices.clear();
-        out.indices.clear();
-        SurfaceModelParams& P = out.params;
-        P = SurfaceModelParams{};
-        if (X <= 0 || Y <= 0) return;
+        if (X <= 0 || Y <= 0) return P;
 
         double physW = (X > 1 ? (X - 1) : 1) * surf.incX;
         double physH = (Y > 1 ? (Y - 1) : 1) * surf.incY;
@@ -98,6 +95,30 @@ namespace shoecomp
         // Exaggerate relief so shallow surfaces read as 3D: map the
         // full Z range to ~0.35 model units.
         P.zScale = 0.35f / zRange;
+        return P;
+    }
+
+    Eigen::Vector3f physToModelDir(const SurfaceModelParams& P,
+                                   const Surface3D& surf,
+                                   const Eigen::Vector3d& d)
+    {
+        double sxr = (surf.incX != 0.0) ? P.sx / surf.incX : 0.0;
+        double syr = (surf.incY != 0.0) ? P.sy / surf.incY : 0.0;
+        double szr =
+            (surf.incZ != 0.0) ? (double)P.zScale / surf.incZ : 0.0;
+        return Eigen::Vector3f((float)(d.x() * sxr),
+                               (float)(-d.y() * syr),
+                               (float)(d.z() * szr));
+    }
+
+    void buildSurfaceMesh(const Surface3D& surf, SurfaceMesh& out)
+    {
+        const int X = surf.sizeX, Y = surf.sizeY;
+        out.vertices.clear();
+        out.indices.clear();
+        SurfaceModelParams& P = out.params;
+        P = computeModelParams(surf);
+        if (X <= 0 || Y <= 0) return;
 
         const size_t nv = (size_t)X * Y;
         out.vertices.assign(nv * 7, 0.0f);

@@ -120,6 +120,7 @@ set(SC_SRCS
     src/calc/align.cpp
     src/calc/rts_align.cpp
     src/calc/onnxRuntime.cpp
+    src/calc/cylinderFit.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp

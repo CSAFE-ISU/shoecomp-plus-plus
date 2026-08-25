@@ -68,6 +68,19 @@ namespace shoecomp
     // visible.
     void buildSurfaceMesh(const Surface3D& surf, SurfaceMesh& out);
 
+    // Model-space normalization params for |surf| (GL-free). Extracted
+    // from buildSurfaceMesh so callers (e.g. the canonical camera) can
+    // get sx/sy/zScale without triggering the async mesh build.
+    SurfaceModelParams computeModelParams(const Surface3D& surf);
+
+    // Map a physical-space direction/displacement to model space. X/Y
+    // scale by the uniform 1/maxExtent factor (Y negated, matching the
+    // mesh), Z by the relief exaggeration; so the result is NOT
+    // proportional to the physical vector in Z.
+    Eigen::Vector3f physToModelDir(const SurfaceModelParams& P,
+                                   const Surface3D& surf,
+                                   const Eigen::Vector3d& d);
+
     class SurfaceRenderer
     {
        public:
