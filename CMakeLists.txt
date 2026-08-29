@@ -121,6 +121,7 @@ set(SC_SRCS
     src/calc/rts_align.cpp
     src/calc/onnxRuntime.cpp
     src/calc/cylinderFit.cpp
+    src/calc/striationDetect.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
