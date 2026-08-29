@@ -113,6 +113,7 @@ set(SC_SRCS
     src/ui/imageListDialog.cpp
     src/ui/alignDialog.cpp
     src/ui/detectDialog.cpp
+    src/ui/striationDetectDialog.cpp
     src/ui/syncViews.cpp
     src/ui/surfaceRenderer.cpp
     src/ui/imageCanvas3d.cpp

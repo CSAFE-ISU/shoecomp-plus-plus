@@ -18,6 +18,7 @@
 #include "ui/imageListDialog.h"
 #include "ui/alignDialog.h"
 #include "ui/detectDialog.h"
+#include "ui/striationDetectDialog.h"
 #include "ui/settings.h"
 
 namespace shoecomp
@@ -82,6 +83,7 @@ namespace shoecomp
         ImageListDialog imageListDialog;
         AlignDialog alignDialog;
         DetectDialog detectDialog;
+        StriationDetectDialog striationDetectDialog;
 
         // Error popups
         ErrorPopup imageLoadError;
@@ -89,6 +91,7 @@ namespace shoecomp
         ErrorPopup annotationError;
         ErrorPopup alignmentSaveError;
         ErrorPopup detectError;
+        ErrorPopup striationDetectError;
 
         // Alignment save
         SaveBrowser alignmentSaveBrowser;

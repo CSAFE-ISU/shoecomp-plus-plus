@@ -419,6 +419,8 @@ namespace shoecomp
 
         state.detectDialog.render();
         state.detectError.render();
+        state.striationDetectDialog.render();
+        state.striationDetectError.render();
 
         switch (state.workspace)
         {
@@ -671,6 +673,7 @@ namespace shoecomp
         state.imageSaveError.title = "Image Save Error";
         state.annotationError.title = "Annotation Error";
         state.detectError.title = "Detection Error";
+        state.striationDetectError.title = "Striation Detection Error";
 
         // First search for the optional onnxruntime library so the
         // Detect Points button reflects availability from the start.
