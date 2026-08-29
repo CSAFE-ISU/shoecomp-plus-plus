@@ -127,6 +127,7 @@ namespace shoecomp
                                        ImGuiWindowFlags_NoResize |
                                            ImGuiWindowFlags_NoMove))
             {
+                ImGui::SetWindowFontScale(0.9f);
                 ImGui::TextWrapped(
                     "Detect axial ridges and grooves on the fitted "
                     "cylinder. Detected striations REPLACE the current "
@@ -135,6 +136,8 @@ namespace shoecomp
 
                 bool running = channel.is_running.load();
                 ImGui::BeginDisabled(running);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x *
+                                     0.4f);
                 ImGui::DragFloat("Min angular width (deg)",
                                  &minThetaDeg, 0.05f, 0.0f, 45.0f,
                                  "%.2f");
@@ -144,6 +147,7 @@ namespace shoecomp
                                  0.01f, 0.0f, 100.0f, "%.3f");
                 ImGui::InputInt("Max count", &maxCount);
                 if (maxCount < 1) maxCount = 1;
+                ImGui::PopItemWidth();
                 ImGui::EndDisabled();
 
                 ImGui::Spacing();

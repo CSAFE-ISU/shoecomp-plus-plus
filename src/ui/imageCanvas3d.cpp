@@ -102,7 +102,13 @@ namespace shoecomp
     Eigen::Vector3f ImageCanvas3D::modelPosOf(int col, int row) const
     {
         const SurfaceModelParams& P = renderer.params();
-        float zv = surface ? surface->z(row, col) : 0.0f;
+        // Only the height lookup needs a valid cell; the x/y model
+        // position is linear and safe for any index (reconstructed 5-D
+        // peak corners can land just outside the grid).
+        float zv = 0.0f;
+        if (surface && row >= 0 && row < surface->sizeY && col >= 0 &&
+            col < surface->sizeX)
+            zv = surface->z(row, col);
         float z = std::isfinite(zv) ? (zv - P.zc) * P.zScale : 0.0f;
         return Eigen::Vector3f((float)((col - P.cx) * P.sx),
                                (float)(-(row - P.cy) * P.sy), z);
