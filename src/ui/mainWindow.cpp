@@ -328,17 +328,38 @@ namespace shoecomp
                 bool hasActive =
                     state.activeGalleryImage >= 0 &&
                     state.activeGalleryImage < (int)state.images.size();
-                ImageCanvas2D* active =
+                ImageCanvas* base =
                     hasActive
-                        ? asCanvas2D(
-                              *state.images[state.activeGalleryImage])
+                        ? state.images[state.activeGalleryImage].get()
                         : nullptr;
-                bool canDetect = active && active->supportsDetection();
+                // 2D canvases use the ONNX path; a bullet-land x3p uses
+                // the geometric striation path (gated on a cylinder
+                // fit).
+                ImageCanvas2D* c2d = base ? asCanvas2D(*base) : nullptr;
+                X3PBulletLand* bl =
+                    (base &&
+                     base->kind() == ImageCanvas::Kind::X3PBulletLand)
+                        ? static_cast<X3PBulletLand*>(base)
+                        : nullptr;
                 bool runtimeReady = OnnxRuntime::instance().available();
-                if (ImGui::MenuItem("Detect Points...", nullptr, false,
-                                    canDetect && runtimeReady))
+                bool enable2D =
+                    c2d && c2d->supportsDetection() && runtimeReady;
+                bool enable3D = bl && bl->hasFit;
+                if (ImGui::MenuItem("Detect...", nullptr, false,
+                                    enable2D || enable3D))
                 {
-                    if (!state.detectDialog.openFor(*active))
+                    if (bl)
+                    {
+                        if (!state.striationDetectDialog.openFor(*bl))
+                        {
+                            state.striationDetectError.show = true;
+                            state.striationDetectError.message =
+                                "Could not start detection:\n" +
+                                std::string(state.striationDetectDialog
+                                                .statusText);
+                        }
+                    }
+                    else if (c2d && !state.detectDialog.openFor(*c2d))
                     {
                         state.detectError.show = true;
                         state.detectError.message =
@@ -346,9 +367,14 @@ namespace shoecomp
                             std::string(state.detectDialog.statusText);
                     }
                 }
-                if (!runtimeReady &&
+                if (bl && !bl->hasFit &&
                     ImGui::IsItemHovered(
                         ImGuiHoveredFlags_AllowWhenDisabled))
+                    ImGui::SetTooltip(
+                        "cannot detect without a cylinder fit");
+                else if (c2d && !runtimeReady &&
+                         ImGui::IsItemHovered(
+                             ImGuiHoveredFlags_AllowWhenDisabled))
                     ImGui::SetTooltip(
                         "onnxruntime shared library not found.\nSee "
                         "the README to enable automatic detection.");
