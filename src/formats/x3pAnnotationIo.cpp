@@ -96,6 +96,18 @@ namespace shoecomp
         return 0;
     }
 
+    jt::Json peak5DToJson(const PeakRegion5D& d)
+    {
+        jt::Json pk;
+        pk.setObject();
+        pk["sStart"] = d.sStart;
+        pk["length"] = d.length;
+        pk["dHeight"] = d.dHeight;
+        pk["thetaStart"] = d.thetaStart * kR2D;
+        pk["thetaEnd"] = d.thetaEnd * kR2D;
+        return pk;
+    }
+
     jt::Json cylinderToJson(const CylinderFit& f)
     {
         jt::Json c;

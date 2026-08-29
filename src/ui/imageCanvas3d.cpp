@@ -874,20 +874,14 @@ namespace shoecomp
         }
         pk["loop"] = std::move(loop);
 
-        // 5-D descriptor needs the cylinder frame; store angles in
-        // degrees, lengths/height in metres.
+        // 5-D descriptor needs the cylinder frame; peak5DToJson emits
+        // the on-disk shape (deg / metres). Merge its fields onto pk.
         if (hasFit)
         {
             PeakRegion5D d;
             if (peakRegion5D(fit, *surface, loopScratch, d))
-            {
-                const double r2d = 180.0 / 3.14159265358979323846;
-                pk["sStart"] = d.sStart;
-                pk["length"] = d.length;
-                pk["dHeight"] = d.dHeight;
-                pk["thetaStart"] = d.thetaStart * r2d;
-                pk["thetaEnd"] = d.thetaEnd * r2d;
-            }
+                for (auto& kv : peak5DToJson(d).getObject())
+                    pk[kv.first] = kv.second;
         }
         surface->annotations["peaks"].getArray().push_back(
             std::move(pk));

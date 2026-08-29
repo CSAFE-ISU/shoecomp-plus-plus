@@ -22,6 +22,11 @@ namespace shoecomp
     // malformed object.
     jt::Json cylinderToJson(const CylinderFit& fit);
     bool cylinderFromJson(const jt::Json& j, CylinderFit& out);
+
+    // The 5-D peak descriptor as a JSON object (thetaStart/thetaEnd in
+    // degrees, sStart/length/dHeight in metres) — the on-disk shape of
+    // a peak with no loop. Shared by manual markup and auto-detection.
+    jt::Json peak5DToJson(const PeakRegion5D& d);
 } /* namespace shoecomp */
 
 #endif
