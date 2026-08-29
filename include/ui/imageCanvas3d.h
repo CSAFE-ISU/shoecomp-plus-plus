@@ -202,21 +202,27 @@ namespace shoecomp
                        std::string& err) const override;
 
         // Cylinder canonical frame (physical metres) + the derived
-        // down-the-axis face-view camera pose.
+        // top-down strip-view camera pose.
         CylinderFit fit;
         bool hasFit = false;
         std::string fitError;
         OrbitCamera homeCamera;
 
-        // Fit the cylinder to the surface and derive the face camera.
-        // On success sets hasFit and seeds the live camera to the face
-        // view; on failure sets fitError and leaves hasFit false.
+        // Fit the cylinder to the surface, then refresh the strip view.
+        // On success sets hasFit; on failure sets fitError and leaves
+        // hasFit false.
         void computeFit();
 
-        // Face view (orientation only) when fit; else top-down.
+        // Top-down view rolled so the cylinder axis (fitted, else the
+        // longer grid dimension) stands vertical and the strip fills
+        // the viewport. Stored in homeCamera + seeded into the live
+        // camera; the default on load and the Home target.
+        void applyDefaultView();
+
+        // Home to the strip view (applyDefaultView).
         void resetView() override;
 
-        // Reconstruct the fit + face view from a loaded "cylinder"
+        // Reconstruct the fit + strip view from a loaded "cylinder"
         // object (after the base loads the annotation JSON).
         int loadAnnotations(const std::string& path,
                             std::string& err) override;

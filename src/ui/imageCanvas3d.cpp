@@ -667,45 +667,111 @@ namespace shoecomp
         std::vector<std::unique_ptr<ImageCanvas>>& out,
         std::string& err) const
     {
-        return loadX3PSurface(
+        size_t before = out.size();
+        int rc = loadX3PSurface(
             path, out, err,
             [](std::shared_ptr<Surface3D> s)
                 -> std::unique_ptr<ImageCanvas3D>
             { return std::make_unique<X3PBulletLand>(std::move(s)); });
+        // Strip view is the load default (no fit yet -> grid fallback).
+        for (size_t i = before; i < out.size(); ++i)
+            if (out[i]->kind() == Kind::X3PBulletLand)
+                static_cast<X3PBulletLand*>(out[i].get())
+                    ->applyDefaultView();
+        return rc;
     }
 
-    // Down-the-axis face camera: rotate the model-space cylinder frame
-    // (e1, e2, axis) onto the view axes so the axis runs into the
-    // screen and the cross-section face is seen front-on. Keeps
-    // |base|'s distance/target/fov. The physical fit basis is mapped
-    // through the anisotropic phys->model map and re-orthonormalized
-    // (model Z is exaggerated, so the mapped basis is no longer
-    // orthogonal). Camera orientation is the likely thing to tune on
-    // the user's build; see .claude/x3p-notes.md.
-    static OrbitCamera faceCameraFromFit(const CylinderFit& fit,
-                                         const Surface3D& surf,
-                                         const OrbitCamera& base)
+    // Top-down strip camera: look straight down (pitch=yaw=0), rolled
+    // so the given model-XY axis direction stands vertical on screen,
+    // zoomed so the strip's axial extent fills the viewport height.
+    // Keeps |base|'s fov; recenters the target. The exact roll sign /
+    // fill margin are the likely things to tune on the user's build;
+    // see .claude/x3p-notes.md.
+    static OrbitCamera stripCameraFromModelAxis(const Surface3D& surf,
+                                                float ax, float ay,
+                                                const OrbitCamera& base)
     {
         OrbitCamera cam = base;
-        SurfaceModelParams P = computeModelParams(surf);
-        Eigen::Vector3f a = physToModelDir(P, surf, fit.axis);
-        Eigen::Vector3f e1 = physToModelDir(P, surf, fit.e1);
-        if (a.norm() < 1e-12f || e1.norm() < 1e-12f) return cam;
-        a.normalize();
-        e1 = e1 - e1.dot(a) * a;
-        if (e1.norm() < 1e-12f) return cam;
-        e1.normalize();
-        Eigen::Vector3f e2 = a.cross(e1);  // right-handed (e1, e2, a)
+        cam.pitch = 0.0f;
+        cam.yaw = 0.0f;
+        cam.target = Eigen::Vector3f::Zero();
 
-        Eigen::Matrix3f R;
-        R.row(0) = e1.transpose();
-        R.row(1) = e2.transpose();
-        R.row(2) = a.transpose();
-        Eigen::Vector3f pyr = matrixToEuler(R);  // degrees
-        cam.pitch = pyr.x() * kDegToRad;
-        cam.yaw = pyr.y() * kDegToRad;
-        cam.roll = pyr.z() * kDegToRad;
+        float len = std::hypot(ax, ay);
+        if (len < 1e-9f)
+        {
+            ax = 0.0f;
+            ay = 1.0f;
+            len = 1.0f;
+        }
+        ax /= len;
+        ay /= len;
+
+        // Rz(roll) turns the axis to +Y (screen-up); either vertical
+        // direction reads the same, so the sign is a build-tune knob.
+        const float kHalfPi = 1.5707963267948966f;
+        cam.roll = kHalfPi - std::atan2(ay, ax);
+
+        // Fill the viewport height with the strip's extent along the
+        // (now vertical) axis: half-extent = corner projection onto the
+        // axis; distance = halfExtent / tan(fovY/2), plus a little pad.
+        SurfaceModelParams P = computeModelParams(surf);
+        float Wx =
+            (float)((surf.sizeX > 1 ? surf.sizeX - 1 : 1) * P.sx);
+        float Wy =
+            (float)((surf.sizeY > 1 ? surf.sizeY - 1 : 1) * P.sy);
+        float hAxis = 0.5f * (Wx * std::fabs(ax) + Wy * std::fabs(ay));
+        float tanHalf = std::tan(cam.fovY * 0.5f);
+        if (tanHalf > 1e-6f && hAxis > 1e-9f)
+            cam.distance = std::clamp(
+                hAxis / tanHalf * kStripFillMargin, 0.05f, 30.0f);
         return cam;
+    }
+
+    void X3PBulletLand::applyDefaultView()
+    {
+        if (!surface) return;
+
+        float ax = 0.0f, ay = 1.0f;
+        bool haveAxis = false;
+        if (hasFit)
+        {
+            SurfaceModelParams P = computeModelParams(*surface);
+            Eigen::Vector3f a = physToModelDir(P, *surface, fit.axis);
+            if (std::hypot(a.x(), a.y()) > 1e-9f)
+            {
+                ax = a.x();
+                ay = a.y();
+                haveAxis = true;
+            }
+        }
+        if (!haveAxis)
+        {
+            // Fallback: stand the longer grid dimension vertical.
+            double physW =
+                (surface->sizeX > 1 ? surface->sizeX - 1 : 1) *
+                surface->incX;
+            double physH =
+                (surface->sizeY > 1 ? surface->sizeY - 1 : 1) *
+                surface->incY;
+            if (physH >= physW)
+            {
+                ax = 0.0f;
+                ay = 1.0f;  // rows (model Y) already vertical
+            }
+            else
+            {
+                ax = 1.0f;
+                ay = 0.0f;  // cols (model X) -> rotate to vertical
+            }
+        }
+
+        homeCamera = stripCameraFromModelAxis(*surface, ax, ay, camera);
+        camera.pitch = homeCamera.pitch;
+        camera.yaw = homeCamera.yaw;
+        camera.roll = homeCamera.roll;
+        camera.distance = homeCamera.distance;
+        camera.target = homeCamera.target;
+        cameraDirty = true;
     }
 
     void X3PBulletLand::computeFit()
@@ -723,11 +789,7 @@ namespace shoecomp
         hasFit = true;
         if (surface->annotations.isObject())
             surface->annotations["cylinder"] = cylinderToJson(fit);
-        homeCamera = faceCameraFromFit(fit, *surface, camera);
-        camera.pitch = homeCamera.pitch;
-        camera.yaw = homeCamera.yaw;
-        camera.roll = homeCamera.roll;
-        cameraDirty = true;
+        applyDefaultView();
     }
 
     int X3PBulletLand::loadAnnotations(const std::string& path,
@@ -745,27 +807,13 @@ namespace shoecomp
             {
                 fit = f;
                 hasFit = true;
-                homeCamera = faceCameraFromFit(fit, *surface, camera);
-                camera.pitch = homeCamera.pitch;
-                camera.yaw = homeCamera.yaw;
-                camera.roll = homeCamera.roll;
-                cameraDirty = true;
             }
         }
+        applyDefaultView();
         return 0;
     }
 
-    void X3PBulletLand::resetView()
-    {
-        if (hasFit)
-        {
-            camera.pitch = homeCamera.pitch;
-            camera.yaw = homeCamera.yaw;
-            camera.roll = homeCamera.roll;
-        }
-        else
-            ImageCanvas3D::resetView();
-    }
+    void X3PBulletLand::resetView() { applyDefaultView(); }
 
     void X3PBulletLand::handleMarkupPick(int col, int row, bool remove)
     {
@@ -1037,7 +1085,7 @@ namespace shoecomp
 
         ImGui::BeginDisabled(!hasImg);
         if (iconBtn(ICON_MD_STRAIGHTEN, btn,
-                    "Fit cylinder & open the down-the-axis face view"))
+                    "Fit cylinder (aligns the vertical strip view)"))
             computeFit();
         ImGui::EndDisabled();
 

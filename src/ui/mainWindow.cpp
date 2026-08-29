@@ -595,8 +595,9 @@ namespace shoecomp
             }
         }
 
-        // Bullet-land x3p: optionally fit the cylinder + open the face
-        // view as each surface loads (keeps loadImages const).
+        // Bullet-land x3p: optionally fit the cylinder as each surface
+        // loads, refining the strip view onto the fitted axis (keeps
+        // loadImages const).
         if (state.settings.autoFitCylinder)
         {
             for (auto& c : loaded)

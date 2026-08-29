@@ -10,6 +10,11 @@ namespace shoecomp
 {
     static constexpr float kDegToRad = 3.14159265358979f / 180.0f;
 
+    // 3D surface (x3p) view: extra zoom-out when framing a bullet-land
+    // strip so it doesn't touch the viewport edges (1.0 = fills
+    // exactly).
+    static constexpr float kStripFillMargin = 1.5f;
+
     // UI sizing constants (multipliers relative to font size)
     // Rounding
     static constexpr float kWindowRounding = 0.3f;

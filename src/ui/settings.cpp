@@ -274,7 +274,8 @@ namespace shoecomp
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
                 "When a Bullet land (x3p) surface loads, fit the "
-                "cylinder\nand open the down-the-axis face view.");
+                "cylinder\nand align the vertical strip view to its "
+                "axis.");
 
         ImGui::Spacing();
 

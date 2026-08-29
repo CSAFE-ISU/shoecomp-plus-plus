@@ -17,9 +17,9 @@ namespace shoecomp
         // load as. Only ShoeCanvas / EBTSCanvas are user-selectable.
         ImageCanvas::Kind activeKind = ImageCanvas::Kind::ShoeCanvas;
 
-        // Bullet-land x3p: fit the cylinder + open the face view
-        // automatically when a surface loads (manual re-fit always
-        // available from the 3D toolbar).
+        // Bullet-land x3p: fit the cylinder automatically when a
+        // surface loads, aligning the strip view to its axis (manual
+        // re-fit always available from the 3D toolbar).
         bool autoFitCylinder = false;
 
         // Locked-viewer hover indicators
