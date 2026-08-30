@@ -28,10 +28,13 @@ namespace shoecomp
         std::shared_ptr<Surface3D> surface;
 
         // Editable thresholds in UI units (converted to SI on run).
-        float minLengthMm = 0.5f;     // min striation length, mm
-        float minHeightUm = 1.0f;     // min |height diff|, micrometres
+        // Defaults lean permissive so the smaller, shorter central
+        // striations survive; see .claude/striation-hough-plan.md
+        // "Ranking / tuning (later)".
+        float minLengthMm = 0.2f;     // min striation length, mm
+        float minHeightUm = 0.5f;     // min |height diff|, micrometres
         float maxSurfDevDeg = 20.0f;  // max deviation from surface, deg
-        int maxCount = 20;            // keep the strongest N
+        int maxCount = 50;            // keep the strongest N
 
         // Async worker state.
         WorkerChannel channel;
