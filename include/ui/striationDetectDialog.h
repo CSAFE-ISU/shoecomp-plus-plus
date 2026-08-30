@@ -12,39 +12,39 @@
 
 namespace shoecomp
 {
-    // Modal that runs geometric striation detection on a bullet-land
-    // x3p surface (which must have a cylinder fit) and REPLACES its
-    // peaks[] with the detected 5-D regions. Mirrors DetectDialog's
-    // async pattern (WorkerChannel worker drained per frame) minus the
-    // model browser; detection is pure CPU math (calc/striationDetect).
+    // Modal that runs 3-D-Hough striation detection on a bullet-land
+    // x3p surface and REPLACES its peaks[] with the detected lines.
+    // Detection is fit-independent (it works on the raw surface); a
+    // cylinder fit is not required. Mirrors DetectDialog's async
+    // pattern (WorkerChannel worker drained per frame) minus the model
+    // browser; detection is pure CPU math (calc/striationDetect).
     struct StriationDetectDialog
     {
         bool show = false;
         bool open = false;
 
-        // Target surface + a stable copy of its cylinder fit, captured
-        // when the dialog is opened (worker reads heights + fit only).
+        // Target surface, captured when the dialog is opened (the
+        // worker reads its heights only).
         std::shared_ptr<Surface3D> surface;
-        CylinderFit fit;
 
         // Editable thresholds in UI units (converted to SI on run).
-        float minThetaDeg = 1.0f;  // min angular WIDTH, degrees
-        float minDrUm = 3.0f;      // |dr| threshold, micrometres
-        float minLengthMm = 0.3f;  // min axial length, millimetres
-        int maxCount = 20;         // keep the strongest N
+        float minLengthMm = 0.5f;     // min striation length, mm
+        float minHeightUm = 1.0f;     // min |height diff|, micrometres
+        float maxSurfDevDeg = 20.0f;  // max deviation from surface, deg
+        int maxCount = 20;            // keep the strongest N
 
         // Async worker state.
         WorkerChannel channel;
         std::thread workerThread;
         bool workerFinished = false;
-        std::vector<PeakRegion5D> results;  // written by the worker
-        int appliedCount = -1;              // -1 until results applied
+        std::vector<StriationLine> results;  // written by the worker
+        int appliedCount = -1;               // -1 until results applied
 
         char statusText[160]{};
         bool statusIsError = false;
 
-        // Opens the dialog for |canvas| (which must have hasFit and a
-        // surface). Returns false and sets statusText otherwise.
+        // Opens the dialog for |canvas| (needs only a loaded surface).
+        // Returns false and sets statusText otherwise.
         bool openFor(X3PBulletLand& canvas);
 
         void render();

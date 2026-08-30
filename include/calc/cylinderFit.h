@@ -74,6 +74,19 @@ namespace shoecomp
         const CylinderFit& fit, const Surface3D& surf,
         const std::vector<std::pair<int, int>>& loopColRow,
         PeakRegion5D& out);
+
+    // A striation as a straight 3-D line segment in physical metres:
+    // one endpoint |start|, unit direction |dir|, and |length| (so
+    // end = start + length*dir). This is the raw geometry produced by
+    // detection and manual markup; the angular location, dr height, and
+    // axial length are DERIVED from a CylinderFit at display time and
+    // are deliberately not stored here.
+    struct StriationLine
+    {
+        Eigen::Vector3d start = Eigen::Vector3d::Zero();
+        Eigen::Vector3d dir = Eigen::Vector3d::UnitX();
+        double length = 0.0;
+    };
 }  // namespace shoecomp
 
 #endif

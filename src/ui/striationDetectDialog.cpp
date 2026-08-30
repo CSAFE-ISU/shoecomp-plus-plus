@@ -17,21 +17,19 @@ namespace shoecomp
 
     bool StriationDetectDialog::openFor(X3PBulletLand& canvas)
     {
-        if (!canvas.surface || !canvas.hasFit || !canvas.fit.valid)
+        if (!canvas.surface || !canvas.surface->valid())
         {
-            std::strncpy(statusText,
-                         "cannot detect without a cylinder fit",
+            std::strncpy(statusText, "no surface loaded",
                          sizeof(statusText) - 1);
             statusIsError = true;
             return false;
         }
 
-        // Make sure no prior worker is still reading the surface/fit.
+        // Make sure no prior worker is still reading the surface.
         cancelDetection();
         cleanup();
 
         surface = canvas.surface;
-        fit = canvas.fit;
 
         results.clear();
         appliedCount = -1;
@@ -53,7 +51,8 @@ namespace shoecomp
         ann["peaks"].setArray();  // replace any existing peaks
         auto& arr = ann["peaks"].getArray();
 
-        for (const auto& d : results) arr.push_back(peak5DToJson(d));
+        for (const auto& d : results)
+            arr.push_back(striationLineToJson(d));
         appliedCount = (int)results.size();
 
         std::snprintf(statusText, sizeof(statusText),
@@ -129,22 +128,21 @@ namespace shoecomp
             {
                 ImGui::SetWindowFontScale(0.9f);
                 ImGui::TextWrapped(
-                    "Detect axial ridges and grooves on the fitted "
-                    "cylinder. Detected striations REPLACE the current "
-                    "peaks.");
+                    "Detect striations as 3-D lines on the surface. "
+                    "Detected striations REPLACE the current peaks.");
                 ImGui::Separator();
 
                 bool running = channel.is_running.load();
                 ImGui::BeginDisabled(running);
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x *
                                      0.4f);
-                ImGui::DragFloat("Min angular width (deg)",
-                                 &minThetaDeg, 0.05f, 0.0f, 45.0f,
-                                 "%.2f");
-                ImGui::DragFloat("Min height |dr| (um)", &minDrUm, 0.1f,
-                                 0.0f, 1000.0f, "%.2f");
-                ImGui::DragFloat("Min axial length (mm)", &minLengthMm,
-                                 0.01f, 0.0f, 100.0f, "%.3f");
+                ImGui::DragFloat("Min length (mm)", &minLengthMm, 0.01f,
+                                 0.0f, 100.0f, "%.3f");
+                ImGui::DragFloat("Min height |dr| (um)", &minHeightUm,
+                                 0.1f, 0.0f, 1000.0f, "%.2f");
+                ImGui::DragFloat("Max deviation from surface (deg)",
+                                 &maxSurfDevDeg, 0.5f, 0.0f, 90.0f,
+                                 "%.1f");
                 ImGui::InputInt("Max count", &maxCount);
                 if (maxCount < 1) maxCount = 1;
                 ImGui::PopItemWidth();
@@ -209,21 +207,20 @@ namespace shoecomp
         statusIsError = false;
 
         StriationParams params;
-        params.minThetaDiff = minThetaDeg * kPi / 180.0;
-        params.minDr = minDrUm * 1e-6;
         params.minLength = minLengthMm * 1e-3;
+        params.minHeight = minHeightUm * 1e-6;
+        params.maxSurfaceDev = maxSurfDevDeg * kPi / 180.0;
         params.maxCount = maxCount;
 
-        // The worker holds its own shared_ptr + fit copy so the run
-        // stays valid even if the dialog target changes.
+        // The worker holds its own shared_ptr so the run stays valid
+        // even if the dialog target changes.
         std::shared_ptr<Surface3D> surf = surface;
-        CylinderFit f = fit;
         workerThread = std::thread(
-            [this, surf, f, params]()
+            [this, surf, params]()
             {
                 std::string err;
                 bool ok =
-                    detectStriations(f, *surf, params, results, err,
+                    detectStriations(*surf, params, results, err,
                                      &channel.cancel_requested,
                                      [this](float p, const char* t)
                                      { channel.report(p, t); });

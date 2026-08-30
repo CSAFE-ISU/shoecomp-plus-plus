@@ -3,57 +3,123 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <unordered_map>
 #include <vector>
 
+#include "aligncalc/eigen/Eigen/Eigenvalues"
+
+// See .claude/striation-hough-plan.md for the design. The pipeline is:
+// (1) local high-pass of the height grid -> ridge/groove crest points
+// (fit-independent prominence), (2) estimate the axial direction from
+// the crest cloud (PCA), (3) iterative direction-constrained 3-D Hough
+// (project crests onto the plane perpendicular to each candidate
+// direction; the densest bin is a line; peel off its inliers and
+// repeat), (4) per line PCA refit -> start/direction/length + filters.
 namespace shoecomp
 {
     namespace
     {
-        struct Lattice
-        {
-            int nTheta = 0;
-            int nS = 0;
-            double thetaMin = 0.0, thetaRange = 0.0;
-            double sMin = 0.0, sRange = 0.0;
-            std::vector<double> d;  // mean dr per bin; NaN if empty
-        };
+        const double kNaN = std::numeric_limits<double>::quiet_NaN();
+        const double kDeg = 3.14159265358979323846 / 180.0;
+
+        // Internal tuning knobs (not exposed in the dialog).
+        const double kConeHalf = 12.0 * kDeg;  // direction search cone
+        const double kAngStep = 2.5 * kDeg;    // cone sampling step
+        const double kBinCells = 3.0;          // Hough bin size (cells)
+        const double kVoteFrac = 0.4;          // votes per unit length
+        const int kMinVotesFloor = 5;
 
         int clampi(int v, int lo, int hi)
         {
             return v < lo ? lo : (v > hi ? hi : v);
         }
 
-        // Light 3x3 mean over finite neighbours, into a fresh grid.
-        void smooth3x3(const Lattice& in, std::vector<double>& out)
+        struct Crest
         {
-            const int W = in.nTheta, H = in.nS;
-            out.assign((size_t)W * H,
-                       std::numeric_limits<double>::quiet_NaN());
-            for (int t = 0; t < W; ++t)
-                for (int s = 0; s < H; ++s)
+            Eigen::Vector3d p;  // physical position (metres)
+            Eigen::Vector3d n;  // unit surface normal
+            double h;           // signed prominence (+ ridge, - groove)
+        };
+
+        struct HoughDir
+        {
+            Eigen::Vector3d b;   // unit direction
+            Eigen::Vector3d e1;  // projection-plane basis
+            Eigen::Vector3d e2;
+        };
+
+        // Separable NaN-aware box mean of a (H x W) float grid
+        // (row-major index r*W+c), half-window |hw| cells, into |dst|.
+        // Cells with no finite neighbour stay NaN.
+        void boxMeanSeparable(const std::vector<float>& src, int W,
+                              int H, int hw, std::vector<float>& dst)
+        {
+            const float NaN = (float)kNaN;
+            std::vector<float> tmp((size_t)W * H, NaN);
+            std::vector<double> ps;
+            std::vector<int> pc;
+
+            ps.resize(W + 1);
+            pc.resize(W + 1);
+            for (int r = 0; r < H; ++r)
+            {
+                ps[0] = 0.0;
+                pc[0] = 0;
+                for (int c = 0; c < W; ++c)
                 {
-                    double sum = 0.0;
-                    int cnt = 0;
-                    for (int dt = -1; dt <= 1; ++dt)
-                        for (int ds = -1; ds <= 1; ++ds)
-                        {
-                            int tt = t + dt, ss = s + ds;
-                            if (tt < 0 || tt >= W || ss < 0 || ss >= H)
-                                continue;
-                            double v = in.d[(size_t)tt * H + ss];
-                            if (!std::isfinite(v)) continue;
-                            sum += v;
-                            ++cnt;
-                        }
-                    if (cnt > 0) out[(size_t)t * H + s] = sum / cnt;
+                    double v = src[(size_t)r * W + c];
+                    bool fin = std::isfinite(v);
+                    ps[c + 1] = ps[c] + (fin ? v : 0.0);
+                    pc[c + 1] = pc[c] + (fin ? 1 : 0);
                 }
+                for (int c = 0; c < W; ++c)
+                {
+                    int lo = std::max(0, c - hw);
+                    int hi = std::min(W - 1, c + hw);
+                    int cnt = pc[hi + 1] - pc[lo];
+                    if (cnt > 0)
+                        tmp[(size_t)r * W + c] =
+                            (float)((ps[hi + 1] - ps[lo]) / cnt);
+                }
+            }
+
+            dst.assign((size_t)W * H, NaN);
+            ps.resize(H + 1);
+            pc.resize(H + 1);
+            for (int c = 0; c < W; ++c)
+            {
+                ps[0] = 0.0;
+                pc[0] = 0;
+                for (int r = 0; r < H; ++r)
+                {
+                    double v = tmp[(size_t)r * W + c];
+                    bool fin = std::isfinite(v);
+                    ps[r + 1] = ps[r] + (fin ? v : 0.0);
+                    pc[r + 1] = pc[r] + (fin ? 1 : 0);
+                }
+                for (int r = 0; r < H; ++r)
+                {
+                    int lo = std::max(0, r - hw);
+                    int hi = std::min(H - 1, r + hw);
+                    int cnt = pc[hi + 1] - pc[lo];
+                    if (cnt > 0)
+                        dst[(size_t)r * W + c] =
+                            (float)((ps[hi + 1] - ps[lo]) / cnt);
+                }
+            }
+        }
+
+        // Bin key packing signed indices (|idx| < 32768) into one long.
+        long binKey(long iu, long iv)
+        {
+            return (iu + 32768L) * 65536L + (iv + 32768L);
         }
     }  // namespace
 
     bool detectStriations(
-        const CylinderFit& fit, const Surface3D& surf,
-        const StriationParams& params, std::vector<PeakRegion5D>& out,
-        std::string& err, const std::atomic<bool>* cancel,
+        const Surface3D& surf, const StriationParams& params,
+        std::vector<StriationLine>& out, std::string& err,
+        const std::atomic<bool>* cancel,
         const std::function<void(float, const char*)>& progress)
     {
         out.clear();
@@ -63,182 +129,313 @@ namespace shoecomp
         };
         auto stop = [&]() { return cancel && cancel->load(); };
 
-        if (!fit.valid || fit.radius <= 0.0 || !surf.valid())
+        if (!surf.valid())
         {
-            err =
-                "cannot detect striations without a valid cylinder fit";
+            err = "cannot detect striations on an empty surface";
             return false;
         }
-
-        const double thetaRange = fit.thetaMax - fit.thetaMin;
-        const double sRange = fit.sMax - fit.sMin;
-        if (thetaRange <= 0.0 || sRange <= 0.0)
-        {
-            err = "cylinder fit has a degenerate angular/axial range";
-            return false;
-        }
-
-        // Lattice resolution: about one bin per physical grid step
-        // along each direction (arc length for theta, metres for s),
-        // clamped.
-        double gridStep =
-            std::min(std::abs(surf.incX), std::abs(surf.incY));
-        if (!(gridStep > 0.0)) gridStep = 1.0;
-        double arcLen = thetaRange * fit.radius;
-        int nTheta =
-            clampi((int)std::lround(arcLen / gridStep), 64, 1536);
-        int nS = clampi((int)std::lround(sRange / gridStep), 64, 2048);
-
-        Lattice lat;
-        lat.nTheta = nTheta;
-        lat.nS = nS;
-        lat.thetaMin = fit.thetaMin;
-        lat.thetaRange = thetaRange;
-        lat.sMin = fit.sMin;
-        lat.sRange = sRange;
-
-        std::vector<double> sum((size_t)nTheta * nS, 0.0);
-        std::vector<int> cnt((size_t)nTheta * nS, 0);
-
-        tick(0.0f, "Unrolling surface...");
         const int Y = surf.sizeY, X = surf.sizeX;
+        if (Y < 4 || X < 4)
+        {
+            err = "surface too small for striation detection";
+            return false;
+        }
+
+        // --- (1) local high-pass -----------------------------------
+        tick(0.0f, "Filtering surface...");
+        std::vector<float> zf((size_t)Y * X);
         for (int r = 0; r < Y; ++r)
+            for (int c = 0; c < X; ++c)
+                zf[(size_t)r * X + c] = surf.z(r, c);
+
+        int hw = clampi((int)std::lround(std::min(X, Y) * 0.05), 4, 60);
+        std::vector<float> wide;
+        boxMeanSeparable(zf, X, Y, hw, wide);
+
+        std::vector<float> hLoc((size_t)Y * X, (float)kNaN);
+        for (size_t i = 0; i < hLoc.size(); ++i)
+        {
+            if (std::isfinite(zf[i]) && std::isfinite(wide[i]))
+                hLoc[i] = zf[i] - wide[i];
+        }
+
+        // --- (2) crest feature points ------------------------------
+        tick(0.25f, "Finding crest points...");
+        const bool axialAlongRows =
+            std::abs(Y * surf.incY) >= std::abs(X * surf.incX);
+        const double minH = params.minHeight;
+
+        auto normalAt = [&](int r, int c, Eigen::Vector3d& n) -> bool
+        {
+            float zl = surf.z(r, c - 1), zr = surf.z(r, c + 1);
+            float zu = surf.z(r - 1, c), zd = surf.z(r + 1, c);
+            if (!(std::isfinite(zl) && std::isfinite(zr) &&
+                  std::isfinite(zu) && std::isfinite(zd)))
+                return false;
+            Eigen::Vector3d dc(surf.px(c + 1) - surf.px(c - 1), 0.0,
+                               surf.pz(zr) - surf.pz(zl));
+            Eigen::Vector3d dr(0.0, surf.py(r + 1) - surf.py(r - 1),
+                               surf.pz(zd) - surf.pz(zu));
+            n = dc.cross(dr);
+            double nn = n.norm();
+            if (nn < 1e-20) return false;
+            n /= nn;
+            return true;
+        };
+
+        std::vector<Crest> crests;
+        auto tryCrest = [&](int r, int c, double v, double a, double b)
+        {
+            // v is hLoc(r,c); a,b the two cross-direction neighbours.
+            bool isMax = (v > a && v >= b && v >= minH);
+            bool isMin = (v < a && v <= b && v <= -minH);
+            if (!isMax && !isMin) return;
+            Eigen::Vector3d n;
+            if (!normalAt(r, c, n)) return;
+            Crest cr;
+            cr.p = Eigen::Vector3d(surf.px(c), surf.py(r),
+                                   surf.pz(surf.z(r, c)));
+            cr.n = n;
+            cr.h = v;
+            crests.push_back(cr);
+        };
+
+        if (axialAlongRows)
+        {
+            // striations run along rows; scan each row across columns.
+            for (int r = 1; r < Y - 1; ++r)
+            {
+                if (stop())
+                {
+                    err = "cancelled";
+                    return false;
+                }
+                for (int c = 1; c < X - 1; ++c)
+                {
+                    double v = hLoc[(size_t)r * X + c];
+                    double a = hLoc[(size_t)r * X + c - 1];
+                    double b = hLoc[(size_t)r * X + c + 1];
+                    if (std::isfinite(v) && std::isfinite(a) &&
+                        std::isfinite(b))
+                        tryCrest(r, c, v, a, b);
+                }
+            }
+        }
+        else
+        {
+            // striations run along columns; scan each column across
+            // rows.
+            for (int c = 1; c < X - 1; ++c)
+            {
+                if (stop())
+                {
+                    err = "cancelled";
+                    return false;
+                }
+                for (int r = 1; r < Y - 1; ++r)
+                {
+                    double v = hLoc[(size_t)r * X + c];
+                    double a = hLoc[(size_t)(r - 1) * X + c];
+                    double b = hLoc[(size_t)(r + 1) * X + c];
+                    if (std::isfinite(v) && std::isfinite(a) &&
+                        std::isfinite(b))
+                        tryCrest(r, c, v, a, b);
+                }
+            }
+        }
+
+        const int N = (int)crests.size();
+        const double gridStep =
+            std::min(std::abs(surf.incX), std::abs(surf.incY));
+        const double axialStep =
+            axialAlongRows ? std::abs(surf.incY) : std::abs(surf.incX);
+        const double binSize = std::max(kBinCells * gridStep, 1e-9);
+        int minVotes =
+            std::max(kMinVotesFloor,
+                     axialStep > 0.0
+                         ? (int)std::lround(
+                               kVoteFrac * params.minLength / axialStep)
+                         : kMinVotesFloor);
+        if (N < minVotes)
+        {
+            tick(1.0f, "Done");
+            return true;  // nothing to detect, not an error
+        }
+
+        // --- (2b) axial direction estimate (PCA of crest cloud) ----
+        Eigen::Vector3d mean = Eigen::Vector3d::Zero();
+        for (const auto& cr : crests) mean += cr.p;
+        mean /= (double)N;
+        Eigen::Matrix3d cov = Eigen::Matrix3d::Zero();
+        for (const auto& cr : crests)
+        {
+            Eigen::Vector3d d = cr.p - mean;
+            cov += d * d.transpose();
+        }
+        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
+        Eigen::Vector3d aEst = es.eigenvectors().col(2).normalized();
+
+        // --- (3) candidate directions in a cone around aEst --------
+        Eigen::Vector3d t = (std::abs(aEst.x()) < 0.9)
+                                ? Eigen::Vector3d::UnitX()
+                                : Eigen::Vector3d::UnitY();
+        Eigen::Vector3d u1 = (t - t.dot(aEst) * aEst).normalized();
+        Eigen::Vector3d u2 = aEst.cross(u1).normalized();
+        std::vector<HoughDir> dirs;
+        for (double tu = -kConeHalf; tu <= kConeHalf + 1e-9;
+             tu += kAngStep)
+            for (double tv = -kConeHalf; tv <= kConeHalf + 1e-9;
+                 tv += kAngStep)
+            {
+                HoughDir hd;
+                hd.b = (aEst + std::tan(tu) * u1 + std::tan(tv) * u2)
+                           .normalized();
+                Eigen::Vector3d s = (std::abs(hd.b.x()) < 0.9)
+                                        ? Eigen::Vector3d::UnitX()
+                                        : Eigen::Vector3d::UnitY();
+                hd.e1 = (s - s.dot(hd.b) * hd.b).normalized();
+                hd.e2 = hd.b.cross(hd.e1).normalized();
+                dirs.push_back(hd);
+            }
+
+        // --- (3b) iterative Hough peeling --------------------------
+        tick(0.5f, "Detecting lines...");
+        const Eigen::Vector3d p0 = mean;
+        std::vector<char> alive((size_t)N, 1);
+        std::vector<StriationLine> kept;
+        std::vector<double> keptScore;
+        const int maxIter =
+            std::min(500, std::max(20, params.maxCount * 6));
+        const double distThresh = 2.0 * binSize;
+
+        for (int iter = 0; iter < maxIter; ++iter)
         {
             if (stop())
             {
                 err = "cancelled";
                 return false;
             }
-            for (int c = 0; c < X; ++c)
+            tick(0.5f + 0.45f * (float)iter / (float)maxIter,
+                 "Detecting lines...");
+
+            long bestCount = 0, bestKey = 0;
+            int bestDir = -1;
+            for (int di = 0; di < (int)dirs.size(); ++di)
             {
-                float zv = surf.z(r, c);
-                if (!std::isfinite(zv)) continue;
-                Eigen::Vector3d p(surf.px(c), surf.py(r), surf.pz(zv));
-                double th, s, rr;
-                toCylindrical(fit, p, th, s, rr);
-                double dr = rr - fit.radius;
-                int it = clampi(
-                    (int)((th - fit.thetaMin) / thetaRange * nTheta), 0,
-                    nTheta - 1);
-                int is = clampi((int)((s - fit.sMin) / sRange * nS), 0,
-                                nS - 1);
-                size_t idx = (size_t)it * nS + is;
-                sum[idx] += dr;
-                cnt[idx] += 1;
-            }
-            if ((r & 31) == 0)
-                tick(0.7f * (float)(r + 1) / (float)Y,
-                     "Unrolling surface...");
-        }
-
-        lat.d.assign((size_t)nTheta * nS,
-                     std::numeric_limits<double>::quiet_NaN());
-        for (size_t i = 0; i < lat.d.size(); ++i)
-            if (cnt[i] > 0) lat.d[i] = sum[i] / cnt[i];
-
-        std::vector<double> smoothed;
-        smooth3x3(lat, smoothed);
-        lat.d.swap(smoothed);
-
-        if (stop())
-        {
-            err = "cancelled";
-            return false;
-        }
-        tick(0.8f, "Finding striations...");
-
-        // Connected components per sign (8-connectivity). label: 0 =
-        // unlabelled, positive = component id. Ridge and groove masks
-        // are scanned separately so opposite signs never merge.
-        const int W = nTheta, H = nS;
-        std::vector<int> label((size_t)W * H, 0);
-        std::vector<std::pair<int, int>> stack;
-
-        std::vector<PeakRegion5D> cands;
-        const double binT = thetaRange / nTheta;
-        const double binS = sRange / nS;
-
-        for (int sign = -1; sign <= 1; sign += 2)
-        {
-            int nextId = 1;
-            std::fill(label.begin(), label.end(), 0);
-            for (int t0 = 0; t0 < W; ++t0)
-                for (int s0 = 0; s0 < H; ++s0)
+                const HoughDir& hd = dirs[di];
+                std::unordered_map<long, int> hist;
+                hist.reserve((size_t)N);
+                for (int i = 0; i < N; ++i)
                 {
-                    size_t seed = (size_t)t0 * H + s0;
-                    if (label[seed] != 0) continue;
-                    double dv = lat.d[seed];
-                    if (!std::isfinite(dv)) continue;
-                    bool inMask = (sign > 0) ? (dv >= params.minDr)
-                                             : (dv <= -params.minDr);
-                    if (!inMask) continue;
-
-                    int id = nextId++;
-                    stack.clear();
-                    stack.emplace_back(t0, s0);
-                    label[seed] = id;
-                    int tMinB = t0, tMaxB = t0, sMinB = s0, sMaxB = s0;
-                    double peak = dv;  // signed extreme by |.|
-                    while (!stack.empty())
+                    if (!alive[i]) continue;
+                    Eigen::Vector3d d = crests[i].p - p0;
+                    long iu =
+                        (long)std::llround(d.dot(hd.e1) / binSize);
+                    long iv =
+                        (long)std::llround(d.dot(hd.e2) / binSize);
+                    int cnt = ++hist[binKey(iu, iv)];
+                    if (cnt > bestCount)
                     {
-                        auto [ct, cs] = stack.back();
-                        stack.pop_back();
-                        tMinB = std::min(tMinB, ct);
-                        tMaxB = std::max(tMaxB, ct);
-                        sMinB = std::min(sMinB, cs);
-                        sMaxB = std::max(sMaxB, cs);
-                        double cd = lat.d[(size_t)ct * H + cs];
-                        if (std::abs(cd) > std::abs(peak)) peak = cd;
-                        for (int dt = -1; dt <= 1; ++dt)
-                            for (int ds = -1; ds <= 1; ++ds)
-                            {
-                                if (dt == 0 && ds == 0) continue;
-                                int nt = ct + dt, ns = cs + ds;
-                                if (nt < 0 || nt >= W || ns < 0 ||
-                                    ns >= H)
-                                    continue;
-                                size_t ni = (size_t)nt * H + ns;
-                                if (label[ni] != 0) continue;
-                                double nv = lat.d[ni];
-                                if (!std::isfinite(nv)) continue;
-                                bool m = (sign > 0)
-                                             ? (nv >= params.minDr)
-                                             : (nv <= -params.minDr);
-                                if (!m) continue;
-                                label[ni] = id;
-                                stack.emplace_back(nt, ns);
-                            }
+                        bestCount = cnt;
+                        bestDir = di;
+                        bestKey = binKey(iu, iv);
                     }
-
-                    PeakRegion5D pr;
-                    pr.thetaStart = fit.thetaMin + tMinB * binT;
-                    pr.thetaEnd = fit.thetaMin + (tMaxB + 1) * binT;
-                    pr.sStart = fit.sMin + sMinB * binS;
-                    pr.length = (sMaxB + 1 - sMinB) * binS;
-                    pr.dHeight = peak;
-                    cands.push_back(pr);
                 }
-        }
+            }
 
-        // Filter by angular width and axial length (|dHeight| already
-        // satisfies minDr from the mask).
-        std::vector<PeakRegion5D> kept;
-        for (const auto& p : cands)
-        {
-            if (p.thetaEnd - p.thetaStart < params.minThetaDiff)
+            if (bestDir < 0 || bestCount < minVotes) break;
+
+            // Gather inliers of the winning bin (+/-1 bin tolerance).
+            const HoughDir& hd = dirs[bestDir];
+            long keyIu = bestKey / 65536L - 32768L;
+            long keyIv = bestKey % 65536L - 32768L;
+            std::vector<int> gathered;
+            for (int i = 0; i < N; ++i)
+            {
+                if (!alive[i]) continue;
+                Eigen::Vector3d d = crests[i].p - p0;
+                long iu = (long)std::llround(d.dot(hd.e1) / binSize);
+                long iv = (long)std::llround(d.dot(hd.e2) / binSize);
+                if (std::abs(iu - keyIu) <= 1 &&
+                    std::abs(iv - keyIv) <= 1)
+                    gathered.push_back(i);
+            }
+            for (int i : gathered) alive[i] = 0;  // consume (NMS)
+            if ((int)gathered.size() < minVotes) continue;
+
+            // PCA refit of the gathered crest positions.
+            Eigen::Vector3d c0 = Eigen::Vector3d::Zero();
+            for (int i : gathered) c0 += crests[i].p;
+            c0 /= (double)gathered.size();
+            Eigen::Matrix3d cv = Eigen::Matrix3d::Zero();
+            for (int i : gathered)
+            {
+                Eigen::Vector3d d = crests[i].p - c0;
+                cv += d * d.transpose();
+            }
+            Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> les(cv);
+            Eigen::Vector3d dir =
+                les.eigenvectors().col(2).normalized();
+            if (dir.dot(hd.b) < 0.0) dir = -dir;
+
+            // Keep inliers close to the fitted line; recompute stats.
+            double t0 = std::numeric_limits<double>::max();
+            double t1 = -std::numeric_limits<double>::max();
+            double sumH = 0.0;
+            Eigen::Vector3d sumN = Eigen::Vector3d::Zero();
+            int nin = 0;
+            for (int i : gathered)
+            {
+                Eigen::Vector3d q = crests[i].p - c0;
+                double tproj = q.dot(dir);
+                Eigen::Vector3d perp = q - tproj * dir;
+                if (perp.norm() > distThresh) continue;
+                t0 = std::min(t0, tproj);
+                t1 = std::max(t1, tproj);
+                sumH += std::abs(crests[i].h);
+                sumN += crests[i].n;
+                ++nin;
+            }
+            if (nin < minVotes) continue;
+
+            double length = t1 - t0;
+            double strength = sumH / nin;
+            double surfDev = 0.0;
+            double nn = sumN.norm();
+            if (nn > 1e-20)
+            {
+                Eigen::Vector3d navg = sumN / nn;
+                double dp = std::abs(dir.dot(navg));
+                surfDev = std::asin(dp < 1.0 ? dp : 1.0);
+            }
+
+            if (length < params.minLength) continue;
+            if (strength < params.minHeight) continue;
+            if (params.maxSurfaceDev > 0.0 &&
+                surfDev > params.maxSurfaceDev)
                 continue;
-            if (p.length < params.minLength) continue;
-            kept.push_back(p);
+
+            StriationLine ln;
+            ln.start = c0 + t0 * dir;
+            ln.dir = dir;
+            ln.length = length;
+            kept.push_back(ln);
+            keptScore.push_back(strength * length);
+            if (params.maxCount > 0 &&
+                (int)kept.size() >= params.maxCount * 3)
+                break;  // enough candidates to rank
         }
 
-        std::sort(
-            kept.begin(), kept.end(),
-            [](const PeakRegion5D& a, const PeakRegion5D& b)
-            { return std::abs(a.dHeight) > std::abs(b.dHeight); });
-        if (params.maxCount >= 0 && (int)kept.size() > params.maxCount)
-            kept.resize(params.maxCount);
+        // --- (4) rank and cap --------------------------------------
+        std::vector<int> order(kept.size());
+        for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
+        std::sort(order.begin(), order.end(), [&](int a, int b)
+                  { return keptScore[a] > keptScore[b]; });
+        if (params.maxCount >= 0 && (int)order.size() > params.maxCount)
+            order.resize(params.maxCount);
+        out.reserve(order.size());
+        for (int i : order) out.push_back(kept[i]);
 
-        out = std::move(kept);
         tick(1.0f, "Done");
         return true;
     }

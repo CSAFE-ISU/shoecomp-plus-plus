@@ -56,11 +56,15 @@ namespace shoecomp
             return true;
         }
 
-        // A peak needs a valid loop (col/row/x/y/z cells) and/or the
-        // full numeric 5-D descriptor, so it is always renderable.
+        // A peak is renderable if it is a striation line
+        // (start/direction/length) — the current shape — or, for
+        // tolerance during the schema transition, a legacy loop and/or
+        // 5-D descriptor.
         bool validPeak(const jt::Json& pk)
         {
             if (!pk.isObject()) return false;
+            StriationLine ln;
+            if (striationLineFromJson(pk, ln)) return true;
             bool hasLoop = pk.contains("loop");
             if (hasLoop)
             {
@@ -106,6 +110,29 @@ namespace shoecomp
         pk["thetaStart"] = d.thetaStart * kR2D;
         pk["thetaEnd"] = d.thetaEnd * kR2D;
         return pk;
+    }
+
+    jt::Json striationLineToJson(const StriationLine& s)
+    {
+        jt::Json pk;
+        pk.setObject();
+        pk["start"] = vec3ToJson(s.start);
+        pk["direction"] = vec3ToJson(s.dir);
+        pk["length"] = s.length;
+        return pk;
+    }
+
+    bool striationLineFromJson(const jt::Json& j, StriationLine& out)
+    {
+        if (!j.isObject()) return false;
+        StriationLine s;
+        if (!jsonToVec3(j, "start", s.start)) return false;
+        if (!jsonToVec3(j, "direction", s.dir)) return false;
+        if (!j.contains("length") || !j["length"].isNumber())
+            return false;
+        s.length = j["length"].getNumber();
+        out = s;
+        return true;
     }
 
     jt::Json cylinderToJson(const CylinderFit& f)
