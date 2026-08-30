@@ -56,35 +56,11 @@ namespace shoecomp
             return true;
         }
 
-        // A peak is renderable if it is a striation line
-        // (start/direction/length) — the current shape — or, for
-        // tolerance during the schema transition, a legacy loop and/or
-        // 5-D descriptor.
+        // A peak is a striation line: start[3] + direction[3] + length.
         bool validPeak(const jt::Json& pk)
         {
-            if (!pk.isObject()) return false;
             StriationLine ln;
-            if (striationLineFromJson(pk, ln)) return true;
-            bool hasLoop = pk.contains("loop");
-            if (hasLoop)
-            {
-                if (!pk["loop"].isArray()) return false;
-                for (const auto& el : pk["loop"].getArray())
-                    if (!validElement(el, /*wantType=*/false))
-                        return false;
-            }
-            bool has5D = true;
-            for (const char* k : {"sStart", "thetaStart", "thetaEnd",
-                                  "dHeight", "length"})
-            {
-                if (pk.contains(k))
-                {
-                    if (!pk[k].isNumber()) return false;
-                }
-                else
-                    has5D = false;
-            }
-            return hasLoop || has5D;
+            return striationLineFromJson(pk, ln);
         }
     }  // namespace
 
@@ -98,18 +74,6 @@ namespace shoecomp
         if (!ofs.good()) return -1;
         ofs.close();
         return 0;
-    }
-
-    jt::Json peak5DToJson(const PeakRegion5D& d)
-    {
-        jt::Json pk;
-        pk.setObject();
-        pk["sStart"] = d.sStart;
-        pk["length"] = d.length;
-        pk["dHeight"] = d.dHeight;
-        pk["thetaStart"] = d.thetaStart * kR2D;
-        pk["thetaEnd"] = d.thetaEnd * kR2D;
-        return pk;
     }
 
     jt::Json striationLineToJson(const StriationLine& s)

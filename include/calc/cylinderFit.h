@@ -50,31 +50,6 @@ namespace shoecomp
     Eigen::Vector3d fromCylindrical(const CylinderFit& fit,
                                     double theta, double s, double r);
 
-    // 5-D descriptor of a peak region (physical metres + radians):
-    // axial start, angular span on the face, height above the fitted
-    // curvature, axial length.
-    struct PeakRegion5D
-    {
-        double sStart = 0.0;
-        double thetaStart = 0.0;
-        double thetaEnd = 0.0;
-        double dHeight = 0.0;
-        double length = 0.0;
-    };
-
-    // Reduce a peak region (a closed loop of grid cells, given as
-    // (col,row) pairs) to its 5-D descriptor under |fit|: iterate the
-    // finite grid cells inside the loop polygon, convert each to
-    // cylindrical coords, and aggregate. sStart/length span the axial
-    // extent, thetaStart/thetaEnd the angular extent, and dHeight is
-    // the max signed (r - R) — positive for a ridge raised above a
-    // convex fit. Returns false if the loop is degenerate or encloses
-    // no valid cell.
-    bool peakRegion5D(
-        const CylinderFit& fit, const Surface3D& surf,
-        const std::vector<std::pair<int, int>>& loopColRow,
-        PeakRegion5D& out);
-
     // A striation as a straight 3-D line segment in physical metres:
     // one endpoint |start|, unit direction |dir|, and |length| (so
     // end = start + length*dir). This is the raw geometry produced by

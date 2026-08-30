@@ -23,11 +23,6 @@ namespace shoecomp
     jt::Json cylinderToJson(const CylinderFit& fit);
     bool cylinderFromJson(const jt::Json& j, CylinderFit& out);
 
-    // The 5-D peak descriptor as a JSON object (thetaStart/thetaEnd in
-    // degrees, sStart/length/dHeight in metres) — the on-disk shape of
-    // a peak with no loop. Shared by manual markup and auto-detection.
-    jt::Json peak5DToJson(const PeakRegion5D& d);
-
     // A striation line as a JSON object: { start:[x,y,z],
     // direction:[unit x,y,z], length } — all physical metres. This is
     // the current on-disk shape of a peaks[] element. Shared by manual
