@@ -844,73 +844,55 @@ namespace shoecomp
     {
         if (remove)
         {
-            if (!loopScratch.empty())
-                loopScratch.pop_back();
+            if (hasPendingStart)
+                hasPendingStart = false;
             else
                 removeNearestPeak(col, row);
             return;
         }
-        if (loopScratch.size() >= 3)
+        if (!surface || col < 0 || col >= surface->sizeX || row < 0 ||
+            row >= surface->sizeY)
+            return;
+        if (!std::isfinite(surface->z(row, col))) return;  // need z
+
+        if (!hasPendingStart)
         {
-            int dc = col - loopScratch.front().first;
-            int dr = row - loopScratch.front().second;
-            double dist = std::sqrt((double)dc * dc + (double)dr * dr);
-            double thr =
-                surface ? std::max(4.0, 0.02 * std::max(surface->sizeX,
-                                                        surface->sizeY))
-                        : 6.0;
-            if (dist <= thr)
-            {
-                commitPeakRegion();
-                return;
-            }
+            pendingStart = {col, row};
+            hasPendingStart = true;
         }
-        loopScratch.push_back({col, row});
+        else
+        {
+            commitStriationLine(col, row);
+        }
     }
 
-    void X3PBulletLand::commitPeakRegion()
+    void X3PBulletLand::commitStriationLine(int col, int row)
     {
-        if (!surface || loopScratch.size() < 3)
-        {
-            loopScratch.clear();
-            return;
-        }
+        hasPendingStart = false;
+        if (!surface) return;
+        int c0 = pendingStart.first, r0 = pendingStart.second;
+        float z0 = surface->z(r0, c0);
+        float z1 = surface->z(row, col);
+        if (!std::isfinite(z0) || !std::isfinite(z1)) return;
+        Eigen::Vector3d p0(surface->px(c0), surface->py(r0),
+                           surface->pz(z0));
+        Eigen::Vector3d p1(surface->px(col), surface->py(row),
+                           surface->pz(z1));
+        Eigen::Vector3d d = p1 - p0;
+        double len = d.norm();
+        if (len < 1e-12) return;  // start == end
+
+        StriationLine ln;
+        ln.start = p0;
+        ln.dir = d / len;
+        ln.length = len;
+
         if (!surface->annotations.isObject())
             surface->annotations.setObject();
         if (!surface->annotations["peaks"].isArray())
             surface->annotations["peaks"].setArray();
-
-        jt::Json pk;
-        pk.setObject();
-        jt::Json loop;
-        loop.setArray();
-        for (const auto& cr : loopScratch)
-        {
-            int c = cr.first, r = cr.second;
-            float zv = surface->z(r, c);
-            jt::Json v;
-            v.setObject();
-            v["col"] = c;
-            v["row"] = r;
-            v["x"] = surface->px(c);
-            v["y"] = surface->py(r);
-            v["z"] = surface->pz(zv);
-            loop.getArray().push_back(std::move(v));
-        }
-        pk["loop"] = std::move(loop);
-
-        // 5-D descriptor needs the cylinder frame; peak5DToJson emits
-        // the on-disk shape (deg / metres). Merge its fields onto pk.
-        if (hasFit)
-        {
-            PeakRegion5D d;
-            if (peakRegion5D(fit, *surface, loopScratch, d))
-                for (auto& kv : peak5DToJson(d).getObject())
-                    pk[kv.first] = kv.second;
-        }
         surface->annotations["peaks"].getArray().push_back(
-            std::move(pk));
-        loopScratch.clear();
+            striationLineToJson(ln));
     }
 
     void X3PBulletLand::removeNearestPeak(int col, int row)
@@ -922,21 +904,12 @@ namespace shoecomp
         double bestD = 1e300;
         for (int i = 0; i < (int)arr.size(); ++i)
         {
-            if (!arr[i].isObject() || !arr[i].contains("loop"))
-                continue;
-            if (!arr[i]["loop"].isArray()) continue;
-            auto& loop = arr[i]["loop"].getArray();
-            double cc = 0, rr = 0;
-            int n = 0;
-            for (auto& v : loop)
-            {
-                if (!v.isObject()) continue;
-                cc += v["col"].getNumber();
-                rr += v["row"].getNumber();
-                ++n;
-            }
-            if (!n) continue;
-            double dc = cc / n - col, dr = rr / n - row;
+            StriationLine ln;
+            if (!striationLineFromJson(arr[i], ln)) continue;
+            Eigen::Vector3d mid = ln.start + 0.5 * ln.length * ln.dir;
+            double cc = (mid.x() - surface->offX) / surface->incX;
+            double rr = (mid.y() - surface->offY) / surface->incY;
+            double dc = cc - col, dr = rr - row;
             double d = dc * dc + dr * dr;
             if (d < bestD)
             {
@@ -1011,50 +984,42 @@ namespace shoecomp
             }
         }
 
-        // In-progress loop.
-        if (!loopScratch.empty())
+        // In-progress striation: the pending start cell.
+        if (hasPendingStart)
         {
-            std::vector<ImVec2> pts;
-            for (const auto& cr : loopScratch)
-            {
-                ImVec2 sp;
-                if (projectCell(cr.first, cr.second, sp))
-                    pts.push_back(sp);
-            }
-            for (size_t i = 0; i + 1 < pts.size(); ++i)
-                dl->AddLine(pts[i], pts[i + 1], activeCol, thick);
-            for (auto& p : pts) dl->AddCircleFilled(p, rad, activeCol);
+            ImVec2 sp;
+            if (projectCell(pendingStart.first, pendingStart.second,
+                            sp))
+                dl->AddCircleFilled(sp, rad, activeCol);
         }
     }
 
     void X3PBulletLand::renderMarkupToolbar(const ImVec2& btn,
                                             bool hasImg, float frameH)
     {
-        bool loopOn = markupMode == Mode::AddPeakRegion;
+        bool lineOn = markupMode == Mode::AddStriationLine;
 
-        if (loopOn)
+        if (lineOn)
             ImGui::PushStyleColor(ImGuiCol_Button,
                                   ImVec4(0.2f, 0.8f, 0.2f, 0.7f));
-        bool loopClick = iconBtn(
-            ICON_MD_CROP_FREE, btn,
-            "Mark a peak region: click cells around a striation,\n"
-            "then click near the first point to close.");
-        if (loopOn) ImGui::PopStyleColor();
-        if (loopClick)
+        bool lineClick =
+            iconBtn(ICON_MD_EDIT, btn,
+                    "Mark a striation: click the start, then the end.");
+        if (lineOn) ImGui::PopStyleColor();
+        if (lineClick)
         {
-            if (loopOn && loopScratch.size() >= 3) commitPeakRegion();
-            loopScratch.clear();
-            markupMode = loopOn ? Mode::None : Mode::AddPeakRegion;
+            hasPendingStart = false;
+            markupMode = lineOn ? Mode::None : Mode::AddStriationLine;
         }
 
         vsep(frameH);
 
         ImGui::BeginDisabled(!hasImg);
         if (iconBtn(ICON_MD_UNDO, btn,
-                    "Undo the last region vertex / region", true))
+                    "Undo the pending start / last striation", true))
         {
-            if (!loopScratch.empty())
-                loopScratch.pop_back();
+            if (hasPendingStart)
+                hasPendingStart = false;
             else if (surface && surface->annotations.isObject() &&
                      surface->annotations["peaks"].isArray())
             {
@@ -1063,10 +1028,9 @@ namespace shoecomp
             }
         }
         ImGui::SameLine();
-        if (iconBtn(ICON_MD_DELETE, btn, "Clear all peak regions",
-                    true))
+        if (iconBtn(ICON_MD_DELETE, btn, "Clear all striations", true))
         {
-            loopScratch.clear();
+            hasPendingStart = false;
             if (surface && surface->annotations.isObject())
                 surface->annotations["peaks"].setArray();
         }

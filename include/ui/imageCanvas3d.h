@@ -42,7 +42,7 @@ namespace shoecomp
             None,
             AddPoint,
             AddBounds,
-            AddPeakRegion
+            AddStriationLine
         };
 
         std::shared_ptr<Surface3D> surface;
@@ -232,12 +232,14 @@ namespace shoecomp
         int loadAnnotations(const std::string& path,
                             std::string& err) override;
 
-        // In-progress peak-region loop (grid cells, col/row), committed
-        // to surface->annotations["peaks"] on close.
-        std::vector<std::pair<int, int>> loopScratch;
+        // In-progress striation line: the first clicked cell (col,row).
+        // The second click commits a line to
+        // surface->annotations["peaks"].
+        bool hasPendingStart = false;
+        std::pair<int, int> pendingStart;
 
        protected:
-        // Bullet markup: peak-region loops only (no single points /
+        // Bullet markup: striation lines only (no single points /
         // bounds). Overrides the shared markup seams.
         void handleMarkupPick(int col, int row, bool remove) override;
         void drawAnnotationOverlay(ImDrawList* dl,
@@ -248,11 +250,12 @@ namespace shoecomp
                                  float frameH) override;
 
        private:
-        // Commit loopScratch as a peaks[] element (loop cells + 5-D
-        // descriptor when a fit exists); clears the scratch.
-        void commitPeakRegion();
-        // Remove the committed peak whose loop centroid is nearest the
-        // picked cell.
+        // Commit a line from the pending start cell to (col,row) as a
+        // peaks[] StriationLine (physical start/direction/length);
+        // clears the pending start.
+        void commitStriationLine(int col, int row);
+        // Remove the committed striation line whose midpoint is nearest
+        // the picked cell.
         void removeNearestPeak(int col, int row);
     };
 
