@@ -161,8 +161,26 @@ namespace shoecomp
 
         // --- (2) crest feature points ------------------------------
         tick(0.25f, "Finding crest points...");
-        const bool axialAlongRows =
-            std::abs(Y * surf.incY) >= std::abs(X * surf.incX);
+        // Estimate striation orientation from the high-pass gradients:
+        // variation is largest ACROSS striations, so the grid axis with
+        // the larger squared gradient is the cross direction. (A land's
+        // circumferential extent can exceed its axial extent, so the
+        // longer grid dimension is NOT a reliable axial cue.)
+        double sgx2 = 0.0, sgy2 = 0.0;
+        for (int r = 1; r < Y - 1; ++r)
+            for (int c = 1; c < X - 1; ++c)
+            {
+                double vl = hLoc[(size_t)r * X + c - 1];
+                double vr = hLoc[(size_t)r * X + c + 1];
+                double vu = hLoc[(size_t)(r - 1) * X + c];
+                double vd = hLoc[(size_t)(r + 1) * X + c];
+                if (std::isfinite(vl) && std::isfinite(vr))
+                    sgx2 += 0.25 * (vr - vl) * (vr - vl);
+                if (std::isfinite(vu) && std::isfinite(vd))
+                    sgy2 += 0.25 * (vd - vu) * (vd - vu);
+            }
+        // Larger cross-column gradient => striations run along rows.
+        const bool axialAlongRows = sgx2 > sgy2;
         const double minH = params.minHeight;
 
         auto normalAt = [&](int r, int c, Eigen::Vector3d& n) -> bool
@@ -262,18 +280,53 @@ namespace shoecomp
             return true;  // nothing to detect, not an error
         }
 
-        // --- (2b) axial direction estimate (PCA of crest cloud) ----
+        // --- (2b) axial direction estimate -------------------------
+        // Origin for the Hough projections: the crest centroid.
         Eigen::Vector3d mean = Eigen::Vector3d::Zero();
         for (const auto& cr : crests) mean += cr.p;
         mean /= (double)N;
-        Eigen::Matrix3d cov = Eigen::Matrix3d::Zero();
-        for (const auto& cr : crests)
+
+        // The axial direction is the mean PHYSICAL tangent along the
+        // chosen along-striation grid axis. A PCA of the crest cloud
+        // would instead return the cross direction, because many
+        // parallel striations spread the cloud widest across
+        // themselves.
+        Eigen::Vector3d aEst = Eigen::Vector3d::Zero();
         {
-            Eigen::Vector3d d = cr.p - mean;
-            cov += d * d.transpose();
+            int stride = std::max(1, (X * Y) / 200000);
+            long k = 0;
+            for (int r = 1; r < Y - 1; ++r)
+                for (int c = 1; c < X - 1; ++c, ++k)
+                {
+                    if (k % stride) continue;
+                    Eigen::Vector3d tng;
+                    if (axialAlongRows)
+                    {
+                        float zu = surf.z(r - 1, c),
+                              zd = surf.z(r + 1, c);
+                        if (!std::isfinite(zu) || !std::isfinite(zd))
+                            continue;
+                        tng = Eigen::Vector3d(
+                            0.0, surf.py(r + 1) - surf.py(r - 1),
+                            surf.pz(zd) - surf.pz(zu));
+                    }
+                    else
+                    {
+                        float zl = surf.z(r, c - 1),
+                              zr = surf.z(r, c + 1);
+                        if (!std::isfinite(zl) || !std::isfinite(zr))
+                            continue;
+                        tng = Eigen::Vector3d(
+                            surf.px(c + 1) - surf.px(c - 1), 0.0,
+                            surf.pz(zr) - surf.pz(zl));
+                    }
+                    aEst += tng;
+                }
         }
-        Eigen::SelfAdjointEigenSolver<Eigen::Matrix3d> es(cov);
-        Eigen::Vector3d aEst = es.eigenvectors().col(2).normalized();
+        if (aEst.norm() < 1e-20)
+            aEst = axialAlongRows ? Eigen::Vector3d(0, 1, 0)
+                                  : Eigen::Vector3d(1, 0, 0);
+        aEst.normalize();
 
         // --- (3) candidate directions in a cone around aEst --------
         Eigen::Vector3d t = (std::abs(aEst.x()) < 0.9)
