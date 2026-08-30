@@ -476,9 +476,58 @@ namespace shoecomp
             ln.length = length;
             kept.push_back(ln);
             keptScore.push_back(strength * length);
-            if (params.maxCount > 0 &&
-                (int)kept.size() >= params.maxCount * 3)
-                break;  // enough candidates to rank
+        }
+
+        // --- (3c) merge near-duplicate lines -----------------------
+        // The iterative Hough can re-detect one striation from adjacent
+        // projection bins across neighbouring candidate directions.
+        // Collapse lines that are near-parallel and laterally close
+        // (the same ruling on the cylinder) into one, taking the union
+        // of their extents, strongest first.
+        {
+            std::vector<int> order(kept.size());
+            for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
+            std::sort(order.begin(), order.end(), [&](int a, int b)
+                      { return keptScore[a] > keptScore[b]; });
+            const double cosTol = std::cos(8.0 * kDeg);
+            const double perpTol = kBinCells * gridStep;
+            std::vector<StriationLine> merged;
+            std::vector<double> mergedScore;
+            for (int idx : order)
+            {
+                const StriationLine& a = kept[idx];
+                Eigen::Vector3d amid = a.start + 0.5 * a.length * a.dir;
+                int hit = -1;
+                for (int m = 0; m < (int)merged.size(); ++m)
+                {
+                    const StriationLine& b = merged[m];
+                    if (std::abs(a.dir.dot(b.dir)) < cosTol) continue;
+                    Eigen::Vector3d q = amid - b.start;
+                    double t = q.dot(b.dir);
+                    if ((q - t * b.dir).norm() <= perpTol)
+                    {
+                        hit = m;
+                        break;
+                    }
+                }
+                if (hit < 0)
+                {
+                    merged.push_back(a);
+                    mergedScore.push_back(keptScore[idx]);
+                    continue;
+                }
+                // Extend the accepted line to cover a's extent.
+                StriationLine& b = merged[hit];
+                double ta0 = (a.start - b.start).dot(b.dir);
+                double ta1 =
+                    (a.start + a.length * a.dir - b.start).dot(b.dir);
+                double lo = std::min({0.0, ta0, ta1});
+                double hi = std::max({b.length, ta0, ta1});
+                b.start = b.start + lo * b.dir;
+                b.length = hi - lo;
+            }
+            kept.swap(merged);
+            keptScore.swap(mergedScore);
         }
 
         // --- (4) rank and cap --------------------------------------
