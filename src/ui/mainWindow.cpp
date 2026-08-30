@@ -333,8 +333,8 @@ namespace shoecomp
                         ? state.images[state.activeGalleryImage].get()
                         : nullptr;
                 // 2D canvases use the ONNX path; a bullet-land x3p uses
-                // the geometric striation path (gated on a cylinder
-                // fit).
+                // the geometric striation path (works on the raw
+                // surface, no cylinder fit required).
                 ImageCanvas2D* c2d = base ? asCanvas2D(*base) : nullptr;
                 X3PBulletLand* bl =
                     (base &&
@@ -344,7 +344,7 @@ namespace shoecomp
                 bool runtimeReady = OnnxRuntime::instance().available();
                 bool enable2D =
                     c2d && c2d->supportsDetection() && runtimeReady;
-                bool enable3D = bl && bl->hasFit;
+                bool enable3D = bl != nullptr;
                 if (ImGui::MenuItem("Detect...", nullptr, false,
                                     enable2D || enable3D))
                 {
@@ -367,14 +367,9 @@ namespace shoecomp
                             std::string(state.detectDialog.statusText);
                     }
                 }
-                if (bl && !bl->hasFit &&
+                if (c2d && !runtimeReady &&
                     ImGui::IsItemHovered(
                         ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip(
-                        "cannot detect without a cylinder fit");
-                else if (c2d && !runtimeReady &&
-                         ImGui::IsItemHovered(
-                             ImGuiHoveredFlags_AllowWhenDisabled))
                     ImGui::SetTooltip(
                         "onnxruntime shared library not found.\nSee "
                         "the README to enable automatic detection.");

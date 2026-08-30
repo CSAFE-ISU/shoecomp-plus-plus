@@ -139,6 +139,11 @@ namespace shoecomp
         // Model-space position of a grid sample (for overlay
         // projection).
         Eigen::Vector3f modelPosOf(int col, int row) const;
+        // Model-space position of an arbitrary physical point (metres),
+        // for projecting geometry not tied to a grid cell (e.g. a
+        // detected striation line's endpoints).
+        Eigen::Vector3f modelPosOfPhysical(
+            const Eigen::Vector3d& p) const;
         void ensureMesh();  // (re)build GPU mesh if the surface changed
 
         // Copy the orbit camera to/from |other| toward whichever side

@@ -114,6 +114,25 @@ namespace shoecomp
                                (float)(-(row - P.cy) * P.sy), z);
     }
 
+    Eigen::Vector3f ImageCanvas3D::modelPosOfPhysical(
+        const Eigen::Vector3d& p) const
+    {
+        const SurfaceModelParams& P = renderer.params();
+        // Physical analog of modelPosOf: map metres to fractional grid
+        // coordinates, then apply the same model normalization. Height
+        // comes from the point itself (no grid lookup), so any position
+        // is safe.
+        double cf =
+            surface ? (p.x() - surface->offX) / surface->incX : 0.0;
+        double rf =
+            surface ? (p.y() - surface->offY) / surface->incY : 0.0;
+        double val =
+            surface ? (p.z() - surface->offZ) / surface->incZ : 0.0;
+        return Eigen::Vector3f((float)((cf - P.cx) * P.sx),
+                               (float)(-(rf - P.cy) * P.sy),
+                               (float)((val - P.zc) * P.zScale));
+    }
+
     void ImageCanvas3D::addAnnotation(int col, int row)
     {
         if (!surface) return;
@@ -952,71 +971,43 @@ namespace shoecomp
         {
             for (auto& pk : surface->annotations["peaks"].getArray())
             {
-                if (!pk.isObject()) continue;
-                std::vector<ImVec2> pts;
-                if (pk.contains("loop") && pk["loop"].isArray() &&
-                    !pk["loop"].getArray().empty())
-                {
-                    for (auto& v : pk["loop"].getArray())
-                    {
-                        if (!v.isObject()) continue;
-                        ImVec2 sp;
-                        if (projectCell((int)v["col"].getNumber(),
-                                        (int)v["row"].getNumber(), sp))
-                            pts.push_back(sp);
-                    }
-                }
-                else if (hasFit && pk.contains("sStart"))
-                {
-                    // Reconstruct the (theta,s) rectangle when a peak
-                    // was loaded from 5-D only.
-                    const double d2r = 3.14159265358979323846 / 180.0;
-                    double s0 = pk["sStart"].getNumber();
-                    double s1 = s0 + pk["length"].getNumber();
-                    double t0 = pk["thetaStart"].getNumber() * d2r;
-                    double t1 = pk["thetaEnd"].getNumber() * d2r;
-                    double corners[4][2] = {
-                        {t0, s0}, {t1, s0}, {t1, s1}, {t0, s1}};
-                    for (auto& cc : corners)
-                    {
-                        Eigen::Vector3d p = fromCylindrical(
-                            fit, cc[0], cc[1], fit.radius);
-                        int c = (int)std::lround(
-                            (p.x() - surface->offX) / surface->incX);
-                        int r = (int)std::lround(
-                            (p.y() - surface->offY) / surface->incY);
-                        ImVec2 sp;
-                        if (projectCell(c, r, sp)) pts.push_back(sp);
-                    }
-                }
-                if (pts.empty()) continue;
+                StriationLine ln;
+                if (!striationLineFromJson(pk, ln)) continue;
+                Eigen::Vector3d p0 = ln.start;
+                Eigen::Vector3d p1 = ln.start + ln.length * ln.dir;
+                ImVec2 sp0, sp1;
+                if (!projectPoint(mvp, modelPosOfPhysical(p0),
+                                  canvasPos, avail, sp0) ||
+                    !projectPoint(mvp, modelPosOfPhysical(p1),
+                                  canvasPos, avail, sp1))
+                    continue;
+                dl->AddLine(sp0, sp1, peakCol, thick);
+                dl->AddCircleFilled(sp0, rad - 1.0f, peakCol);
+                dl->AddCircleFilled(sp1, rad - 1.0f, peakCol);
 
-                ImVec2 cen(0, 0);
-                for (auto& p : pts)
+                // Label with cylinder-relative quantities when a fit
+                // exists; otherwise just the raw 3-D length.
+                char buf[96];
+                if (hasFit && fit.valid)
                 {
-                    cen.x += p.x;
-                    cen.y += p.y;
-                }
-                cen.x /= pts.size();
-                cen.y /= pts.size();
-                for (size_t i = 0; i < pts.size(); ++i)
-                    dl->AddLine(pts[i], pts[(i + 1) % pts.size()],
-                                peakCol, thick);
-                for (auto& p : pts)
-                    dl->AddCircleFilled(p, rad - 1.0f, peakCol);
-
-                if (pk.contains("dHeight"))
-                {
-                    double span = pk["thetaEnd"].getNumber() -
-                                  pk["thetaStart"].getNumber();
-                    char buf[96];
+                    Eigen::Vector3d mid =
+                        ln.start + 0.5 * ln.length * ln.dir;
+                    double th, s, r;
+                    toCylindrical(fit, mid, th, s, r);
+                    const double r2d = 180.0 / 3.14159265358979323846;
+                    double axialLen =
+                        std::abs(ln.length * ln.dir.dot(fit.axis));
                     snprintf(buf, sizeof buf,
-                             "dr %.1fum  span %.1fdeg  L %.2fmm",
-                             pk["dHeight"].getNumber() * 1e6, span,
-                             pk["length"].getNumber() * 1000.0);
-                    dl->AddText(ImVec2(cen.x + 4.0f, cen.y), peakCol,
-                                buf);
+                             "th %.1fdeg  L %.2fmm  dr %.1fum",
+                             th * r2d, axialLen * 1000.0,
+                             (r - fit.radius) * 1e6);
                 }
+                else
+                {
+                    snprintf(buf, sizeof buf, "L %.2fmm",
+                             ln.length * 1000.0);
+                }
+                dl->AddText(ImVec2(sp1.x + 4.0f, sp1.y), peakCol, buf);
             }
         }
 
