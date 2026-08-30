@@ -957,30 +957,6 @@ namespace shoecomp
                 dl->AddLine(sp0, sp1, peakCol, thick);
                 dl->AddCircleFilled(sp0, rad - 1.0f, peakCol);
                 dl->AddCircleFilled(sp1, rad - 1.0f, peakCol);
-
-                // Label with cylinder-relative quantities when a fit
-                // exists; otherwise just the raw 3-D length.
-                char buf[96];
-                if (hasFit && fit.valid)
-                {
-                    Eigen::Vector3d mid =
-                        ln.start + 0.5 * ln.length * ln.dir;
-                    double th, s, r;
-                    toCylindrical(fit, mid, th, s, r);
-                    const double r2d = 180.0 / 3.14159265358979323846;
-                    double axialLen =
-                        std::abs(ln.length * ln.dir.dot(fit.axis));
-                    snprintf(buf, sizeof buf,
-                             "th %.1fdeg  L %.2fmm  dr %.1fum",
-                             th * r2d, axialLen * 1000.0,
-                             (r - fit.radius) * 1e6);
-                }
-                else
-                {
-                    snprintf(buf, sizeof buf, "L %.2fmm",
-                             ln.length * 1000.0);
-                }
-                dl->AddText(ImVec2(sp1.x + 4.0f, sp1.y), peakCol, buf);
             }
         }
 
