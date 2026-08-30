@@ -11,10 +11,12 @@
 // See .claude/striation-hough-plan.md for the design. The pipeline is:
 // (1) local high-pass of the height grid -> ridge/groove crest points
 // (fit-independent prominence), (2) estimate the axial direction from
-// the crest cloud (PCA), (3) iterative direction-constrained 3-D Hough
-// (project crests onto the plane perpendicular to each candidate
-// direction; the densest bin is a line; peel off its inliers and
-// repeat), (4) per line PCA refit -> start/direction/length + filters.
+// the surface (gradient structure picks the along-striation grid axis;
+// aEst is its mean physical tangent), (3) iterative
+// direction-constrained 3-D Hough (project crests onto the plane
+// perpendicular to each candidate direction; the densest bin is a line;
+// peel off its inliers and repeat), (4) per line PCA refit ->
+// start/direction/length + filters.
 namespace shoecomp
 {
     namespace
