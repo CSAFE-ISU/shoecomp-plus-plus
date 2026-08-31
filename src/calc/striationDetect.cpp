@@ -4,7 +4,6 @@
 #include <cmath>
 #include <limits>
 #include <thread>
-#include <unordered_map>
 #include <vector>
 
 #include "aligncalc/eigen/Eigen/Eigenvalues"
@@ -383,37 +382,59 @@ namespace shoecomp
             std::min(500, std::max(20, params.maxCount * 6));
         const double distThresh = 2.0 * binSize;
 
+        // Every candidate direction projects the crests onto the plane
+        // perpendicular to it, and a projection can never be longer
+        // than the crest's distance from the origin p0, so one square
+        // bin grid of half-extent R (in bins) covers the projections
+        // for ALL directions. A dense grid indexed by (iu+R, iv+R)
+        // replaces the per-direction hash map -- array indexing instead
+        // of hashing -- and a per-direction "touched" list resets only
+        // the cells that were written, so both the fill and the clear
+        // stay O(alive crests) rather than O(grid) (a full clear would
+        // dwarf the fill).
+        double maxRad = 0.0;
+        for (const auto& cr : crests)
+            maxRad = std::max(maxRad, (cr.p - p0).norm());
+        const long R = (long)std::ceil(maxRad / binSize) + 2;
+        const long gside = 2 * R + 1;
+        const size_t gcells = (size_t)gside * (size_t)gside;
+
         // Direction-loop parallelism. Each iteration's search over the
         // candidate directions is independent per direction (every
-        // direction builds its own histogram over the read-only crest
-        // cloud), so split the directions across worker threads and
-        // reduce their local bests. The reduction keeps the serial
-        // tie-break -- highest vote count, then lowest direction index
-        // -- so the outcome is identical to the single-threaded scan
-        // for any thread count (important: detection stays
-        // reproducible). Small inputs run serially; the thread setup
-        // would not pay off.
+        // direction fills its own grid over the read-only crest cloud),
+        // so split the directions across worker threads and reduce
+        // their local bests. The reduction keeps the serial tie-break
+        // -- highest vote count, then lowest direction index -- so the
+        // outcome is identical to the single-threaded scan for any
+        // thread count (important: detection stays reproducible). Small
+        // inputs run serially; the thread setup would not pay off.
         int nThreads =
             (int)std::max(1u, std::thread::hardware_concurrency());
         nThreads = std::min(nThreads, (int)dirs.size());
         if (nThreads < 1 || N < 512) nThreads = 1;
-        std::vector<std::unordered_map<long, int>> histPool(nThreads);
-        for (auto& h : histPool) h.reserve((size_t)N + 1);
+        std::vector<std::vector<int>> gridPool(
+            nThreads, std::vector<int>(gcells, 0));
+        std::vector<std::vector<size_t>> touchPool(nThreads);
+        for (auto& tv : touchPool) tv.reserve((size_t)N);
         std::vector<DirBest> partial(nThreads);
 
         // Scan the direction slice assigned to worker |t| against the
         // current |alive| crests, recording that slice's densest bin.
+        // The grid is all-zero on entry to each direction and is
+        // restored to all-zero via the touched list before the next
+        // one.
         auto scanChunk = [&](int t)
         {
             const int D = (int)dirs.size();
             const int lo = (int)((long)t * D / nThreads);
             const int hi = (int)((long)(t + 1) * D / nThreads);
-            std::unordered_map<long, int>& hist = histPool[t];
+            std::vector<int>& grid = gridPool[t];
+            std::vector<size_t>& touched = touchPool[t];
             DirBest best;
             for (int di = lo; di < hi; ++di)
             {
                 const HoughDir& hd = dirs[di];
-                hist.clear();
+                touched.clear();
                 long dCount = 0, dKey = 0;
                 for (int i = 0; i < N; ++i)
                 {
@@ -423,14 +444,17 @@ namespace shoecomp
                         (long)std::llround(d.dot(hd.e1) / binSize);
                     long iv =
                         (long)std::llround(d.dot(hd.e2) / binSize);
-                    long k = binKey(iu, iv);
-                    int cnt = ++hist[k];
+                    size_t idx = (size_t)(iu + R) * (size_t)gside +
+                                 (size_t)(iv + R);
+                    int cnt = ++grid[idx];
+                    if (cnt == 1) touched.push_back(idx);
                     if (cnt > dCount)
                     {
                         dCount = cnt;
-                        dKey = k;
+                        dKey = binKey(iu, iv);
                     }
                 }
+                for (size_t idx : touched) grid[idx] = 0;
                 if (dCount > best.count)
                 {
                     best.count = dCount;
