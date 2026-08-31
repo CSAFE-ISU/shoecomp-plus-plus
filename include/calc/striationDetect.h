@@ -32,6 +32,9 @@ namespace shoecomp
                                      // direction out of the local
                                      // surface tangent plane (0 = off)
         int maxCount = 20;           // keep the strongest N
+        bool includeValleys = true;  // true: detect ridges (peaks) and
+                                     // grooves (valleys); false: only
+                                     // ridges (positive local height)
     };
 
     // Detect striations on |surf| and emit one StriationLine per

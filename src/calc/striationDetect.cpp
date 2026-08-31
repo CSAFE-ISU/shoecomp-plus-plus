@@ -203,6 +203,7 @@ namespace shoecomp
         // Larger cross-column gradient => striations run along rows.
         const bool axialAlongRows = sgx2 > sgy2;
         const double minH = params.minHeight;
+        const bool includeValleys = params.includeValleys;
 
         auto normalAt = [&](int r, int c, Eigen::Vector3d& n) -> bool
         {
@@ -227,7 +228,10 @@ namespace shoecomp
         {
             // v is hLoc(r,c); a,b the two cross-direction neighbours.
             bool isMax = (v > a && v >= b && v >= minH);
-            bool isMin = (v < a && v <= b && v <= -minH);
+            // Grooves (local minima) only when valleys are wanted;
+            // otherwise detect ridges (positive local height) alone.
+            bool isMin =
+                includeValleys && (v < a && v <= b && v <= -minH);
             if (!isMax && !isMin) return;
             Eigen::Vector3d n;
             if (!normalAt(r, c, n)) return;

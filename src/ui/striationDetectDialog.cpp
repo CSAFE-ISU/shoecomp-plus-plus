@@ -146,6 +146,12 @@ namespace shoecomp
                 ImGui::InputInt("Max count", &maxCount);
                 if (maxCount < 1) maxCount = 1;
                 ImGui::PopItemWidth();
+                ImGui::Checkbox("Detect valleys as well as peaks",
+                                &includeValleys);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "On: ridges (peaks) and grooves (valleys).\n"
+                        "Off: peaks only (positive dr).");
                 ImGui::EndDisabled();
 
                 ImGui::Spacing();
@@ -211,6 +217,7 @@ namespace shoecomp
         params.minHeight = minHeightUm * 1e-6;
         params.maxSurfaceDev = maxSurfDevDeg * kPi / 180.0;
         params.maxCount = maxCount;
+        params.includeValleys = includeValleys;
 
         // The worker holds its own shared_ptr so the run stays valid
         // even if the dialog target changes.

@@ -35,6 +35,7 @@ namespace shoecomp
         float minHeightUm = 0.2f;     // min |height diff|, micrometres
         float maxSurfDevDeg = 20.0f;  // max deviation from surface, deg
         int maxCount = 200;           // keep the strongest N
+        bool includeValleys = true;  // detect grooves as well as ridges
 
         // Async worker state.
         WorkerChannel channel;
