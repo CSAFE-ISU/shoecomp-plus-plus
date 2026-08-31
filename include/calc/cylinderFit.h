@@ -61,6 +61,8 @@ namespace shoecomp
         Eigen::Vector3d start = Eigen::Vector3d::Zero();
         Eigen::Vector3d dir = Eigen::Vector3d::UnitX();
         double length = 0.0;
+        bool isPeak = true;  // true = ridge (peak, +dr),
+                             // false = groove (valley, -dr)
     };
 }  // namespace shoecomp
 

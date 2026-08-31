@@ -43,6 +43,7 @@ namespace shoecomp
             ImVec4 intersectionColor = ImVec4(0.65f, 0.1f, 0.9f, 0.86f);
             ImVec4 curveTurnColor = ImVec4(0.95f, 0.62f, 0.05f, 0.86f);
             ImVec4 peakColor = ImVec4(1.0f, 0.85f, 0.1f, 0.95f);
+            ImVec4 valleyColor = ImVec4(0.1f, 0.6f, 1.0f, 0.95f);
             float boundsLineThickness = 2.0f;
             ImVec4 boundsColor = ImVec4(0.2f, 1.0f, 0.2f, 0.86f);
         };

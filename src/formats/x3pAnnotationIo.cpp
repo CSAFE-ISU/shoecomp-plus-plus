@@ -83,6 +83,7 @@ namespace shoecomp
         pk["start"] = vec3ToJson(s.start);
         pk["direction"] = vec3ToJson(s.dir);
         pk["length"] = s.length;
+        pk["peak"] = jt::Json(s.isPeak);
         return pk;
     }
 
@@ -95,6 +96,10 @@ namespace shoecomp
         if (!j.contains("length") || !j["length"].isNumber())
             return false;
         s.length = j["length"].getNumber();
+        // Peak/valley flag; optional (older line files omit it ->
+        // peak).
+        if (j.contains("peak") && j["peak"].isBool())
+            s.isPeak = j["peak"].getBool();
         out = s;
         return true;
     }

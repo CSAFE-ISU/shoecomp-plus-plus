@@ -547,6 +547,7 @@ namespace shoecomp
             double t0 = std::numeric_limits<double>::max();
             double t1 = -std::numeric_limits<double>::max();
             double sumH = 0.0;
+            double sumSigned = 0.0;
             Eigen::Vector3d sumN = Eigen::Vector3d::Zero();
             int nin = 0;
             for (int i : gathered)
@@ -558,6 +559,7 @@ namespace shoecomp
                 t0 = std::min(t0, tproj);
                 t1 = std::max(t1, tproj);
                 sumH += std::abs(crests[i].h);
+                sumSigned += crests[i].h;  // +ridge / -groove
                 sumN += crests[i].n;
                 ++nin;
             }
@@ -584,6 +586,8 @@ namespace shoecomp
             ln.start = c0 + t0 * dir;
             ln.dir = dir;
             ln.length = length;
+            // Net sign of the inlier crests: ridges dominate -> peak.
+            ln.isPeak = sumSigned >= 0.0;
             kept.push_back(ln);
             // Rank on the inlier (crest vote) count: a clean,
             // continuous striation has a crest on nearly every scanline

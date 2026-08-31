@@ -588,6 +588,9 @@ namespace shoecomp
         ImGui::ColorEdit4("Peak color",
                           &ImageCanvas2D::style.peakColor.x,
                           ImGuiColorEditFlags_NoInputs);
+        ImGui::ColorEdit4("Valley color",
+                          &ImageCanvas2D::style.valleyColor.x,
+                          ImGuiColorEditFlags_NoInputs);
         ImGui::ColorEdit4("Bounds color",
                           &ImageCanvas2D::style.boundsColor.x,
                           ImGuiColorEditFlags_NoInputs);
@@ -930,6 +933,8 @@ namespace shoecomp
 
         ImU32 peakCol = ImGui::ColorConvertFloat4ToU32(
             ImageCanvas2D::style.peakColor);
+        ImU32 valleyCol = ImGui::ColorConvertFloat4ToU32(
+            ImageCanvas2D::style.valleyColor);
         ImU32 activeCol = IM_COL32(255, 210, 60, 255);
         float thick = ImageCanvas2D::style.boundsLineThickness;
         float rad = ImageCanvas2D::style.pointRadius;
@@ -954,9 +959,10 @@ namespace shoecomp
                     !projectPoint(mvp, modelPosOfPhysical(p1),
                                   canvasPos, avail, sp1))
                     continue;
-                dl->AddLine(sp0, sp1, peakCol, thick);
-                dl->AddCircleFilled(sp0, rad - 1.0f, peakCol);
-                dl->AddCircleFilled(sp1, rad - 1.0f, peakCol);
+                ImU32 col = ln.isPeak ? peakCol : valleyCol;
+                dl->AddLine(sp0, sp1, col, thick);
+                dl->AddCircleFilled(sp0, rad - 1.0f, col);
+                dl->AddCircleFilled(sp1, rad - 1.0f, col);
             }
         }
 
