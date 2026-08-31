@@ -31,6 +31,16 @@ namespace shoecomp
         const double kVoteFrac = 0.4;          // votes per unit length
         const int kMinVotesFloor = 5;
 
+        // Ranking (see .claude/striation-hough-plan.md "Ranking"):
+        // lines are ranked by inlier (crest vote) count, then
+        // de-weighted by how close they sit to the land edges, so the
+        // shallower central striations are not crowded out by the tall
+        // edge shoulders. kEdgePenalty is the fraction of score an
+        // outermost line loses; kEdgeFloor keeps every edge line some
+        // weight.
+        const double kEdgePenalty = 0.6;
+        const double kEdgeFloor = 0.15;
+
         int clampi(int v, int lo, int hi)
         {
             return v < lo ? lo : (v > hi ? hi : v);
@@ -475,7 +485,12 @@ namespace shoecomp
             ln.dir = dir;
             ln.length = length;
             kept.push_back(ln);
-            keptScore.push_back(strength * length);
+            // Rank on the inlier (crest vote) count: a clean,
+            // continuous striation has a crest on nearly every scanline
+            // it crosses, while a rough/broken one collects fewer.
+            // strength/length still gate the line above via the
+            // filters.
+            keptScore.push_back((double)nin);
         }
 
         // --- (3c) merge near-duplicate lines -----------------------
@@ -531,10 +546,38 @@ namespace shoecomp
         }
 
         // --- (4) rank and cap --------------------------------------
+        // Base score is the inlier count (keptScore); multiply by an
+        // edge de-weight so striations near the land edges rank lower.
+        // The cross-position is the component of each line's midpoint
+        // along the across-striation grid axis (px depends only on the
+        // column, py only on the row, so this is simply the X or Y
+        // coordinate); e in [0,1] is |cross| normalized by the widest
+        // line, and the weight falls off as e^2.
+        const Eigen::Vector3d cEst =
+            axialAlongRows ? Eigen::Vector3d(1.0, 0.0, 0.0)
+                           : Eigen::Vector3d(0.0, 1.0, 0.0);
+        std::vector<double> cpos(kept.size(), 0.0);
+        double cmax = 0.0;
+        for (int i = 0; i < (int)kept.size(); ++i)
+        {
+            Eigen::Vector3d mid =
+                kept[i].start + 0.5 * kept[i].length * kept[i].dir;
+            cpos[i] = (mid - mean).dot(cEst);
+            cmax = std::max(cmax, std::abs(cpos[i]));
+        }
+        std::vector<double> rankScore(kept.size(), 0.0);
+        for (int i = 0; i < (int)kept.size(); ++i)
+        {
+            double e = cmax > 1e-12 ? std::abs(cpos[i]) / cmax : 0.0;
+            double w = 1.0 - kEdgePenalty * e * e;
+            if (w < kEdgeFloor) w = kEdgeFloor;
+            rankScore[i] = keptScore[i] * w;
+        }
+
         std::vector<int> order(kept.size());
         for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
         std::sort(order.begin(), order.end(), [&](int a, int b)
-                  { return keptScore[a] > keptScore[b]; });
+                  { return rankScore[a] > rankScore[b]; });
         if (params.maxCount >= 0 && (int)order.size() > params.maxCount)
             order.resize(params.maxCount);
         out.reserve(order.size());

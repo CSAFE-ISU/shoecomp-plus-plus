@@ -36,7 +36,8 @@ namespace shoecomp
 
     // Detect striations on |surf| and emit one StriationLine per
     // surviving ridge/groove into |out| (cleared first), ranked by
-    // strength*length descending and capped at |params.maxCount|. The
+    // inlier (crest vote) count with the near-edge striations
+    // de-weighted (descending), and capped at |params.maxCount|. The
     // stored geometry is physical metres (start point, unit direction,
     // length); ridge/groove sign and cylinder-relative quantities are
     // recovered at display time. Returns false with |err| set on a bad

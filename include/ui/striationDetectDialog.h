@@ -31,10 +31,10 @@ namespace shoecomp
         // Defaults lean permissive so the smaller, shorter central
         // striations survive; see .claude/striation-hough-plan.md
         // "Ranking / tuning (later)".
-        float minLengthMm = 0.2f;     // min striation length, mm
-        float minHeightUm = 0.5f;     // min |height diff|, micrometres
+        float minLengthMm = 0.1f;     // min striation length, mm
+        float minHeightUm = 0.2f;     // min |height diff|, micrometres
         float maxSurfDevDeg = 20.0f;  // max deviation from surface, deg
-        int maxCount = 50;            // keep the strongest N
+        int maxCount = 200;           // keep the strongest N
 
         // Async worker state.
         WorkerChannel channel;
