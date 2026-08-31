@@ -168,6 +168,20 @@ namespace shoecomp
     // Soft reset when the active canvas kind changes: close every
     // image not of the new kind, reset comparison/selection state,
     // and rebuild the active prototype + picker filter.
+    // A fresh comparison viewer matching the active kind's canvas
+    // family. 3D families need a surface canvas of the right concrete
+    // kind so the kind-specific overlay (e.g. X3PBulletLand striation
+    // lines) draws in the comparison viewers too; 2D families use the
+    // plain Canvas2D viewer, which only renders shared ImageData.
+    static std::unique_ptr<ImageCanvas> makeComparisonViewer(
+        ImageCanvas::Kind kind)
+    {
+        if (kind == ImageCanvas::Kind::X3P ||
+            kind == ImageCanvas::Kind::X3PBulletLand)
+            return makeCanvas(kind);
+        return std::make_unique<ImageCanvas2D>();
+    }
+
     static void applyActiveKindChange(AppState& state)
     {
         if (state.settings.activeKind == state.lastActiveKind) return;
@@ -195,18 +209,10 @@ namespace shoecomp
         state.alignEditPopupVisible = false;
         // Comparison viewers must match the active kind's canvas family
         // (2D rasters vs. 3D surfaces); only same-kind pairs compare.
-        if (state.settings.activeKind == ImageCanvas::Kind::X3P ||
-            state.settings.activeKind ==
-                ImageCanvas::Kind::X3PBulletLand)
-        {
-            state.viewerLeft = std::make_unique<ImageCanvas3D>();
-            state.viewerRight = std::make_unique<ImageCanvas3D>();
-        }
-        else
-        {
-            state.viewerLeft = std::make_unique<ImageCanvas2D>();
-            state.viewerRight = std::make_unique<ImageCanvas2D>();
-        }
+        state.viewerLeft =
+            makeComparisonViewer(state.settings.activeKind);
+        state.viewerRight =
+            makeComparisonViewer(state.settings.activeKind);
 
         state.activeProto = makeCanvas(state.settings.activeKind);
         state.imageLoadBrowser.extensionChoices =
@@ -429,8 +435,10 @@ namespace shoecomp
                 state.alignEditPopupVisible = false;
                 state.viewerLeftIdx = -1;
                 state.viewerRightIdx = -1;
-                state.viewerLeft = std::make_unique<ImageCanvas2D>();
-                state.viewerRight = std::make_unique<ImageCanvas2D>();
+                state.viewerLeft =
+                    makeComparisonViewer(state.settings.activeKind);
+                state.viewerRight =
+                    makeComparisonViewer(state.settings.activeKind);
             }
         }
 
