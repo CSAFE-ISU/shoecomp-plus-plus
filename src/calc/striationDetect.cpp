@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cmath>
 #include <limits>
+#include <thread>
 #include <unordered_map>
 #include <vector>
 
@@ -58,6 +59,15 @@ namespace shoecomp
             Eigen::Vector3d b;   // unit direction
             Eigen::Vector3d e1;  // projection-plane basis
             Eigen::Vector3d e2;
+        };
+
+        // A worker thread's best (densest) Hough bin over its slice of
+        // the candidate directions. di = -1 means the slice was empty.
+        struct DirBest
+        {
+            long count = 0;  // votes in the densest bin
+            int di = -1;     // winning direction index
+            long key = 0;    // packed bin key of that bin
         };
 
         // Separable NaN-aware box mean of a (H x W) float grid
@@ -373,6 +383,64 @@ namespace shoecomp
             std::min(500, std::max(20, params.maxCount * 6));
         const double distThresh = 2.0 * binSize;
 
+        // Direction-loop parallelism. Each iteration's search over the
+        // candidate directions is independent per direction (every
+        // direction builds its own histogram over the read-only crest
+        // cloud), so split the directions across worker threads and
+        // reduce their local bests. The reduction keeps the serial
+        // tie-break -- highest vote count, then lowest direction index
+        // -- so the outcome is identical to the single-threaded scan
+        // for any thread count (important: detection stays
+        // reproducible). Small inputs run serially; the thread setup
+        // would not pay off.
+        int nThreads =
+            (int)std::max(1u, std::thread::hardware_concurrency());
+        nThreads = std::min(nThreads, (int)dirs.size());
+        if (nThreads < 1 || N < 512) nThreads = 1;
+        std::vector<std::unordered_map<long, int>> histPool(nThreads);
+        for (auto& h : histPool) h.reserve((size_t)N + 1);
+        std::vector<DirBest> partial(nThreads);
+
+        // Scan the direction slice assigned to worker |t| against the
+        // current |alive| crests, recording that slice's densest bin.
+        auto scanChunk = [&](int t)
+        {
+            const int D = (int)dirs.size();
+            const int lo = (int)((long)t * D / nThreads);
+            const int hi = (int)((long)(t + 1) * D / nThreads);
+            std::unordered_map<long, int>& hist = histPool[t];
+            DirBest best;
+            for (int di = lo; di < hi; ++di)
+            {
+                const HoughDir& hd = dirs[di];
+                hist.clear();
+                long dCount = 0, dKey = 0;
+                for (int i = 0; i < N; ++i)
+                {
+                    if (!alive[i]) continue;
+                    Eigen::Vector3d d = crests[i].p - p0;
+                    long iu =
+                        (long)std::llround(d.dot(hd.e1) / binSize);
+                    long iv =
+                        (long)std::llround(d.dot(hd.e2) / binSize);
+                    long k = binKey(iu, iv);
+                    int cnt = ++hist[k];
+                    if (cnt > dCount)
+                    {
+                        dCount = cnt;
+                        dKey = k;
+                    }
+                }
+                if (dCount > best.count)
+                {
+                    best.count = dCount;
+                    best.di = di;
+                    best.key = dKey;
+                }
+            }
+            partial[t] = best;
+        };
+
         for (int iter = 0; iter < maxIter; ++iter)
         {
             if (stop())
@@ -383,28 +451,32 @@ namespace shoecomp
             tick(0.5f + 0.45f * (float)iter / (float)maxIter,
                  "Detecting lines...");
 
+            if (nThreads == 1) { scanChunk(0); }
+            else
+            {
+                std::vector<std::thread> pool;
+                pool.reserve(nThreads - 1);
+                for (int t = 1; t < nThreads; ++t)
+                    pool.emplace_back(scanChunk, t);
+                scanChunk(0);
+                for (std::thread& th : pool) th.join();
+            }
+
+            // Reduce the per-thread bests: highest vote count wins,
+            // ties go to the lowest direction index (matching the
+            // serial scan).
             long bestCount = 0, bestKey = 0;
             int bestDir = -1;
-            for (int di = 0; di < (int)dirs.size(); ++di)
+            for (int t = 0; t < nThreads; ++t)
             {
-                const HoughDir& hd = dirs[di];
-                std::unordered_map<long, int> hist;
-                hist.reserve((size_t)N);
-                for (int i = 0; i < N; ++i)
+                const DirBest& b = partial[t];
+                if (b.di < 0) continue;
+                if (b.count > bestCount ||
+                    (b.count == bestCount && b.di < bestDir))
                 {
-                    if (!alive[i]) continue;
-                    Eigen::Vector3d d = crests[i].p - p0;
-                    long iu =
-                        (long)std::llround(d.dot(hd.e1) / binSize);
-                    long iv =
-                        (long)std::llround(d.dot(hd.e2) / binSize);
-                    int cnt = ++hist[binKey(iu, iv)];
-                    if (cnt > bestCount)
-                    {
-                        bestCount = cnt;
-                        bestDir = di;
-                        bestKey = binKey(iu, iv);
-                    }
+                    bestCount = b.count;
+                    bestDir = b.di;
+                    bestKey = b.key;
                 }
             }
 
