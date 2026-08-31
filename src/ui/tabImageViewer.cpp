@@ -111,7 +111,13 @@ namespace shoecomp
                 }
                 char tbId[64];
                 snprintf(tbId, sizeof(tbId), "##gtb_%d", i);
+                canvas.detectAvailable = detectionAvailable(&canvas);
                 canvas.renderToolbar(tbId);
+                if (canvas.detectRequested)
+                {
+                    canvas.detectRequested = false;
+                    openDetect(state, &canvas);
+                }
             }
             ImGui::End();
             if (styleColorsPushed)

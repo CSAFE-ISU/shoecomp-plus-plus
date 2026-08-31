@@ -109,12 +109,28 @@ namespace shoecomp
                             : Eigen::Affine3f::Identity();
             }
 
+            // Detect operates on the SOURCE gallery canvas (the 2D
+            // comparison viewer is a plain Canvas2D with no spec; the
+            // 3D viewer shares the source surface), so results land on
+            // the shared data and show in both viewers.
+            ImageCanvas* srcL =
+                (state.viewerLeftIdx >= 0 &&
+                 state.viewerLeftIdx < (int)state.images.size())
+                    ? state.images[state.viewerLeftIdx].get()
+                    : nullptr;
+            state.viewerLeft->detectAvailable =
+                detectionAvailable(srcL);
             ImGui::BeginChild("LeftViewer", ImVec2(leftW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerLeft->renderViewerPanel(
                 state.images, state.viewerLeftIdx, state.viewerRightIdx,
                 state.viewerLocked, "##Left");
             ImGui::EndChild();
+            if (state.viewerLeft->detectRequested)
+            {
+                state.viewerLeft->detectRequested = false;
+                openDetect(state, srcL);
+            }
 
             // Splitter between the left viewer and the box: resizes
             // the two viewers against each other.
@@ -167,12 +183,24 @@ namespace shoecomp
                 ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
 
             ImGui::SameLine();
+            ImageCanvas* srcR =
+                (state.viewerRightIdx >= 0 &&
+                 state.viewerRightIdx < (int)state.images.size())
+                    ? state.images[state.viewerRightIdx].get()
+                    : nullptr;
+            state.viewerRight->detectAvailable =
+                detectionAvailable(srcR);
             ImGui::BeginChild("RightViewer", ImVec2(rightW, 0),
                               ImGuiChildFlags_Borders);
             state.viewerRight->renderViewerPanel(
                 state.images, state.viewerRightIdx, state.viewerLeftIdx,
                 state.viewerLocked, "##Right");
             ImGui::EndChild();
+            if (state.viewerRight->detectRequested)
+            {
+                state.viewerRight->detectRequested = false;
+                openDetect(state, srcR);
+            }
 
             if (is3D)
             {

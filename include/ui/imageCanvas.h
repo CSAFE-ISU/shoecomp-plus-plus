@@ -85,6 +85,15 @@ namespace shoecomp
         bool minimized = false;
         bool lastMinimized = false;
 
+        // Per-window Detect button state (one-shot, like the view's
+        // homeRequested). The tab loop sets detectAvailable each frame
+        // (whether the source canvas can be detected on); the toolbar
+        // draws the button gated on it and sets detectRequested on
+        // click; the tab loop consumes detectRequested and opens the
+        // dialog.
+        bool detectAvailable = false;
+        bool detectRequested = false;
+
         virtual ~ImageCanvas() = default;
 
         // Returns the annotation point types this canvas kind accepts.

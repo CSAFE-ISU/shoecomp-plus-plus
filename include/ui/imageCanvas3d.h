@@ -52,6 +52,15 @@ namespace shoecomp
         // Whether the user moved the camera this frame (for locked
         // camera sync in the comparison workspace).
         bool cameraDirty = false;
+
+        // Live hover pick (updated each frame in render3DView when the
+        // canvas is hovered): the grid cell under the cursor. Read by
+        // the status bar for the location readout and to tell which
+        // viewer is hovered in the 3D comparison. hoverValid is false
+        // when the cursor is off the surface.
+        bool hoverValid = false;
+        int hoverCol = -1;
+        int hoverRow = -1;
         // The surface the renderer's GPU mesh was last built from, so
         // shared viewers rebuild only when their selection changes.
         const Surface3D* meshSource = nullptr;

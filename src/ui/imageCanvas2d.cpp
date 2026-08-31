@@ -955,6 +955,15 @@ namespace shoecomp
             image->annotations["points"].setArray();
         }
 
+        vsep();
+
+        // ---- Detect: auto-detect annotations (opens the dialog) ----
+        ImGui::BeginDisabled(!detectAvailable);
+        bool detectClick = iconBtn(ICON_MD_SEARCH, btn,
+                                   "Detect points (auto-detect)", true);
+        ImGui::EndDisabled();
+        if (detectClick) detectRequested = true;
+
         // ---- Row 2: view controls (own row to avoid overflow) ----
         if (iconBtn(ICON_MD_HOME, btn, "Reset view (home)"))
         {

@@ -224,6 +224,44 @@ namespace shoecomp
         OnnxRuntime::instance().ensureLoaded();
     }
 
+    bool detectionAvailable(const ImageCanvas* c)
+    {
+        if (!c) return false;
+        // A bullet-land surface uses the geometric striation detector
+        // (no cylinder fit / no ONNX required). 2D kinds use the ONNX
+        // path, which needs the runtime library present.
+        if (c->kind() == ImageCanvas::Kind::X3PBulletLand) return true;
+        return c->supportsDetection() &&
+               OnnxRuntime::instance().available();
+    }
+
+    void openDetect(AppState& state, ImageCanvas* c)
+    {
+        if (!c) return;
+        if (c->kind() == ImageCanvas::Kind::X3PBulletLand)
+        {
+            X3PBulletLand* bl = static_cast<X3PBulletLand*>(c);
+            if (!state.striationDetectDialog.openFor(*bl))
+            {
+                state.striationDetectError.show = true;
+                state.striationDetectError.message =
+                    "Could not start detection:\n" +
+                    std::string(state.striationDetectDialog.statusText);
+            }
+            return;
+        }
+        if (ImageCanvas2D* c2d = asCanvas2D(*c))
+        {
+            if (!state.detectDialog.openFor(*c2d))
+            {
+                state.detectError.show = true;
+                state.detectError.message =
+                    "Could not start detection:\n" +
+                    std::string(state.detectDialog.statusText);
+            }
+        }
+    }
+
     static void renderFileMenu(AppState& state)
     {
         bool hasActive =
@@ -303,11 +341,6 @@ namespace shoecomp
             state.annotationFileBrowser.title = "Save Annotations";
 #endif
         }
-
-        ImGui::Separator();
-        if (ImGui::MenuItem("Images...", nullptr, false,
-                            !state.images.empty()))
-            state.imageListDialog.show = true;
     }
 
     static void renderMenus(AppState& state)
@@ -328,58 +361,6 @@ namespace shoecomp
 
             ImGui::SeparatorText("File");
             renderFileMenu(state);
-
-            ImGui::SeparatorText("Tools");
-            {
-                bool hasActive =
-                    state.activeGalleryImage >= 0 &&
-                    state.activeGalleryImage < (int)state.images.size();
-                ImageCanvas* base =
-                    hasActive
-                        ? state.images[state.activeGalleryImage].get()
-                        : nullptr;
-                // 2D canvases use the ONNX path; a bullet-land x3p uses
-                // the geometric striation path (works on the raw
-                // surface, no cylinder fit required).
-                ImageCanvas2D* c2d = base ? asCanvas2D(*base) : nullptr;
-                X3PBulletLand* bl =
-                    (base &&
-                     base->kind() == ImageCanvas::Kind::X3PBulletLand)
-                        ? static_cast<X3PBulletLand*>(base)
-                        : nullptr;
-                bool runtimeReady = OnnxRuntime::instance().available();
-                bool enable2D =
-                    c2d && c2d->supportsDetection() && runtimeReady;
-                bool enable3D = bl != nullptr;
-                if (ImGui::MenuItem("Detect...", nullptr, false,
-                                    enable2D || enable3D))
-                {
-                    if (bl)
-                    {
-                        if (!state.striationDetectDialog.openFor(*bl))
-                        {
-                            state.striationDetectError.show = true;
-                            state.striationDetectError.message =
-                                "Could not start detection:\n" +
-                                std::string(state.striationDetectDialog
-                                                .statusText);
-                        }
-                    }
-                    else if (c2d && !state.detectDialog.openFor(*c2d))
-                    {
-                        state.detectError.show = true;
-                        state.detectError.message =
-                            "Could not start detection:\n" +
-                            std::string(state.detectDialog.statusText);
-                    }
-                }
-                if (c2d && !runtimeReady &&
-                    ImGui::IsItemHovered(
-                        ImGuiHoveredFlags_AllowWhenDisabled))
-                    ImGui::SetTooltip(
-                        "onnxruntime shared library not found.\nSee "
-                        "the README to enable automatic detection.");
-            }
             ImGui::EndMenu();
         }
 
@@ -389,22 +370,124 @@ namespace shoecomp
         if (ImGui::MenuItem("About", nullptr,
                             state.workspace == Workspace::About))
             state.workspace = Workspace::About;
+    }
 
-        // Right-aligned indicator of the active image type; hovering
-        // points the user to where it can be changed.
-        std::string typeText =
-            std::string("Type: ") +
-            activeKindLabel(state.settings.activeKind);
-        float textW = ImGui::CalcTextSize(typeText.c_str()).x;
-        float rightX = ImGui::GetWindowContentRegionMax().x - textW;
-        if (rightX > ImGui::GetCursorPosX())
-            ImGui::SetCursorPosX(rightX);
+    // The image the status bar reports on: in the Viewer, the focused
+    // gallery window; in the Comparison, the hovered viewer (else
+    // left).
+    static ImageCanvas* statusBarCanvas(AppState& state)
+    {
+        auto hovered = [](ImageCanvas* c) -> bool
+        {
+            if (!c || !c->hasImage()) return false;
+            if (ImageCanvas2D* c2d = asCanvas2D(*c))
+                return c2d->viewState.isHovered;
+            if (ImageCanvas3D* c3d = asCanvas3D(*c))
+                return c3d->hoverValid;
+            return false;
+        };
+        if (state.workspace == Workspace::Comparison)
+        {
+            ImageCanvas* L = state.viewerLeft.get();
+            ImageCanvas* R = state.viewerRight.get();
+            if (hovered(R)) return R;
+            if (hovered(L)) return L;
+            if (L && L->hasImage()) return L;
+            if (R && R->hasImage()) return R;
+            return nullptr;
+        }
+        if (state.activeGalleryImage >= 0 &&
+            state.activeGalleryImage < (int)state.images.size())
+            return state.images[state.activeGalleryImage].get();
+        return nullptr;
+    }
+
+    static void renderStatusBar(AppState& state)
+    {
+        // Left: active image kind (moved here from the menu bar).
         ImGui::AlignTextToFramePadding();
-        ImGui::TextUnformatted(typeText.c_str());
+        ImGui::Text("Type: %s",
+                    activeKindLabel(state.settings.activeKind));
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
                 "Image type used for loading and comparison.\n"
                 "Change it in Settings > Active Canvas.");
+
+        // Middle: location of the current image under the cursor.
+        ImGui::SameLine();
+        ImGui::TextUnformatted("|");
+        ImGui::SameLine();
+        ImageCanvas* c = statusBarCanvas(state);
+        if (!c || !c->hasImage())
+        {
+            ImGui::TextUnformatted("no image");
+        }
+        else if (ImageCanvas2D* c2d = asCanvas2D(*c))
+        {
+            const auto& v = c2d->viewState;
+            if (v.isHovered)
+            {
+                ImVec2 ip = ImageCanvas2D::screenToImageCoord(
+                    ImGui::GetIO().MousePos, v.canvasPos, v.canvasSize,
+                    v.pan, v.zoom, v.baseScale, v.rotation,
+                    c2d->width(), c2d->height());
+                ImGui::Text(
+                    u8"cursor (%.1f, %.1f)  ·  %d×%d  ·  "
+                    u8"zoom %.0f%%",
+                    ip.x, ip.y, c2d->width(), c2d->height(),
+                    v.zoom * 100.0f);
+            }
+            else
+            {
+                ImGui::Text(u8"%d×%d  ·  zoom %.0f%%", c2d->width(),
+                            c2d->height(), v.zoom * 100.0f);
+            }
+        }
+        else if (ImageCanvas3D* c3d = asCanvas3D(*c))
+        {
+            const Surface3D* s = c3d->surface.get();
+            if (c3d->hoverValid && s && c3d->hoverCol >= 0 &&
+                c3d->hoverCol < s->sizeX && c3d->hoverRow >= 0 &&
+                c3d->hoverRow < s->sizeY)
+            {
+                double x = s->px(c3d->hoverCol);
+                double y = s->py(c3d->hoverRow);
+                double z = s->pz(s->z(c3d->hoverRow, c3d->hoverCol));
+                ImGui::Text(u8"cell %d,%d  ·  %.2f, %.2f, %.3f mm",
+                            c3d->hoverCol, c3d->hoverRow, x * 1e3,
+                            y * 1e3, z * 1e3);
+                X3PBulletLand* bl =
+                    (c3d->kind() == ImageCanvas::Kind::X3PBulletLand)
+                        ? static_cast<X3PBulletLand*>(c3d)
+                        : nullptr;
+                if (bl && bl->hasFit)
+                {
+                    double th = 0.0, sax = 0.0, r = 0.0;
+                    toCylindrical(bl->fit, Eigen::Vector3d(x, y, z), th,
+                                  sax, r);
+                    ImGui::SameLine();
+                    ImGui::Text(u8"·  θ %.1f°  Δr %.1fµm",
+                                th * 180.0 / 3.14159265358979,
+                                (r - bl->fit.radius) * 1e6);
+                }
+            }
+            else
+            {
+                ImGui::Text(u8"%d×%d", c3d->width(), c3d->height());
+            }
+        }
+
+        // Right: Images... button (opens the image-list dialog).
+        const char* imgBtn = "Images...";
+        float bw = ImGui::CalcTextSize(imgBtn).x +
+                   ImGui::GetStyle().FramePadding.x * 2.0f;
+        float rightX = ImGui::GetWindowContentRegionMax().x - bw;
+        ImGui::SameLine();
+        if (rightX > ImGui::GetCursorPosX())
+            ImGui::SetCursorPosX(rightX);
+        ImGui::BeginDisabled(state.images.empty());
+        if (ImGui::Button(imgBtn)) state.imageListDialog.show = true;
+        ImGui::EndDisabled();
     }
 
     static void renderGui(AppState& state)
@@ -744,7 +827,11 @@ namespace shoecomp
         params.imGuiWindowParams.showMenuBar = true;
         params.imGuiWindowParams.showMenu_App = false;
         params.imGuiWindowParams.showMenu_View = false;
+        params.imGuiWindowParams.showStatusBar = true;
+        params.imGuiWindowParams.showStatus_Fps = false;
         params.callbacks.ShowMenus = [&state]() { renderMenus(state); };
+        params.callbacks.ShowStatus = [&state]()
+        { renderStatusBar(state); };
         params.callbacks.LoadAdditionalFonts = [&state]()
         { loadStaticAssets(state); };
         params.callbacks.PostInit = [&state]()

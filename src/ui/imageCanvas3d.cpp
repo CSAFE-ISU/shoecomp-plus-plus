@@ -286,6 +286,21 @@ namespace shoecomp
             }
         }
 
+        // --- live hover pick (for the status-bar location readout) ---
+        hoverValid = false;
+        if (hovered && tex && !panning)
+        {
+            ImVec2 rel = io.MousePos - canvasPos;
+            int col = 0, row = 0;
+            if (renderer.pick((int)(rel.x * fbs), (int)(rel.y * fbs),
+                              camera, modelXform, col, row))
+            {
+                hoverValid = true;
+                hoverCol = col;
+                hoverRow = row;
+            }
+        }
+
         // --- markup: click (no drag) places / removes a point ---
         if (markupActive && hovered &&
             ImGui::IsMouseReleased(ImGuiMouseButton_Left))
@@ -1024,6 +1039,14 @@ namespace shoecomp
         if (iconBtn(ICON_MD_STRAIGHTEN, btn,
                     "Fit cylinder (aligns the vertical strip view)"))
             computeFit();
+        ImGui::EndDisabled();
+
+        vsep(frameH);
+
+        ImGui::BeginDisabled(!detectAvailable);
+        if (iconBtn(ICON_MD_SEARCH, btn,
+                    "Detect striations (auto-detect)", true))
+            detectRequested = true;
         ImGui::EndDisabled();
 
         if (hasFit && fit.radius > 0.0)

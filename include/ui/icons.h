@@ -31,6 +31,7 @@ namespace shoecomp
 #define ICON_MD_PHOTO_LIBRARY u8"\ue413"
 #define ICON_MD_IMAGE u8"\ue3f4"
 #define ICON_MD_STRAIGHTEN u8"\ue41c"
+#define ICON_MD_SEARCH u8"\ue8b6"
 #define ICON_MD_TUNE u8"\ue429"
 #define ICON_MD_HOME u8"\ue88a"
 #define ICON_MD_ZOOM_IN u8"\ue8ff"

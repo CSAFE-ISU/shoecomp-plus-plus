@@ -129,6 +129,14 @@ namespace shoecomp
     void renderImageGallery(AppState& state);
     void renderFilesAndSettings(AppState& state);
     void submain(void);
+
+    // Detection dispatch shared by the per-window Detect buttons in the
+    // gallery and comparison workspaces. detectionAvailable() is the
+    // enable gate (2D kind with ONNX, or a bullet-land surface);
+    // openDetect() opens the matching detect dialog for |c| (which for
+    // a comparison viewer must be the source gallery canvas).
+    bool detectionAvailable(const ImageCanvas* c);
+    void openDetect(AppState& state, ImageCanvas* c);
 } /* namespace shoecomp */
 
 #endif
