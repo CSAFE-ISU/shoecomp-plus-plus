@@ -404,8 +404,8 @@ namespace shoecomp
 
     static void renderStatusBar(AppState& state)
     {
-        // Compact font for the status bar (matches the toolbars).
-        ImGui::SetWindowFontScale(0.85f);
+        // Compact font for the status bar.
+        ImGui::SetWindowFontScale(0.8f);
 
         // Left: active image kind (moved here from the menu bar).
         ImGui::AlignTextToFramePadding();
