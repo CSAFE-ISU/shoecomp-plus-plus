@@ -404,6 +404,9 @@ namespace shoecomp
 
     static void renderStatusBar(AppState& state)
     {
+        // Compact font for the status bar (matches the toolbars).
+        ImGui::SetWindowFontScale(0.85f);
+
         // Left: active image kind (moved here from the menu bar).
         ImGui::AlignTextToFramePadding();
         ImGui::Text("Type: %s",
@@ -488,6 +491,8 @@ namespace shoecomp
         ImGui::BeginDisabled(state.images.empty());
         if (ImGui::Button(imgBtn)) state.imageListDialog.show = true;
         ImGui::EndDisabled();
+
+        ImGui::SetWindowFontScale(1.0f);
     }
 
     static void renderGui(AppState& state)
