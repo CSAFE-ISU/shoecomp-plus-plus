@@ -829,6 +829,9 @@ namespace shoecomp
         params.imGuiWindowParams.showMenu_View = false;
         params.imGuiWindowParams.showStatusBar = true;
         params.imGuiWindowParams.showStatus_Fps = false;
+        // Don't let a persisted status-bar flag (from runs before the
+        // bar existed) override the code default and hide it.
+        params.imGuiWindowParams.rememberStatusBarSettings = false;
         params.callbacks.ShowMenus = [&state]() { renderMenus(state); };
         params.callbacks.ShowStatus = [&state]()
         { renderStatusBar(state); };
