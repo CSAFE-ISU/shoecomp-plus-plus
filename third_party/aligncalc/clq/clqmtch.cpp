@@ -7,8 +7,6 @@ namespace AlignCalc
 {
     namespace clqmtch
     {
-        using IntPair = Node;
-
         // returns the number of bits on in n
         static inline u64 bitcount(u64 n)
         {
@@ -31,63 +29,6 @@ namespace AlignCalc
             for (u64 i = 0; i < dlen; i++)
                 sum += bitcount(this->data[i]);
             return sum;
-        }
-
-        bool Graph::init(WorkerChannel& channel, GraphInfo& info)
-        {
-            if (info.nodemap.size() == 0 || info.edges.size() == 0 ||
-                channel.should_cancel())
-            {
-                return false;
-            }
-            this->num_vertices = info.nodemap.size();
-            this->vertices.resize(this->num_vertices);
-            this->el_size = info.edges.size();
-            this->edge_list = std::make_unique<i32[]>(this->el_size);
-            this->maxDegree = -1;
-            this->maxDepth = -1;
-            //
-            if (channel.should_cancel()) { return false; }
-            std::vector<IntPair> mapped_edges(el_size);
-            u64 ctr = 0;
-            for (const auto& e : info.edges)
-            {
-                mapped_edges[ctr].ind1 = info.nodemap[e.v1];
-                mapped_edges[ctr].ind2 = info.nodemap[e.v2];
-                ++ctr;
-            }
-            std::sort(mapped_edges.begin(), mapped_edges.end());
-            //
-            if (channel.should_cancel()) { return false; }
-            for (const auto& nn : info.nodemap)
-            {
-                vertices[nn.second].ind1 = nn.first.ind1;
-                vertices[nn.second].ind2 = nn.first.ind2;
-            }
-            //
-            for (i32 i = 0, offset = 0; i < this->num_vertices; ++i)
-            {
-                if (channel.should_cancel()) { return false; }
-                i32 spos = 0;
-                i32 j = 0;
-                for (; offset + j < el_size &&
-                       (mapped_edges[offset + j].ind1 == i);
-                     ++j)
-                {
-                    if (mapped_edges[offset + j].ind2 > i) { spos = i; }
-                    this->edge_list[offset + j] =
-                        mapped_edges[offset + j].ind2;
-                }
-                this->vertices[i].init(offset, j, spos);
-                offset += j;
-                if (this->vertices[i].N > this->maxDegree)
-                {
-                    this->maxDegree = this->vertices[i].N;
-                }
-            }
-            this->maxDepth = maxDegree;
-            //
-            return true;
         }
 
         static bool binarySearch(const i32* const arr, i32 beg, i32 end,
@@ -153,8 +94,6 @@ namespace AlignCalc
             size_t tid = 0;
             bool queue_full = false;
             channel.report(0.5f, "searching cliques...");
-            printf("\n\nstarting lb=%d, ub=%d\n\n", lowerBound,
-                   upperBound);
             //
             for (tid = 0; tid < numWorkers; ++tid)
             {
@@ -195,8 +134,6 @@ namespace AlignCalc
                                 i32 vertexID;
                                 while (this->work_q.pop(vertexID))
                                 {
-                                    printf("tid=%ld vertex=%d\n", tid,
-                                           vertexID);
                                     this->processVertex(
                                         channel, tid, vertexID, graph);
                                 }
@@ -238,8 +175,6 @@ namespace AlignCalc
             {
                 this->update(graph, results, std::move(answer));
             }
-            printf("max is %d\n", this->max_clique_size.load(
-                                      std::memory_order_relaxed));
             return !results.empty();
         }
 
@@ -359,8 +294,6 @@ namespace AlignCalc
             i32 clq_size = 1 + bits.count();
             i32 cur_max =
                 this->max_clique_size.load(std::memory_order_relaxed);
-            printf("update vertex=%d, local=%d, global=%d\n",
-                   answer.vertexID, clq_size, cur_max);
             //
             if (cur_max > clq_size) { return; }
             if (cur_max < clq_size)
@@ -388,17 +321,12 @@ namespace AlignCalc
             if (results.empty()) return;
             i32 clq_size =
                 this->max_clique_size.load(std::memory_order_relaxed);
-            size_t before = results.size();
             results.erase(
                 std::remove_if(
                     results.begin(), results.end(),
                     [&clq_size](std::unordered_set<i32>& other)
                     { return other.size() < clq_size; }),
                 results.end());
-            if (results.size() < before)
-            {
-                printf("%ld after cleanup\n", results.size());
-            }
         }
 
     } /* namespace clqmtch */

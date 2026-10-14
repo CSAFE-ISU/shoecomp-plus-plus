@@ -1,4 +1,4 @@
-#include "aligncalc.internal.h"
+#include "rts/triangle2d.internal.h"
 #include <cmath>
 
 namespace AlignCalc
@@ -203,19 +203,18 @@ namespace AlignCalc
         };
 
         bool Triangle2D::compare(const Triangle2D &other,
-                                 TaskInfo &task, double scaleRange,
+                                 uint8_t check[6], double scaleRange,
                                  double epsilon) const
         {
-            for (int i = 0; i < 8; ++i) task.check[i] = 0;
-            task.check[0] = BINARY_CMP(0, other, scaleRange, epsilon);
-            task.check[1] = BINARY_CMP(1, other, scaleRange, epsilon);
-            task.check[2] = BINARY_CMP(2, other, scaleRange, epsilon);
-            task.check[3] = BINARY_CMP(3, other, scaleRange, epsilon);
-            task.check[4] = BINARY_CMP(4, other, scaleRange, epsilon);
-            task.check[5] = BINARY_CMP(5, other, scaleRange, epsilon);
-            for (int i = 0; i < 8; ++i)
+            check[0] = BINARY_CMP(0, other, scaleRange, epsilon);
+            check[1] = BINARY_CMP(1, other, scaleRange, epsilon);
+            check[2] = BINARY_CMP(2, other, scaleRange, epsilon);
+            check[3] = BINARY_CMP(3, other, scaleRange, epsilon);
+            check[4] = BINARY_CMP(4, other, scaleRange, epsilon);
+            check[5] = BINARY_CMP(5, other, scaleRange, epsilon);
+            for (int i = 0; i < 6; ++i)
             {
-                if (task.check[i]) return true;
+                if (check[i]) return true;
             }
             return false;
         };

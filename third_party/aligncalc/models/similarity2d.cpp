@@ -1,5 +1,5 @@
 #include "similarity2d.h"
-#include "rts/rtsFill.internal.h"
+#include "rts/triangle2d.internal.h"
 #include <cmath>
 
 namespace AlignCalc
@@ -128,12 +128,12 @@ namespace AlignCalc
                 const auto& tri = tris[idx];
                 RTS::Triangle2D tr;
                 sides(R, cols, tri[0], tri[1], tri[2], tr);
-                RTS::TaskInfo task;
-                if (!tl.compare(tr, task, params.scaleRange,
+                uint8_t check[6];
+                if (!tl.compare(tr, check, params.scaleRange,
                                 params.epsilon))
                     return;
                 for (int s = 0; s < 6; ++s)
-                    if (task.check[s])
+                    if (check[s])
                         out.push_back(
                             {l,
                              {tri[kPerm[s][0]], tri[kPerm[s][1]],

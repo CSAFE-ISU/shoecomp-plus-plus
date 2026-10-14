@@ -2,6 +2,8 @@
 #define ALIGNCALC_CLQMTCH_H
 #include "aligncalc.internal.h"
 #include "correspondence.h"
+#include "multiQueue.h"
+#include <unordered_set>
 #include <vector>
 #include <memory>
 #include <cstdint>
@@ -165,7 +167,6 @@ namespace AlignCalc
             i32 maxDegree;
             i32 maxDepth;
             //
-            bool init(WorkerChannel&, GraphInfo&);
             bool initFromRows(WorkerChannel&, const GraphRows&);
         };
 

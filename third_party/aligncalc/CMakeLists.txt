@@ -9,17 +9,10 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/eigen")
 add_library(aligncalc
     aligncalc.cpp
     clq/clqmtch.cpp
-    clq/graphInfo.cpp
     clq/search.cpp
     models/rigidPoints.cpp
     models/similarity2d.cpp
     transform.cpp
-    rts/rtsFill.cpp
-    rts/rtsUpdate.cpp
-    rts/rtsUtils.cpp
-    rt/rtFill.cpp
-    rt/rtUpdate.cpp
-    rt/rtUtils.cpp
     rts/triangle2d.cpp
 )
 

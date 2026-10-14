@@ -1,72 +1,90 @@
 #include "aligncalc.internal.h"
-#include "clq/clqmtch.h"
-#include <iostream>
+#include "rigidPoints.h"
+#include "similarity2d.h"
 
 namespace AlignCalc
 {
-    bool getAlignment(const DoubleMatrixR& left_pts,
-                      const DoubleMatrixR& right_pts,
-                      const RTSParams& params, WorkerChannel& channel,
-                      std::vector<MatchedPoints>& results)
+    template <class Model>
+    static bool alignWith(const Model& model, const DoubleMatrixR& left,
+                          const DoubleMatrixR& right,
+                          const PointCols& cols,
+                          const RTSParams& params,
+                          WorkerChannel& channel,
+                          std::vector<MatchedPoints>& results)
     {
-        GraphInfo g_info;
-        clqmtch::StackDFS S(params.numWorkers, params.numResults,
-                            params.lowerBound, params.upperBound);
-        clqmtch::Graph G;
-        std::vector<std::unordered_set<int32_t>> cliques;
-        g_info.reset();
-
-        if (params.sameScale)
+        if (!model.valid())
         {
-            if (!RT::fillGraph(left_pts, right_pts, params, channel,
-                               g_info))
-            {
-                channel.error("could not fill graph");
-                return false;
-            }
+            channel.error("invalid point columns or parameters");
+            return false;
         }
-        else
+        BuildParams bp;
+        bp.numWorkers = params.numWorkers;
+        GraphRows graph;
+        channel.report(0.25f, "finding matchable points...");
+        if (!buildGraph(model, bp, channel, graph))
         {
-            if (!RTS::fillGraph(left_pts, right_pts, params, channel,
-                                g_info))
-            {
+            if (!channel.should_cancel())
                 channel.error("could not fill graph");
-                return false;
-            }
-        }
-
-        if (!G.init(channel, g_info) ||
-            !S.processGraph(channel, G, cliques))
-        {
-            channel.error("clique search failed");
             return false;
         }
 
-        auto colsize = left_pts.cols();
+        CliqueParams cp;
+        cp.numWorkers = params.numWorkers;
+        cp.numResults = params.numResults;
+        cp.lowerBound = params.lowerBound;
+        cp.upperBound = params.upperBound;
+        std::vector<std::vector<Correspondence>> cliques;
+        channel.report(0.5f, "searching cliques...");
+        if (!searchCliques(graph, cp, channel, cliques))
+        {
+            if (!channel.should_cancel())
+                channel.error("clique search failed");
+            return false;
+        }
+
         channel.report(0.75f, "fitting transforms...");
         for (const auto& clq : cliques)
         {
-            if (clq.size() < params.lowerBound) continue;
             results.push_back(MatchedPoints{});
             MatchedPoints& match = results.back();
-            match.N = clq.size();
-            match.left_pts.resize(match.N, colsize);
-            match.right_pts.resize(match.N, colsize);
-            //
-            int i = 0;
-            for (const i32& c : clq)
-            {
-                const clqmtch::Vertex& v = G.vertices[c];
-                match.left_pts.row(i) = left_pts.row(v.ind1);
-                match.right_pts.row(i) = right_pts.row(v.ind2);
-                std::cout << c << ": " << match.left_pts.row(i)
-                          << "<--->" << match.right_pts.row(i) << "\n";
-                ++i;
-            }
-            printf("\n\n");
+            match.N = static_cast<int32_t>(clq.size());
+            match.pairs = clq;
+            match.left_pts.resize(match.N, cols.dim);
+            match.right_pts.resize(match.N, cols.dim);
+            for (int32_t i = 0; i < match.N; ++i)
+                for (int d = 0; d < cols.dim; ++d)
+                {
+                    match.left_pts(i, d) =
+                        left(clq[i].left, cols.pos[d]);
+                    match.right_pts(i, d) =
+                        right(clq[i].right, cols.pos[d]);
+                }
         }
-        printf("%ld matched results\n", results.size());
         return true;
+    }
+
+    bool getAlignment(const DoubleMatrixR& left_pts,
+                      const DoubleMatrixR& right_pts,
+                      const PointCols& cols, int labelCol,
+                      const RTSParams& params, WorkerChannel& channel,
+                      std::vector<MatchedPoints>& results)
+    {
+        LabelRules rules;
+        rules.labelCol = labelCol;
+        if (params.sameScale)
+        {
+            RigidPoints<> model(left_pts, right_pts, cols,
+                                params.epsilon, rules);
+            return alignWith(model, left_pts, right_pts, cols, params,
+                             channel, results);
+        }
+        SimilarityParams sp;
+        sp.scaleRange = params.scaleRange;
+        sp.epsilon = params.epsilon;
+        SimilarityPoints2D<> model(left_pts, right_pts, cols, sp,
+                                   rules);
+        return alignWith(model, left_pts, right_pts, cols, params,
+                         channel, results);
     }
 
 } /* namespace AlignCalc */

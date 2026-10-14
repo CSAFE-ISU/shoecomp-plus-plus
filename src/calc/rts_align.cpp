@@ -8,6 +8,14 @@
 
 namespace shoecomp
 {
+    enum PointCol : int
+    {
+        ColX,
+        ColY,
+        ColType,
+        NumCols
+    };
+
     static bool extractAnnotatedPoints(ImageCanvas2D::ImageData& data,
                                        AlignCalc::DoubleMatrixR& mat)
     {
@@ -20,7 +28,7 @@ namespace shoecomp
         auto& pts = data.annotations["points"].getArray();
         if (pts.size() == 0) { return false; }
         if (pts.size() > AlignCalc::MAX_POINTS) { return false; }
-        mat.resize(pts.size(), 3);
+        mat.resize(pts.size(), NumCols);
         for (size_t i = 0; i < pts.size(); ++i)
         {
             auto& el = pts[i];
@@ -29,9 +37,9 @@ namespace shoecomp
             if (!el.contains("y") || !el["y"].isNumber()) return false;
             if (!el.contains("type") || !el["type"].isString())
                 return false;
-            mat(i, 0) = el["x"].getNumber();
-            mat(i, 1) = el["y"].getNumber();
-            mat(i, 2) =
+            mat(i, ColX) = el["x"].getNumber();
+            mat(i, ColY) = el["y"].getNumber();
+            mat(i, ColType) =
                 static_cast<double>(ImageCanvas2D::stringToPointType(
                     el["type"].getString()));
         }
@@ -64,8 +72,11 @@ namespace shoecomp
             return;
         }
 
-        if (!AlignCalc::getAlignment(left_pts, right_pts, params,
-                                     channel, results))
+        AlignCalc::PointCols cols;
+        cols.dim = 2;
+        cols.pos = {ColX, ColY, 0};
+        if (!AlignCalc::getAlignment(left_pts, right_pts, cols, ColType,
+                                     params, channel, results))
         {
             channel.cancelled();
             return;
