@@ -1,4 +1,3 @@
-#include "clq/clqmtch.h"
 #include "graphBuild.h"
 #include <algorithm>
 #include <atomic>
@@ -170,75 +169,6 @@ namespace AlignCalc
                     return false;
             }
         }
-        return true;
-    }
-
-    namespace clqmtch
-    {
-        bool Graph::initFromRows(WorkerChannel& channel,
-                                 const GraphRows& rows)
-        {
-            if (rows.size() == 0 || rows.adj.empty() ||
-                channel.should_cancel())
-            {
-                return false;
-            }
-            this->num_vertices = rows.size();
-            this->vertices.resize(this->num_vertices);
-            this->el_size = rows.adj.size();
-            this->edge_list = std::make_unique<i32[]>(this->el_size);
-            std::copy(rows.adj.begin(), rows.adj.end(),
-                      this->edge_list.get());
-            this->maxDegree = -1;
-            for (u64 i = 0; i < this->num_vertices; ++i)
-            {
-                const i32 N = static_cast<i32>(rows.degree(i));
-                const i32* row = rows.row(i);
-                // first neighbor with a larger id (equal-degree
-                // tie-break in StackDFS::processVertex)
-                const i32 spos =
-                    i32(std::upper_bound(row, row + N, i32(i)) - row);
-                this->vertices[i].ind1 = rows.nodes[i].left;
-                this->vertices[i].ind2 = rows.nodes[i].right;
-                this->vertices[i].init(rows.offsets[i], N, spos);
-                if (N > this->maxDegree) this->maxDegree = N;
-            }
-            this->maxDepth = this->maxDegree;
-            return true;
-        }
-    }  // namespace clqmtch
-
-    bool searchCliques(const GraphRows& rows,
-                       const CliqueParams& params,
-                       WorkerChannel& channel,
-                       std::vector<std::vector<Correspondence>>& out)
-    {
-        clqmtch::Graph G;
-        if (!G.initFromRows(channel, rows)) return false;
-        clqmtch::StackDFS S(std::max<size_t>(1, params.numWorkers),
-                            params.numResults, params.lowerBound,
-                            params.upperBound);
-        std::vector<std::unordered_set<i32>> cliques;
-        if (!S.processGraph(channel, G, cliques)) return false;
-
-        out.clear();
-        for (const auto& clq : cliques)
-        {
-            if (clq.size() < size_t(params.lowerBound)) continue;
-            std::vector<Correspondence> c;
-            c.reserve(clq.size());
-            for (i32 v : clq) c.push_back(rows.nodes[v]);
-            std::sort(c.begin(), c.end());
-            out.push_back(std::move(c));
-        }
-        std::sort(out.begin(), out.end(),
-                  [](const auto& a, const auto& b)
-                  {
-                      if (a.size() != b.size())
-                          return a.size() > b.size();
-                      return a < b;
-                  });
-        out.erase(std::unique(out.begin(), out.end()), out.end());
         return true;
     }
 

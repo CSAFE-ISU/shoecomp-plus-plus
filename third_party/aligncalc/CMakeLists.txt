@@ -8,7 +8,7 @@ add_subdirectory("${CMAKE_CURRENT_SOURCE_DIR}/eigen")
 
 add_library(aligncalc
     aligncalc.cpp
-    clq/clqmtch.cpp
+    clq/maxClique.cpp
     clq/search.cpp
     models/rigidPoints.cpp
     models/similarity2d.cpp
