@@ -10,6 +10,9 @@
 
 namespace shoecomp
 {
+    const char* const kNoStriationMatch =
+        "no consistent set of striations found";
+
     namespace
     {
         constexpr double kPi = 3.14159265358979323846;
@@ -152,7 +155,7 @@ namespace shoecomp
         if (!AlignCalc::searchCliques(graph, cp, channel, cliques))
         {
             if (!channel.should_cancel())
-                channel.error("no consistent set of striations found");
+                channel.error(kNoStriationMatch);
             return false;
         }
 

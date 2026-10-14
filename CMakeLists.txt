@@ -123,6 +123,7 @@ set(SC_SRCS
     src/core/imageType.cpp
     src/core/params.cpp
     src/core/alignmentJson.cpp
+    src/core/pipeline.cpp
     src/calc/align.cpp
     src/calc/rts_align.cpp
     src/calc/onnxRuntime.cpp

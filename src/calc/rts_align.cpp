@@ -16,7 +16,7 @@ namespace shoecomp
     static bool extractAnnotatedPoints(const jt::Json& annotations,
                                        AlignCalc::DoubleMatrixR& mat)
     {
-        jt::Json& ann = const_cast<jt::Json&>(annotations);
+        const jt::Json& ann = annotations;
         if (!ann.isObject() || !ann.contains("points") ||
             !ann["points"].isArray())
         {

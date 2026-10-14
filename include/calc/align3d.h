@@ -31,6 +31,10 @@ namespace shoecomp
         bool axialWeak = false;
     };
 
+    // Error text runStriationAlign posts when no consistent set of
+    // striations exists (a non-match rather than a failure).
+    extern const char* const kNoStriationMatch;
+
     // The striation lines in |surf|'s peaks[]. Malformed entries are
     // skipped; |peakIndex| (optional) gets each line's peaks[] index.
     std::vector<StriationLine> surfaceStriations(
