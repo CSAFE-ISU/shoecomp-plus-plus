@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.28)
 include(ExternalProject)
 #
-project(shoecomp)
+project(shoecomp VERSION 0.0.8)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -13,6 +13,12 @@ else()
     find_package(Threads REQUIRED)
     set(SC_THREADS_LIB Threads::Threads)
 endif()
+
+# Version shown by `scpp --version` and the About page; bump it with
+# each release tag.
+set(SHOECOMP_VERSION ${PROJECT_VERSION})
+configure_file(cmake/shoecompVersion.h.in
+               ${CMAKE_CURRENT_BINARY_DIR}/generated/shoecompVersion.h @ONLY)
 
 # Force static linking for all third-party libraries
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
@@ -104,6 +110,7 @@ add_subdirectory(third_party/aligncalc EXCLUDE_FROM_ALL)
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/third_party
+    ${CMAKE_CURRENT_BINARY_DIR}/generated
 )
 
 set(SC_CORE_SRCS
@@ -146,6 +153,97 @@ target_link_libraries(shoecomp_core PUBLIC json aligncalc zlibstatic
                       ${SC_STB_LIB} ${SC_THREADS_LIB} ${CMAKE_DL_LIBS})
 
 # =====================================================================
+# 6a. Embedded assets (binary_to_compressed_c) and license texts
+# =====================================================================
+if (NOT EMSCRIPTEN)
+    add_executable(binary_to_compressed_c
+        third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
+    set_target_properties(binary_to_compressed_c PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+    set(B2CC_TOOL $<TARGET_FILE:binary_to_compressed_c>)
+    set(B2CC_DEP  binary_to_compressed_c)
+else()
+    # Build a native host tool even when cross-compiling for Emscripten
+    find_program(HOST_CXX NAMES c++ g++ clang++)
+    if(NOT HOST_CXX)
+        message(FATAL_ERROR
+            "No native C++ compiler found for host tool build. "
+            "Set HOST_CXX to a native compiler path.")
+    endif()
+    set(_B2CC_SRC
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp")
+    set(_B2CC_BIN
+        "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c")
+    add_custom_command(
+        OUTPUT  ${_B2CC_BIN}
+        COMMAND ${HOST_CXX} ${_B2CC_SRC} -o ${_B2CC_BIN}
+        DEPENDS ${_B2CC_SRC}
+        COMMENT "Building native binary_to_compressed_c"
+        VERBATIM
+    )
+    add_custom_target(binary_to_compressed_c DEPENDS ${_B2CC_BIN})
+    set(B2CC_TOOL ${_B2CC_BIN})
+    set(B2CC_DEP  binary_to_compressed_c)
+endif()
+
+set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
+file(MAKE_DIRECTORY ${SC_GENERATED_ASSETS_DIR})
+set(SC_ASSET_SCRIPT
+    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
+
+# sc_embed_assets(<out var> "path|symbol|mode"...): generate one C++
+# source per asset; mode is compress (stb_compress, for fonts) or raw
+# (bytes verbatim).
+function(sc_embed_assets out_var)
+    set(srcs)
+    foreach(spec IN LISTS ARGN)
+        string(REPLACE "|" ";" parts ${spec})
+        list(GET parts 0 src_rel)
+        list(GET parts 1 sym)
+        list(GET parts 2 mode)
+        set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.cpp)
+        add_custom_command(
+            OUTPUT ${out_c}
+            COMMAND ${CMAKE_COMMAND}
+                    -DTOOL=${B2CC_TOOL}
+                    -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                    -DSYMBOL=${sym}
+                    -DOUTPUT=${out_c}
+                    -DMODE=${mode}
+                    -P ${SC_ASSET_SCRIPT}
+            DEPENDS ${B2CC_DEP}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                    ${SC_ASSET_SCRIPT}
+            VERBATIM
+        )
+        list(APPEND srcs ${out_c})
+    endforeach()
+    set(${out_var} ${srcs} PARENT_SCOPE)
+endfunction()
+
+# Every license text (both binaries share the table; each lists the
+# entries it contains).
+sc_embed_assets(SC_LICENSE_SRCS
+    "LICENSE|LicShoeComp|raw"
+    "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
+    "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"
+    "third_party/aligncalc/eigen/COPYING.MPL2|LicEigen|raw"
+    "third_party/freetype/docs/FTL.TXT|LicFreetype|raw"
+    "third_party/jtjson/LICENSE|LicJsonCpp|raw"
+    "third_party/libpng/LICENSE|LicLibpng|raw"
+    "third_party/zlib/LICENSE|LicZlib|raw"
+    "third_party/libjpeg-turbo/LICENSE.md|LicLibjpegTurbo|raw"
+    "third_party/jtjson/double-conversion/LICENSE|LicDoubleConversion|raw"
+    "assets/licenses/stb_image.txt|LicStbImage|raw"
+    "third_party/CLI11/LICENSE|LicCLI11|raw"
+    "assets/fonts/Inconsolata-OFL.txt|LicInconsolata|raw"
+    "assets/fonts/Montserrat-OFL.txt|LicMontserrat|raw"
+    "assets/fonts/MaterialIcons-Apache.txt|LicMaterialIcons|raw"
+)
+add_library(shoecomp_licenses STATIC src/core/licenseData.cpp
+            ${SC_LICENSE_SRCS})
+
+# =====================================================================
 # 6b. scpp command-line tool
 # =====================================================================
 if(SHOECOMP_BUILD_CLI)
@@ -160,7 +258,8 @@ if(SHOECOMP_BUILD_CLI)
         src/cli/batch.cpp
         src/cli/report.cpp
     )
-    target_link_libraries(scpp PRIVATE shoecomp_core CLI11::CLI11)
+    target_link_libraries(scpp PRIVATE shoecomp_core shoecomp_licenses
+                          CLI11::CLI11)
 endif()
 
 # =====================================================================
@@ -179,7 +278,6 @@ set(SC_SRCS
     src/ui/tabImageComparison.cpp
     src/ui/tabSettings.cpp
     src/ui/tabAbout.cpp
-    src/ui/licenseData.cpp
     src/ui/errorPopup.cpp
     src/ui/loadBrowser.cpp
     src/ui/saveBrowser.cpp
@@ -201,89 +299,18 @@ set(SC_SRCS
 
 if(SHOECOMP_BUILD_GUI)
     # =====================================================================
-    # 7. Embedded static assets (generated via binary_to_compressed_c)
+    # 7. GUI-only embedded assets (fonts, splash icon)
     # =====================================================================
-    if (NOT EMSCRIPTEN)
-        add_executable(binary_to_compressed_c
-            third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
-        set_target_properties(binary_to_compressed_c PROPERTIES
-            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-        set(B2CC_TOOL $<TARGET_FILE:binary_to_compressed_c>)
-        set(B2CC_DEP  binary_to_compressed_c)
-    else()
-        # Build a native host tool even when cross-compiling for Emscripten
-        find_program(HOST_CXX NAMES c++ g++ clang++)
-        if(NOT HOST_CXX)
-            message(FATAL_ERROR
-                "No native C++ compiler found for host tool build. "
-                "Set HOST_CXX to a native compiler path.")
-        endif()
-        set(_B2CC_SRC
-            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp")
-        set(_B2CC_BIN
-            "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c")
-        add_custom_command(
-            OUTPUT  ${_B2CC_BIN}
-            COMMAND ${HOST_CXX} ${_B2CC_SRC} -o ${_B2CC_BIN}
-            DEPENDS ${_B2CC_SRC}
-            COMMENT "Building native binary_to_compressed_c"
-            VERBATIM
-        )
-        add_custom_target(binary_to_compressed_c DEPENDS ${_B2CC_BIN})
-        set(B2CC_TOOL ${_B2CC_BIN})
-        set(B2CC_DEP  binary_to_compressed_c)
-    endif()
-
-    set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
-    file(MAKE_DIRECTORY ${SC_GENERATED_ASSETS_DIR})
-
-    set(SC_ASSET_SPECS
+    sc_embed_assets(SC_GUI_ASSET_SRCS
         "assets/fonts/Montserrat-Regular.ttf|MontserratRegular|compress"
         "assets/fonts/Montserrat-SemiBold.ttf|MontserratSemiBold|compress"
         "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
         "assets/fonts/MaterialIcons-Regular.ttf|MaterialIcons|compress"
         "assets/fonts/icon.png|ShoeCompIcon|raw"
-        "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
-        "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"
-        "third_party/aligncalc/eigen/COPYING.MPL2|LicEigen|raw"
-        "third_party/freetype/docs/FTL.TXT|LicFreetype|raw"
-        "third_party/jtjson/LICENSE|LicJsonCpp|raw"
-        "third_party/libpng/LICENSE|LicLibpng|raw"
-        "third_party/zlib/LICENSE|LicZlib|raw"
-        "third_party/libjpeg-turbo/LICENSE.md|LicLibjpegTurbo|raw"
-        "third_party/jtjson/double-conversion/LICENSE|LicDoubleConversion|raw"
-        "assets/fonts/Inconsolata-OFL.txt|LicInconsolata|raw"
-        "assets/fonts/Montserrat-OFL.txt|LicMontserrat|raw"
-        "assets/fonts/MaterialIcons-Apache.txt|LicMaterialIcons|raw"
     )
-    set(SC_ASSET_SCRIPT
-        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
-    set(SC_GENERATED_ASSET_SRCS)
-    foreach(spec IN LISTS SC_ASSET_SPECS)
-        string(REPLACE "|" ";" parts ${spec})
-        list(GET parts 0 src_rel)
-        list(GET parts 1 sym)
-        list(GET parts 2 mode)
-        set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.cpp)
-        add_custom_command(
-            OUTPUT ${out_c}
-            COMMAND ${CMAKE_COMMAND}
-                    -DTOOL=${B2CC_TOOL}
-                    -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
-                    -DSYMBOL=${sym}
-                    -DOUTPUT=${out_c}
-                    -DMODE=${mode}
-                    -P ${SC_ASSET_SCRIPT}
-            DEPENDS ${B2CC_DEP}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
-                    ${SC_ASSET_SCRIPT}
-            VERBATIM
-        )
-        list(APPEND SC_GENERATED_ASSET_SRCS ${out_c})
-    endforeach()
-
-    list(APPEND SC_SRCS ${SC_GENERATED_ASSET_SRCS})
+    list(APPEND SC_SRCS ${SC_GUI_ASSET_SRCS})
 
     hello_imgui_add_app(shoecomp ${SC_SRCS})
-    target_link_libraries(shoecomp PRIVATE shoecomp_core png_static)
+    target_link_libraries(shoecomp PRIVATE shoecomp_core shoecomp_licenses
+                          png_static)
 endif()

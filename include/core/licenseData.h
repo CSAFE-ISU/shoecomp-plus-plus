@@ -1,5 +1,5 @@
-#ifndef SHOECOMP_UI_LICENSE_DATA
-#define SHOECOMP_UI_LICENSE_DATA
+#ifndef SHOECOMP_CORE_LICENSE_DATA
+#define SHOECOMP_CORE_LICENSE_DATA
 
 #include <string>
 #include <vector>
@@ -8,6 +8,13 @@ struct WorkerChannel;
 
 namespace shoecomp
 {
+    // Which binaries contain a component.
+    enum LicenseBinaries : unsigned
+    {
+        kInGui = 1u,
+        kInCli = 2u
+    };
+
     struct LicenseEntry
     {
         const char* name;
@@ -16,9 +23,16 @@ namespace shoecomp
         const char* url;
         const unsigned char* data;
         unsigned int size;
+        unsigned binaries;  // LicenseBinaries mask
     };
 
+    // ShoeComp itself (version = SHOECOMP_VERSION).
+    const LicenseEntry& projectLicense();
+
+    // Third-party components, in display order.
     const std::vector<LicenseEntry>& getLicenses();
+
+    std::string licenseText(const LicenseEntry& e);
 
     // Pre-convert all embedded license bytes to strings.
     std::vector<std::string> preloadLicenseTexts();

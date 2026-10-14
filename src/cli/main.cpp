@@ -5,6 +5,8 @@
 
 #include "CLI/CLI.hpp"
 #include "cli/cli.h"
+#include "core/licenseData.h"
+#include "shoecompVersion.h"
 
 using namespace shoecomp;
 
@@ -116,6 +118,42 @@ namespace
         addParamOptions(app, st);
     }
 
+    void printVersion(bool full)
+    {
+        const LicenseEntry& self = projectLicense();
+        const std::string selfText = licenseText(self);
+        std::printf("scpp %s (ShoeComp)\n", self.version);
+        size_t c = selfText.find("Copyright");
+        if (c != std::string::npos)
+            std::printf(
+                "%s\n",
+                selfText.substr(c, selfText.find('\n', c) - c).c_str());
+        std::printf("License: %s  %s\n\nThird-party components:\n",
+                    self.licenseType, self.url);
+        for (const auto& e : getLicenses())
+        {
+            if (!(e.binaries & kInCli)) continue;
+            std::printf("  %-18s %-8s %-22s %s\n", e.name, e.version,
+                        e.licenseType, e.url);
+        }
+        if (!full)
+        {
+            std::printf(
+                "\n`scpp version --full` prints the license "
+                "texts.\n");
+            return;
+        }
+        auto dump = [](const LicenseEntry& e)
+        {
+            std::printf("\n==== %s%s%s (%s) ====\n%s\n", e.name,
+                        e.version[0] ? " " : "", e.version,
+                        e.licenseType, licenseText(e).c_str());
+        };
+        dump(self);
+        for (const auto& e : getLicenses())
+            if (e.binaries & kInCli) dump(e);
+    }
+
     // Defaults <- params file <- flag overrides, then validated.
     bool resolveParams(const State& st, Params& p, std::string& err)
     {
@@ -172,6 +210,9 @@ int main(int argc, char** argv)
         "or detect them.",
         "scpp"};
     app.set_help_all_flag("--help-all", "Help for every subcommand");
+    app.set_version_flag("--version",
+                         std::string("scpp ") + SHOECOMP_VERSION,
+                         "Print the version and exit");
     app.require_subcommand(0, 1);
 
     CompareArgs cmp;
@@ -242,11 +283,19 @@ int main(int argc, char** argv)
         "of -p and any parameter flags)");
     addParamOptions(params, st);
 
+    bool fullLicenses = false;
+    CLI::App* version = app.add_subcommand(
+        "version",
+        "Print the version, ShoeComp's license and the third-party "
+        "components with their licenses");
+    version->add_flag("--full", fullLicenses,
+                      "Also print every license text");
+
     std::string helpTarget;
     CLI::App* help = app.add_subcommand(
         "help", "Show help for scpp or one of its subcommands");
     help->add_option("SUBCOMMAND", helpTarget)
-        ->check(CLI::IsMember({"batch", "params", "help"}));
+        ->check(CLI::IsMember({"batch", "params", "version", "help"}));
 
     try
     {
@@ -265,6 +314,12 @@ int main(int argc, char** argv)
         else
             std::fputs(app.get_subcommand(helpTarget)->help().c_str(),
                        stdout);
+        return kExitOk;
+    }
+
+    if (version->parsed())
+    {
+        printVersion(fullLicenses);
         return kExitOk;
     }
 

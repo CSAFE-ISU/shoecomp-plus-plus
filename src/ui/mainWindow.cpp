@@ -6,7 +6,7 @@
 #include "calc/onnxRuntime.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
-#include "ui/licenseData.h"
+#include "core/licenseData.h"
 #include "ui/embeddedAssets.h"
 #include "ui/icons.h"
 #include "formats/png.h"

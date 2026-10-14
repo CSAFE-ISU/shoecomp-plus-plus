@@ -1,7 +1,7 @@
 #include "ui/splash.h"
 #include "ui/settings.h"
 #include "ui/uiHelpers.h"
-#include "ui/licenseData.h"
+#include "core/licenseData.h"
 #include "hello_imgui/hello_imgui.h"
 #include "hello_imgui/imgui_theme.h"
 #include "formats/png.h"

@@ -1,33 +1,23 @@
 #include "ui/mainWindow.h"
-#include "ui/licenseData.h"
+#include "core/licenseData.h"
 #include "imgui.h"
+#include <string>
 
 namespace shoecomp
 {
     void renderAbout(AppState& state)
     {
+        // Index into getLicenses(), or kProject for ShoeComp itself.
+        constexpr int kProject = -2;
         static int popupIdx = -1;
+        static std::string projectText = licenseText(projectLicense());
 
         const auto& licenses = getLicenses();
 
-        if (state.boldFont) ImGui::PushFont(state.boldFont);
-        ImGui::Text("ShoeComp");
-        if (state.boldFont) ImGui::PopFont();
-
-        ImGui::Spacing();
-        ImGui::Text("Third-party licenses:");
-        ImGui::Spacing();
-
-        ImVec2 avail = ImGui::GetContentRegionAvail();
-        ImGui::BeginChild("##licenseList", ImVec2(avail.x, avail.y),
-                          ImGuiChildFlags_None,
-                          ImGuiWindowFlags_AlwaysVerticalScrollbar);
-
-        for (int i = 0; i < (int)licenses.size(); ++i)
+        // One clickable card per component; true when clicked.
+        auto card = [&](const LicenseEntry& lic, int id)
         {
-            const auto& lic = licenses[i];
-            ImGui::PushID(i);
-
+            ImGui::PushID(id);
             float cardW = ImGui::GetContentRegionAvail().x;
             float cardH = ImGui::GetTextLineHeight() * 3.0f +
                           ImGui::GetStyle().FramePadding.y * 4.0f;
@@ -53,8 +43,7 @@ namespace shoecomp
             ImGui::EndChild();
             ImGui::PopStyleColor();
 
-            if (ImGui::IsItemClicked()) { popupIdx = i; }
-
+            const bool clicked = ImGui::IsItemClicked();
             if (ImGui::IsItemHovered())
             {
                 ImGui::SetMouseCursor(ImGuiMouseCursor_Hand);
@@ -62,10 +51,35 @@ namespace shoecomp
 
             ImGui::Spacing();
             ImGui::PopID();
+            return clicked;
+        };
+
+        if (state.boldFont) ImGui::PushFont(state.boldFont);
+        ImGui::Text("ShoeComp");
+        if (state.boldFont) ImGui::PopFont();
+        ImGui::SameLine();
+        ImGui::TextDisabled("v%s", projectLicense().version);
+
+        ImGui::Spacing();
+        if (card(projectLicense(), kProject)) popupIdx = kProject;
+
+        ImGui::Text("Third-party licenses:");
+        ImGui::Spacing();
+
+        ImVec2 avail = ImGui::GetContentRegionAvail();
+        ImGui::BeginChild("##licenseList", ImVec2(avail.x, avail.y),
+                          ImGuiChildFlags_None,
+                          ImGuiWindowFlags_AlwaysVerticalScrollbar);
+
+        for (int i = 0; i < (int)licenses.size(); ++i)
+        {
+            if (card(licenses[i], i)) popupIdx = i;
         }
 
-        if (popupIdx >= 0 && popupIdx < (int)licenses.size() &&
-            popupIdx < (int)state.licenseTexts.size())
+        const bool haveThirdParty =
+            popupIdx >= 0 && popupIdx < (int)licenses.size() &&
+            popupIdx < (int)state.licenseTexts.size();
+        if (popupIdx == kProject || haveThirdParty)
         {
             ImGui::OpenPopup("##licensePopup");
             ImVec2 center = ImGui::GetMainViewport()->GetCenter();
@@ -76,8 +90,12 @@ namespace shoecomp
                 ImVec2(displaySize.x * 0.7f, displaySize.y * 0.7f),
                 ImGuiCond_Appearing);
 
-            const auto& lic = licenses[popupIdx];
-            auto& text = state.licenseTexts[popupIdx];
+            const LicenseEntry& lic = popupIdx == kProject
+                                          ? projectLicense()
+                                          : licenses[popupIdx];
+            std::string& text = popupIdx == kProject
+                                    ? projectText
+                                    : state.licenseTexts[popupIdx];
             if (ImGui::BeginPopupModal(
                     "##licensePopup", nullptr,
                     ImGuiWindowFlags_NoSavedSettings))
