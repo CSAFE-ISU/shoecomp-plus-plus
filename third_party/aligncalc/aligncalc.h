@@ -21,6 +21,8 @@ namespace AlignCalc
         int32_t lowerBound;
         int32_t upperBound;
         bool sameScale;
+        // Similarity only: an edge needs this many matched triangles.
+        int32_t minSupport;
 
         RTSParams()
         {
@@ -31,6 +33,7 @@ namespace AlignCalc
             lowerBound = 3;
             upperBound = 500;
             sameScale = false;
+            minSupport = 1;
         }
     };
 

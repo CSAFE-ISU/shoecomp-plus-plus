@@ -21,6 +21,7 @@ namespace AlignCalc
         }
         BuildParams bp;
         bp.numWorkers = params.numWorkers;
+        bp.minSupport = params.minSupport;
         GraphRows graph;
         channel.report(0.25f, "finding matchable points...");
         if (!buildGraph(model, bp, channel, graph))
