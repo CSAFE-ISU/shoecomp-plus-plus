@@ -17,6 +17,7 @@ namespace shoecomp
         double angleTolDeg = 0.5;
         double sepTolUm = 4.0;
         double maxLengthRatio = 0.0;  // > 1: bound on longer/shorter
+        double extentScale = 0.0;     // see AlignCalc::LineParams
         size_t numWorkers = 4;
         size_t numResults = 2;
         int minLines = 10;

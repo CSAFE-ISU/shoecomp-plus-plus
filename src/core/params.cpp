@@ -112,6 +112,7 @@ namespace shoecomp
         p.angleTolDeg = angleTolDeg;
         p.sepTolUm = sepTolUm;
         p.maxLengthRatio = maxLengthRatio;
+        p.extentScale = extentScale;
         p.minLines = minLines;
         p.numResults = (size_t)numResults;
         p.numWorkers = numWorkers;
@@ -184,6 +185,11 @@ namespace shoecomp
             {"align3d", "max_length_ratio",
              "Max longer/shorter striation length ratio; 0 = off",
              ParamKind::Float, SC_REF(align3d.maxLengthRatio)},
+            {"align3d", "extent_scale",
+             "Widen the separation tolerance for striations detected "
+             "over different lengths (x sin(angle/2) x length "
+             "difference); 0 = off",
+             ParamKind::Float, SC_REF(align3d.extentScale)},
             {"align3d", "min_matched", "Minimum matched striations",
              ParamKind::Int, SC_REF(align3d.minLines)},
             {"align3d", "results", "Alignments to return",
@@ -409,6 +415,8 @@ namespace shoecomp
             return bad("[align3d] sep_tol_um must be > 0");
         if (l.maxLengthRatio < 0.0f)
             return bad("[align3d] max_length_ratio must be >= 0");
+        if (l.extentScale < 0.0f)
+            return bad("[align3d] extent_scale must be >= 0");
         if (l.minLines < 2)
             return bad("[align3d] min_matched must be >= 2");
         if (l.numResults < 1)

@@ -75,6 +75,8 @@ namespace shoecomp
         info["axialWeak"] = jt::Json(r.axialWeak);
         info["angleTolDeg"] = jt::Json((double)s.angleTolDeg);
         info["sepTolUm"] = jt::Json((double)s.sepTolUm);
+        if (s.extentScale > 0.0f)
+            info["extentScale"] = jt::Json((double)s.extentScale);
         return info;
     }
 }  // namespace shoecomp

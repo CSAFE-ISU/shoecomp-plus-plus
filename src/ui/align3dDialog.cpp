@@ -120,6 +120,13 @@ namespace shoecomp
             ImGui::SetTooltip(
                 "Only match striations whose lengths "
                 "differ by at most this factor.");
+        ImGui::DragFloat("Extent allowance (0 = off)",
+                         &settings.extentScale, 0.05f, 0.0f, 5.0f,
+                         "%.2f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Widen the separation tolerance for striations "
+                "detected over different lengths.");
         ImGui::InputInt("Min matched lines", &settings.minLines);
         if (settings.minLines < 2) settings.minLines = 2;
         ImGui::InputInt("Results", &settings.numResults);

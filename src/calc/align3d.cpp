@@ -123,6 +123,7 @@ namespace shoecomp
         AlignCalc::LineParams lp;
         lp.angleTol = params.angleTolDeg * kPi / 180.0;
         lp.sepTol = params.sepTolUm * 1e-6;
+        lp.extentScale = params.extentScale;
         StriationRules rules;
         rules.maxLengthRatio = params.maxLengthRatio;
         const AlignCalc::LineCols cols = lineCols();
