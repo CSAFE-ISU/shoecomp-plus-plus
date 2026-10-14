@@ -2,7 +2,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvasKinds.h"
 #include "ui/alignDialog.h"
-#include "ui/eulerAngles.h"
+#include "core/alignmentJson.h"
 #include "calc/onnxRuntime.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
@@ -97,24 +97,8 @@ namespace shoecomp
             Align3DState a;
             a.automatic = true;
             a.physical = r.leftToRight;
-            a.info.setObject();
-            a.info["matchedStriations"].setArray();
-            for (const auto& pr : r.pairs)
-            {
-                jt::Json m;
-                m.setArray();
-                m.getArray().push_back(
-                    jt::Json(d.leftPeakIdx[pr.first]));
-                m.getArray().push_back(
-                    jt::Json(d.rightPeakIdx[pr.second]));
-                a.info["matchedStriations"].getArray().push_back(
-                    std::move(m));
-            }
-            a.info["rmsPerpUm"] = jt::Json(r.rmsPerp * 1e6);
-            a.info["axialWeak"] = jt::Json(r.axialWeak);
-            a.info["angleTolDeg"] =
-                jt::Json((double)d.settings.angleTolDeg);
-            a.info["sepTolUm"] = jt::Json((double)d.settings.sepTolUm);
+            a.info = striationMatchInfo(r, d.leftPeakIdx,
+                                        d.rightPeakIdx, d.settings);
             state.viewerAlignments3D.push_back(std::move(a));
         }
         state.viewerAlignmentIdx3D = first;
@@ -657,16 +641,6 @@ namespace shoecomp
         }
     }
 
-    static jt::Json vec3ToJson(const Eigen::Vector3f& v)
-    {
-        jt::Json arr;
-        arr.setArray();
-        arr.getArray().push_back(jt::Json((double)v.x()));
-        arr.getArray().push_back(jt::Json((double)v.y()));
-        arr.getArray().push_back(jt::Json((double)v.z()));
-        return arr;
-    }
-
     static void onAlignmentSaveOk(AppState& state,
                                   const std::string& fullPath)
     {
@@ -678,44 +652,21 @@ namespace shoecomp
                 state.viewerAlignments3D[state.viewerAlignmentIdx3D];
             if (a.automatic)
             {
-                // physical frame: left -> right, metres
-                obj["mode"] = jt::Json("Automatic");
-                jt::Json m;
-                m.setArray();
-                for (int r = 0; r < 4; ++r)
-                {
-                    jt::Json row;
-                    row.setArray();
-                    for (int c = 0; c < 4; ++c)
-                        row.getArray().push_back(
-                            jt::Json(a.physical.matrix()(r, c)));
-                    m.getArray().push_back(std::move(row));
-                }
-                obj["matrix"] = m;
-                obj["rotationDeg"] = vec3ToJson(
-                    matrixToEuler(a.physical.linear().cast<float>()));
-                obj["translation"] =
-                    vec3ToJson(a.physical.translation().cast<float>());
+                obj = automatic3DToJson(a.physical, a.info);
             }
             else
             {
                 obj["mode"] = jt::Json("Manual");
-                obj["translation"] = vec3ToJson(a.translation);
-                obj["rotationDeg"] = vec3ToJson(a.rotationDeg);
+                obj["translation"] = vec3fToJson(a.translation);
+                obj["rotationDeg"] = vec3fToJson(a.rotationDeg);
                 obj["scale"] = jt::Json((double)a.scale);
+                obj["info"] = a.info;
             }
-            obj["info"] = a.info;
         }
         else
         {
-            auto& a = state.viewerAlignments[state.viewerAlignmentIdx];
-            obj["mode"] = jt::Json(
-                a.mode == AlignMode::Manual ? "Manual" : "Automatic");
-            obj["rotation"] = jt::Json((double)a.rotation);
-            obj["dx"] = jt::Json((double)a.dx);
-            obj["dy"] = jt::Json((double)a.dy);
-            obj["scale"] = jt::Json((double)a.scale);
-            obj["info"] = a.info;
+            obj = alignment2DToJson(
+                state.viewerAlignments[state.viewerAlignmentIdx]);
         }
 
         std::ofstream ofs(fullPath);

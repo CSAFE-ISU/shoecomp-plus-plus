@@ -7,7 +7,7 @@
 #include "formats/x3pAnnotationIo.h"
 #include "imgui.h"
 #include "ui/calcHelpers.h"    // ImVec2 arithmetic operators
-#include "ui/eulerAngles.h"    // shared pitch/yaw/roll convention
+#include "core/eulerAngles.h"  // shared pitch/yaw/roll convention
 #include "ui/icons.h"          // Material icon codepoints
 #include "ui/imageCanvas2d.h"  // shared AnnotationStyle (style statics)
 #include "ui/uiHelpers.h"      // kDegToRad

@@ -4,7 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
-#include "ui/eulerAngles.h"
+#include "core/eulerAngles.h"
 
 // GL headers only on the OpenGL backend; everything else here is
 // deliberately GL-free so it stays testable and portable.

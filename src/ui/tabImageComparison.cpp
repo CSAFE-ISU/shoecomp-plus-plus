@@ -2,7 +2,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvas3d.h"
 #include "ui/uiHelpers.h"
-#include "ui/eulerAngles.h"
+#include "core/eulerAngles.h"
 #include <algorithm>
 #include <cmath>
 

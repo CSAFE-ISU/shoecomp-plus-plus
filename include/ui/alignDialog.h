@@ -7,29 +7,16 @@
 #include <vector>
 #include "imgui.h"
 #include "calc/align.h"
+#include "core/alignment.h"
 #include "jtjson/json.h"
 #include "ui/imageCanvas2d.h"
 
 namespace shoecomp
 {
-    enum class AlignMode
-    {
-        Manual = 0,
-        Automatic = 1
-    };
-
-    struct AlignState
-    {
-        AlignMode mode = AlignMode::Manual;
-        float rotation = 0.0f;
-        float dx = 0.0f;
-        float dy = 0.0f;
-        float scale = 1.0f;
-        jt::Json info;
-
-        ImVec2 transformRight2Left(const ImVec2& pt) const;
-        ImVec2 transformLeft2Right(const ImVec2& pt) const;
-    };
+    // Map an image-coordinate point through |a| (right -> left) or
+    // its inverse.
+    ImVec2 transformRight2Left(const AlignState& a, const ImVec2& pt);
+    ImVec2 transformLeft2Right(const AlignState& a, const ImVec2& pt);
 
     struct AlignDialog
     {

@@ -1,10 +1,7 @@
-#include "ui/alignDialog.h"
-#include "ui/imageCanvas2d.h"
 #include "calc/align.h"
-#include <chrono>
+#include "core/pointType.h"
+#include <algorithm>
 #include <cstdio>
-#include <thread>
-#include <iostream>
 
 namespace shoecomp
 {
@@ -16,16 +13,16 @@ namespace shoecomp
         NumCols
     };
 
-    static bool extractAnnotatedPoints(ImageCanvas2D::ImageData& data,
+    static bool extractAnnotatedPoints(const jt::Json& annotations,
                                        AlignCalc::DoubleMatrixR& mat)
     {
-        if (!data.annotations.isObject() ||
-            !data.annotations.contains("points") ||
-            !data.annotations["points"].isArray())
+        jt::Json& ann = const_cast<jt::Json&>(annotations);
+        if (!ann.isObject() || !ann.contains("points") ||
+            !ann["points"].isArray())
         {
             return false;
         }
-        auto& pts = data.annotations["points"].getArray();
+        auto& pts = ann["points"].getArray();
         if (pts.size() == 0) { return false; }
         if (pts.size() > AlignCalc::MAX_POINTS) { return false; }
         mat.resize(pts.size(), NumCols);
@@ -45,25 +42,25 @@ namespace shoecomp
         return true;
     }
 
-    void runRTSAlign(ImageCanvas2D::ImageData& left,
-                     ImageCanvas2D::ImageData& right,
+    void runRTSAlign(const jt::Json& leftAnn, const jt::Json& rightAnn,
                      WorkerChannel& channel,
                      std::vector<AlignState>& aligns,
-                     const AlignCalc::RTSParams& params)
+                     const AlignCalc::RTSParams& params,
+                     std::vector<MatchedRows>* matched)
     {
         AlignCalc::DoubleMatrixR left_pts;
         AlignCalc::DoubleMatrixR right_pts;
         std::vector<AlignCalc::MatchedPoints> results;
 
         channel.report(0.0f, "loading points...");
-        if (!extractAnnotatedPoints(left, left_pts))
+        if (!extractAnnotatedPoints(leftAnn, left_pts))
         {
             channel.error(
                 "left image does not have 1 to 256 valid points");
             channel.cancelled();
             return;
         }
-        if (!extractAnnotatedPoints(right, right_pts))
+        if (!extractAnnotatedPoints(rightAnn, right_pts))
         {
             channel.error(
                 "right image does not have 1 to 256 valid points");
@@ -71,17 +68,23 @@ namespace shoecomp
             return;
         }
 
+        AlignCalc::RTSParams run = params;
+        if (run.upperBound <= 0)
+        {
+            run.upperBound = std::max(
+                3, (int)std::min(left_pts.rows(), right_pts.rows()));
+        }
+
         AlignCalc::PointCols cols;
         cols.dim = 2;
         cols.pos = {ColX, ColY, 0};
         if (!AlignCalc::getAlignment(left_pts, right_pts, cols, ColType,
-                                     params, channel, results))
+                                     run, channel, results))
         {
             channel.cancelled();
             return;
         }
 
-        printf("fitting tforms...\n");
         AlignCalc::RTSTransform tform;
         for (const auto& match : results)
         {
@@ -101,6 +104,7 @@ namespace shoecomp
             aligns.back().dy = tform.dy;
             aligns.back().scale = scale;
             aligns.back().mode = AlignMode::Automatic;
+            if (matched) matched->push_back(match.pairs);
 
             // Store matched points in info
             aligns.back().info.setObject();
@@ -123,8 +127,6 @@ namespace shoecomp
                     std::move(rpt));
             }
         }
-        printf("fitted %ld tforms...\n", aligns.size());
-
         char buf[64];
         snprintf(buf, sizeof(buf), "%zu alignment(s) added",
                  aligns.size());

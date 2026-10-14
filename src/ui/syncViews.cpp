@@ -40,7 +40,7 @@ namespace shoecomp
         ImVec2 leftImgPt = this->getImageCoord(leftRefScreen);
 
         // Apply alignment transformation from left to right
-        ImVec2 rightImgPt = a.transformLeft2Right(leftImgPt);
+        ImVec2 rightImgPt = transformLeft2Right(a, leftImgPt);
 
         // Start with same pan as left, then compute adjustment
         rv.panTarget = lv.panTarget;
@@ -83,7 +83,7 @@ namespace shoecomp
 
         if (srcIsLeft)
         {
-            dstImgPt = a.transformLeft2Right(srcImgPt);
+            dstImgPt = transformLeft2Right(a, srcImgPt);
             dstView.zoomTarget = srcView.zoomTarget * a.scale;
             dstView.rotationTarget =
                 srcView.rotationTarget + a.rotation;
@@ -91,7 +91,7 @@ namespace shoecomp
         }
         else
         {
-            dstImgPt = a.transformRight2Left(srcImgPt);
+            dstImgPt = transformRight2Left(a, srcImgPt);
             dstView.zoomTarget = srcView.zoomTarget / a.scale;
             dstView.rotationTarget =
                 srcView.rotationTarget - a.rotation;
@@ -255,11 +255,11 @@ namespace shoecomp
         // apply transformation in image coordinates
         if (srcIsLeft)
         {
-            transformed = align.transformLeft2Right(imgCoord);
+            transformed = transformLeft2Right(align, imgCoord);
         }
         else
         {  // src is Right-side image
-            transformed = align.transformRight2Left(imgCoord);
+            transformed = transformRight2Left(align, imgCoord);
         }
 
         // Convert to screen coordinates
@@ -405,10 +405,7 @@ namespace shoecomp
             lv.rotationTarget = 0.0f;
             applyAlignment(*right, align, locked);
         }
-        else
-        {
-            syncLockedViewers(*right, align, self0, other0);
-        }
+        else { syncLockedViewers(*right, align, self0, other0); }
 
         if (!alignDialogOpen)
             renderLockedCursorIndicators(*right, align, settings);

@@ -1,5 +1,5 @@
-#ifndef SHOECOMP_UI_EULER_ANGLES_H
-#define SHOECOMP_UI_EULER_ANGLES_H
+#ifndef SHOECOMP_CORE_EULER_ANGLES_H
+#define SHOECOMP_CORE_EULER_ANGLES_H
 
 #include <algorithm>
 #include <cmath>

@@ -122,6 +122,7 @@ set(SC_SRCS
     src/core/pointType.cpp
     src/core/imageType.cpp
     src/core/params.cpp
+    src/core/alignmentJson.cpp
     src/calc/align.cpp
     src/calc/rts_align.cpp
     src/calc/onnxRuntime.cpp
