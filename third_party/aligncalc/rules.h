@@ -52,6 +52,15 @@ namespace AlignCalc
         {
             return 1.0;
         }
+
+        // triangle models: left[v] matches right[v]
+        bool tripleOk(const DoubleMatrixR&,
+                      const std::array<int32_t, 3>&,
+                      const DoubleMatrixR&,
+                      const std::array<int32_t, 3>&) const
+        {
+            return true;
+        }
     };
 
     namespace detail

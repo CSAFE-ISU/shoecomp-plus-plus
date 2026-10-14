@@ -12,6 +12,7 @@ add_library(aligncalc
     clq/graphInfo.cpp
     clq/search.cpp
     models/rigidPoints.cpp
+    models/similarity2d.cpp
     transform.cpp
     rts/rtsFill.cpp
     rts/rtsUpdate.cpp
