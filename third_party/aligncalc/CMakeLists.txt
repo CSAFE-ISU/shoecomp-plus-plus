@@ -12,6 +12,8 @@ add_library(aligncalc
     clq/search.cpp
     models/rigidPoints.cpp
     models/similarity2d.cpp
+    models/rigidLines3d.cpp
+    estimate.cpp
     transform.cpp
     rts/triangle2d.cpp
 )
