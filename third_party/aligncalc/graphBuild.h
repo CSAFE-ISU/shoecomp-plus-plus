@@ -286,8 +286,18 @@ namespace AlignCalc
                         if constexpr (K == 2) { emit(); }
                         else
                         {
+                            // A block of triples can take seconds on
+                            // dense inputs; stay cancellable inside it.
                             for (int32_t k = j + 1; k < nL; ++k)
                             {
+                                if (stop.load(
+                                        std::memory_order_relaxed))
+                                    return;
+                                if (channel.should_cancel())
+                                {
+                                    stop.store(true);
+                                    return;
+                                }
                                 tuple[2] = k;
                                 emit();
                             }
