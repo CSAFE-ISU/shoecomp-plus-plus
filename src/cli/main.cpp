@@ -138,13 +138,7 @@ namespace
     void printVersion(bool full)
     {
         const LicenseEntry& self = projectLicense();
-        const std::string selfText = licenseText(self);
         std::printf("scpp %s (ShoeComp)\n", self.version);
-        size_t c = selfText.find("Copyright");
-        if (c != std::string::npos)
-            std::printf(
-                "%s\n",
-                selfText.substr(c, selfText.find('\n', c) - c).c_str());
         std::printf("License: %s  %s\n\nThird-party components:\n",
                     self.licenseType, self.url);
         for (const auto& e : getLicenses())
