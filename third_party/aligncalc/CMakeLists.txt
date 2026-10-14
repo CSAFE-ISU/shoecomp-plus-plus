@@ -10,6 +10,7 @@ add_library(aligncalc
     aligncalc.cpp
     clq/clqmtch.cpp
     clq/graphInfo.cpp
+    clq/search.cpp
     transform.cpp
     rts/rtsFill.cpp
     rts/rtsUpdate.cpp

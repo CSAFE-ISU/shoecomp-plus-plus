@@ -1,6 +1,7 @@
 #ifndef ALIGNCALC_CLQMTCH_H
 #define ALIGNCALC_CLQMTCH_H
 #include "aligncalc.internal.h"
+#include "correspondence.h"
 #include <vector>
 #include <memory>
 #include <cstdint>
@@ -165,6 +166,7 @@ namespace AlignCalc
             i32 maxDepth;
             //
             bool init(WorkerChannel&, GraphInfo&);
+            bool initFromRows(WorkerChannel&, const GraphRows&);
         };
 
         class SearchBlob
