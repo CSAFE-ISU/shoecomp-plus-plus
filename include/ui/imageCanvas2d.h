@@ -167,10 +167,6 @@ namespace shoecomp
                       const SettingsState& settings) override;
         void clearHomeRequested() override;
 
-        // --- PointType <-> string ---
-        static const char* pointTypeToString(PointType t);
-        static PointType stringToPointType(const std::string& s);
-
         // Static math helpers (pure functions)
         static ImVec2 screenToImageCoord(ImVec2 sp, ImVec2 canvasPos,
                                          ImVec2 avail, ImVec2 pan,

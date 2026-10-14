@@ -80,8 +80,8 @@ namespace shoecomp
             pt.setObject();
             pt["x"] = d.cx;
             pt["y"] = d.cy;
-            pt["type"] = ImageCanvas2D::pointTypeToString(
-                spec.classToPointType[d.cls]);
+            pt["type"] =
+                pointTypeToString(spec.classToPointType[d.cls]);
             pts.push_back(std::move(pt));
             ++appliedCount;
         }
@@ -215,10 +215,7 @@ namespace shoecomp
                         ImGui::TextWrapped("%s", statusText);
                         ImGui::PopStyleColor();
                     }
-                    else
-                    {
-                        ImGui::TextWrapped("%s", statusText);
-                    }
+                    else { ImGui::TextWrapped("%s", statusText); }
                 }
 
                 ImGui::Separator();

@@ -703,8 +703,7 @@ namespace shoecomp
     const std::vector<std::string>& X3PBulletLand::imageExtensions()
         const
     {
-        static const std::vector<std::string> exts = {".x3p", ".X3P"};
-        return exts;
+        return extensionsFor(ImageType::X3P);
     }
 
     int X3PBulletLand::loadImages(

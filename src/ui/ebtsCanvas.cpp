@@ -7,25 +7,17 @@ namespace shoecomp
     std::vector<EBTSCanvas::PointType> EBTSCanvas::allowedPointTypes()
         const
     {
-        return {PointType::RidgeEnding, PointType::Bifurcation,
-                PointType::Core, PointType::Delta, PointType::Other};
+        return pointTypesFor(ImageType::EBTS);
     }
 
     EBTSCanvas::DetectionSpec EBTSCanvas::detectionSpec() const
     {
-        DetectionSpec spec;
-        // Class index -> point type for a friction-ridge bbox model.
-        spec.classToPointType = {
-            PointType::RidgeEnding, PointType::Bifurcation,
-            PointType::Core, PointType::Delta, PointType::Other};
-        return spec;
+        return detectionSpecFor(ImageType::EBTS);
     }
 
     const std::vector<std::string>& EBTSCanvas::imageExtensions() const
     {
-        static const std::vector<std::string> exts = {
-            ".png", ".PNG", ".an2", ".AN2", ".irr", ".lffs", ".ebts"};
-        return exts;
+        return extensionsFor(ImageType::EBTS);
     }
 
     int EBTSCanvas::loadImages(

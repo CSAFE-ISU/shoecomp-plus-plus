@@ -119,6 +119,8 @@ set(SC_SRCS
     src/ui/surfaceRenderer.cpp
     src/ui/imageCanvas3d.cpp
     src/ui/splash.cpp
+    src/core/pointType.cpp
+    src/core/imageType.cpp
     src/calc/align.cpp
     src/calc/rts_align.cpp
     src/calc/onnxRuntime.cpp

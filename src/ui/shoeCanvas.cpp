@@ -7,22 +7,17 @@ namespace shoecomp
     std::vector<ShoeCanvas::PointType> ShoeCanvas::allowedPointTypes()
         const
     {
-        return {PointType::Corner, PointType::Center};
+        return pointTypesFor(ImageType::Shoe);
     }
 
     ShoeCanvas::DetectionSpec ShoeCanvas::detectionSpec() const
     {
-        DetectionSpec spec;
-        // Class index -> point type for a shoeprint bbox model.
-        spec.classToPointType = {PointType::Corner, PointType::Center};
-        return spec;
+        return detectionSpecFor(ImageType::Shoe);
     }
 
     const std::vector<std::string>& ShoeCanvas::imageExtensions() const
     {
-        static const std::vector<std::string> exts = {
-            ".png", ".PNG", ".jpg", ".JPG", ".jpeg", ".JPEG"};
-        return exts;
+        return extensionsFor(ImageType::Shoe);
     }
 
     int ShoeCanvas::loadImages(

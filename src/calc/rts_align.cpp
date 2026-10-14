@@ -39,9 +39,8 @@ namespace shoecomp
                 return false;
             mat(i, ColX) = el["x"].getNumber();
             mat(i, ColY) = el["y"].getNumber();
-            mat(i, ColType) =
-                static_cast<double>(ImageCanvas2D::stringToPointType(
-                    el["type"].getString()));
+            mat(i, ColType) = static_cast<double>(
+                stringToPointType(el["type"].getString()));
         }
         return true;
     }

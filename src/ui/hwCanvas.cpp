@@ -6,25 +6,17 @@ namespace shoecomp
 {
     std::vector<HWCanvas::PointType> HWCanvas::allowedPointTypes() const
     {
-        return {PointType::WordStart, PointType::WordEnd,
-                PointType::Intersection, PointType::CurveTurn};
+        return pointTypesFor(ImageType::HW);
     }
 
     HWCanvas::DetectionSpec HWCanvas::detectionSpec() const
     {
-        DetectionSpec spec;
-        // Class index -> point type for a handwriting bbox model.
-        spec.classToPointType = {
-            PointType::WordStart, PointType::WordEnd,
-            PointType::Intersection, PointType::CurveTurn};
-        return spec;
+        return detectionSpecFor(ImageType::HW);
     }
 
     const std::vector<std::string>& HWCanvas::imageExtensions() const
     {
-        static const std::vector<std::string> exts = {
-            ".png", ".PNG", ".jpg", ".JPG", ".jpeg", ".JPEG"};
-        return exts;
+        return extensionsFor(ImageType::HW);
     }
 
     int HWCanvas::loadImages(

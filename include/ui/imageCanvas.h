@@ -2,6 +2,7 @@
 #define SHOECOMP_IMAGE_CANVAS_H
 
 #include "imgui.h"
+#include "core/imageType.h"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -34,21 +35,8 @@ namespace shoecomp
             X3PBulletLand
         };
 
-        enum class PointType : uint8_t
-        {
-            Corner = 0,
-            Center = 1,
-            RidgeEnding = 2,
-            Bifurcation = 3,
-            Other = 4,
-            Core = 5,
-            Delta = 6,
-            WordStart = 7,
-            WordEnd = 8,
-            Intersection = 9,
-            CurveTurn = 10,
-            Peak = 11
-        };
+        using PointType = shoecomp::PointType;
+        using DetectionSpec = shoecomp::DetectionSpec;
 
         // Snapshot of a viewer's animation targets, captured
         // before rendering so syncPair can detect which viewer
@@ -58,25 +46,6 @@ namespace shoecomp
             float zoom = 0.0f;
             ImVec2 pan = ImVec2(0, 0);
             float rotation = 0.0f;
-        };
-
-        // Describes how a kind's YOLO-style bbox model is run and how
-        // its outputs map onto annotation points. Consumed by the
-        // optional ONNX Runtime detection feature (see calc/onnxRuntime
-        // and ui/detectDialog). Kinds that support detection override
-        // detectionSpec(); the base leaves it unsupported.
-        struct DetectionSpec
-        {
-            int inputWidth = 640;
-            int inputHeight = 640;
-            bool nchw = true;       // NCHW layout (vs NHWC)
-            bool normalize = true;  // divide pixel values by 255
-            float confThreshold = 0.25f;
-            float iouThreshold = 0.45f;
-            // Model class index -> annotation PointType. A detection
-            // whose class index is out of range for this vector is
-            // skipped when applying results.
-            std::vector<PointType> classToPointType;
         };
 
         // Window-collapse state, common to every canvas kind.
