@@ -176,7 +176,8 @@ namespace shoecomp
             {
                 if (it->prepared || !it->error.empty()) continue;
                 if (!prepareItem(*it, c.params, c.run) && !c.quiet)
-                    std::fprintf(stderr, "  %s\n", it->error.c_str());
+                    std::fprintf(stderr, "  %s: %s\n",
+                                 it->label.c_str(), it->error.c_str());
             }
             PairResult r = comparePair(left, right, c.params, c.run);
 
@@ -272,7 +273,8 @@ namespace shoecomp
                          "scpp batch: %zu input(s), %zu pair(s)\n",
                          items.size(), pairs.size());
 
-        int errors = 0;
+        int errors = 0;  // failed result writes
+        int failed = 0;  // error / timeout pairs
         for (size_t k = 0; k < pairs.size(); ++k)
         {
             Item& left = items[pairs[k].first];
@@ -295,7 +297,9 @@ namespace shoecomp
                 r.alignments.setArray();
                 r.message = "unexpected error";
             }
-            if (r.status == PairStatus::Error) ++errors;
+            if (r.status == PairStatus::Error ||
+                r.status == PairStatus::Timeout)
+                ++failed;
             csv << csvRow(left, right, r) << "\n";
             csv.flush();
             if (!c.quiet)
@@ -307,8 +311,9 @@ namespace shoecomp
         if (!c.quiet)
             std::fprintf(
                 stderr,
-                "scpp batch: done, %d error(s); results in %s\n",
-                errors, a.outDir.c_str());
-        return errors ? kExitError : kExitOk;
+                "scpp batch: done, %d failed pair(s), %d write "
+                "error(s); results in %s\n",
+                failed, errors, a.outDir.c_str());
+        return failed || errors ? kExitError : kExitOk;
     }
 }  // namespace shoecomp

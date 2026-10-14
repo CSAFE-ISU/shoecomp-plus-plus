@@ -44,6 +44,14 @@ namespace shoecomp
             if (o.log) o.log(msg);
         }
 
+        std::string timeoutText(const RunOptions& o)
+        {
+            char buf[64];
+            std::snprintf(buf, sizeof(buf), "timed out after %g s",
+                          o.timeoutSec);
+            return buf;
+        }
+
         jt::Json emptyAnnotations()
         {
             jt::Json a;
@@ -99,9 +107,78 @@ namespace shoecomp
             return typesAllowed(it, ann, err);
         }
 
+        // Runs |work| on a worker thread while draining |ch| here, so
+        // no message is dropped from the fixed-size ring and progress
+        // can be logged live. Past opts.timeoutSec it sets the
+        // channel's cancel flag (which the calculations poll) and
+        // |timedOut|, then waits for |work| to return. Returns the last
+        // error text, if any.
+        template <typename F>
+        std::string runDraining(WorkerChannel& ch,
+                                const std::string& label,
+                                const RunOptions& opts, bool& timedOut,
+                                F&& work)
+        {
+            timedOut = false;
+            const auto start = std::chrono::steady_clock::now();
+            std::string lastError, lastText;
+            auto drain = [&]
+            {
+                while (auto m = ch.messages.pop())
+                {
+                    if (m->kind == MsgKind::Error)
+                        lastError = m->text;
+                    else if ((m->kind == MsgKind::Progress ||
+                              m->kind == MsgKind::Log) &&
+                             m->text[0] != '\0' && lastText != m->text)
+                    {
+                        lastText = m->text;
+                        say(opts, label + ": " + lastText);
+                    }
+                }
+            };
+            std::atomic<bool> finished{false};
+            std::exception_ptr thrown;
+            ch.is_running.store(true);
+            std::thread t(
+                [&]
+                {
+                    try
+                    {
+                        work();
+                    }
+                    catch (...)
+                    {
+                        thrown = std::current_exception();
+                    }
+                    finished.store(true);
+                });
+            while (!finished.load())
+            {
+                drain();
+                const double elapsed =
+                    std::chrono::duration<double>(
+                        std::chrono::steady_clock::now() - start)
+                        .count();
+                if (opts.timeoutSec > 0.0 && !timedOut &&
+                    elapsed > opts.timeoutSec)
+                {
+                    timedOut = true;
+                    ch.cancel_requested.store(true);
+                    say(opts, label + ": timed out, cancelling...");
+                }
+                std::this_thread::sleep_for(
+                    std::chrono::milliseconds(5));
+            }
+            t.join();
+            drain();
+            if (thrown) std::rethrow_exception(thrown);
+            return lastError;
+        }
+
         bool detect2D(const Item& it, const Params& params,
                       const RunOptions& opts, jt::Json& ann,
-                      std::string& err)
+                      bool& timedOut, std::string& err)
         {
             OnnxRuntime& ort = OnnxRuntime::instance();
             if (!ort.ensureLoaded())
@@ -128,8 +205,26 @@ namespace shoecomp
             in.numThreads = resolveThreads(opts.threads);
 
             std::vector<Detection> dets;
-            if (!runYoloDetection(params.detect2d.model, in, dets, err))
+            WorkerChannel ch;
+            bool ok = false;
+            std::string runErr;
+            runDraining(ch, it.label, opts, timedOut,
+                        [&]
+                        {
+                            ok = runYoloDetection(params.detect2d.model,
+                                                  in, dets, runErr,
+                                                  &ch.cancel_requested);
+                        });
+            if (timedOut)
+            {
+                err = "point detection " + timeoutText(opts);
                 return false;
+            }
+            if (!ok)
+            {
+                err = runErr;
+                return false;
+            }
 
             ann = emptyAnnotations();
             auto& pts = ann["points"].getArray();
@@ -218,7 +313,8 @@ namespace shoecomp
                 return false;
             }
             say(opts, it.label + ": detecting points...");
-            if (!detect2D(it, params, opts, it.annotations, err))
+            if (!detect2D(it, params, opts, it.annotations, it.timedOut,
+                          err))
                 return false;
             it.annSource = "detected";
             detected = true;
@@ -257,9 +353,23 @@ namespace shoecomp
                 std::vector<StriationLine> lines;
                 StriationParams sp = params.striation.toParams(
                     resolveThreads(opts.threads));
-                if (!detectStriations(surf, sp, lines, err))
+                WorkerChannel ch;
+                bool ok = false, timedOut = false;
+                std::string runErr;
+                runDraining(ch, it.label, opts, timedOut,
+                            [&]
+                            {
+                                ok = detectStriations(
+                                    surf, sp, lines, runErr,
+                                    &ch.cancel_requested,
+                                    [&ch](float p, const char* t)
+                                    { ch.report(p, t); });
+                            });
+                if (timedOut || !ok)
                 {
-                    err = it.label + ": striation detection: " + err;
+                    it.timedOut = timedOut;
+                    err = "striation detection " +
+                          (timedOut ? timeoutText(opts) : runErr);
                     return false;
                 }
                 base["peaks"].setArray();
@@ -280,57 +390,6 @@ namespace shoecomp
             return true;
         }
 
-        // Runs |work| on a worker thread while draining |ch| here, so
-        // no message is dropped from the fixed-size ring and progress
-        // can be logged live. Returns the last error text, if any.
-        template <typename F>
-        std::string runDraining(WorkerChannel& ch,
-                                const std::string& label,
-                                const RunOptions& opts, F&& work)
-        {
-            std::string lastError, lastText;
-            auto drain = [&]
-            {
-                while (auto m = ch.messages.pop())
-                {
-                    if (m->kind == MsgKind::Error)
-                        lastError = m->text;
-                    else if ((m->kind == MsgKind::Progress ||
-                              m->kind == MsgKind::Log) &&
-                             m->text[0] != '\0' && lastText != m->text)
-                    {
-                        lastText = m->text;
-                        say(opts, label + ": " + lastText);
-                    }
-                }
-            };
-            std::atomic<bool> finished{false};
-            std::exception_ptr thrown;
-            ch.is_running.store(true);
-            std::thread t(
-                [&]
-                {
-                    try
-                    {
-                        work();
-                    }
-                    catch (...)
-                    {
-                        thrown = std::current_exception();
-                    }
-                    finished.store(true);
-                });
-            while (!finished.load())
-            {
-                drain();
-                std::this_thread::sleep_for(
-                    std::chrono::milliseconds(5));
-            }
-            t.join();
-            drain();
-            if (thrown) std::rethrow_exception(thrown);
-            return lastError;
-        }
     }  // namespace
 
     static bool prepareItemImpl(Item& it, const Params& params,
@@ -348,6 +407,8 @@ namespace shoecomp
                 return "ok";
             case PairStatus::NoMatch:
                 return "none";
+            case PairStatus::Timeout:
+                return "timeout";
             case PairStatus::Error:
             default:
                 return "error";
@@ -474,8 +535,7 @@ namespace shoecomp
         catch (...)
         {
             it.prepared = false;
-            it.error =
-                it.label + ": " + describe(std::current_exception());
+            it.error = describe(std::current_exception());
             return false;
         }
     }
@@ -501,6 +561,7 @@ namespace shoecomp
                                 const RunOptions& opts)
     {
         it.prepared = false;
+        it.timedOut = false;
         it.error.clear();
         it.count = 0;
         bool detected = false;
@@ -536,7 +597,9 @@ namespace shoecomp
         };
         if (!left.prepared || !right.prepared)
         {
-            res.message = !left.prepared ? left.error : right.error;
+            const Item& bad = !left.prepared ? left : right;
+            res.message = bad.error;
+            if (bad.timedOut) res.status = PairStatus::Timeout;
             return finish();
         }
         const std::string label = left.label + " vs " + right.label;
@@ -547,8 +610,9 @@ namespace shoecomp
             AlignCalc::RTSParams p = params.align2d;
             p.numWorkers = (size_t)resolveThreads(opts.threads);
             std::vector<MatchedRows> rows;
+            bool timedOut = false;
             const std::string err = runDraining(
-                ch, label, opts,
+                ch, label, opts, timedOut,
                 [&]
                 {
                     runAutoAlign(left.annotations, right.annotations,
@@ -563,7 +627,14 @@ namespace shoecomp
                     m.push_back({c.left, c.right});
                 res.matched.push_back(std::move(m));
             }
-            if (!res.align2d.empty())
+            if (timedOut)
+            {
+                res = PairResult{};
+                res.alignments.setArray();
+                res.status = PairStatus::Timeout;
+                res.message = timeoutText(opts);
+            }
+            else if (!res.align2d.empty())
                 res.status = PairStatus::Ok;
             else if (!err.empty())
                 res.message = err;
@@ -589,13 +660,20 @@ namespace shoecomp
         }
         const StriationAlignParams p =
             s.toParams((size_t)resolveThreads(opts.threads));
-        bool ok = false;
+        bool ok = false, timedOut = false;
         const std::string err = runDraining(
-            ch, label, opts,
+            ch, label, opts, timedOut,
             [&] {
                 ok = runStriationAlign(left.rows, right.rows, p, ch,
                                        res.align3d);
             });
+        if (timedOut)
+        {
+            res.align3d.clear();
+            res.status = PairStatus::Timeout;
+            res.message = timeoutText(opts);
+            return finish();
+        }
         if (!ok)
         {
             res.align3d.clear();

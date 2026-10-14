@@ -20,6 +20,9 @@ namespace shoecomp
     {
         int threads = 0;        // 0 = hardware concurrency
         bool redetect = false;  // ignore sidecars, always detect
+        // Per step (one input's detection, one pair's alignment); on
+        // expiry the step is cancelled. 0 = no limit.
+        double timeoutSec = 0.0;
         // Detection output directory (full detected annotations per
         // input, <stem>.json); empty = don't save.
         std::string saveAnnotationsDir;
@@ -38,6 +41,7 @@ namespace shoecomp
         // Filled by prepareItem.
         bool prepared = false;
         std::string error;      // non-empty: preparation failed
+        bool timedOut = false;  // preparation hit the timeout
         std::string annSource;  // where the annotations came from
         jt::Json annotations;
         size_t count = 0;               // 2-D points or 3-D striations
@@ -49,6 +53,7 @@ namespace shoecomp
     {
         Ok,       // at least one alignment
         NoMatch,  // ran (or could not run), nothing found
+        Timeout,  // cancelled after RunOptions::timeoutSec
         Error
     };
 
@@ -65,7 +70,8 @@ namespace shoecomp
         std::vector<StriationAlignment> align3d;
     };
 
-    const char* pairStatusName(PairStatus s);  // ok / none / error
+    // ok / none / timeout / error
+    const char* pairStatusName(PairStatus s);
     int resolveThreads(int threads);
 
     // "a.png", or "file.ebts@N" for EBTS record N (0-based). Sets

@@ -38,6 +38,7 @@ namespace
         bool redetect = false;
         std::string saveAnnotationsDir;
         int matchedResults = 1;
+        double timeoutSec = 0.0;
         ParamOverrides overrides;
     };
 
@@ -116,6 +117,15 @@ namespace
             ->check(CLI::PositiveNumber)
             ->capture_default_str()
             ->group("Input/Output");
+        app->add_option(
+               "--timeout", st.timeoutSec,
+               "Cancel any one step (an input's detection, a "
+               "pair's alignment) after SEC seconds and record "
+               "it as timeout; 0 = no limit")
+            ->type_name("SEC")
+            ->check(CLI::NonNegativeNumber)
+            ->capture_default_str()
+            ->group("Run");
         app->add_flag("-v,--progress", st.verbose,
                       "Print progress to stderr")
             ->group("Run");
@@ -212,6 +222,7 @@ namespace
         if (!resolveParams(st, c.params, err)) return false;
         c.run.threads = st.threads;
         c.run.redetect = st.redetect;
+        c.run.timeoutSec = st.timeoutSec;
         c.run.saveAnnotationsDir = st.saveAnnotationsDir;
         c.quiet = st.quiet;
         c.matchedResults = st.matchedResults;

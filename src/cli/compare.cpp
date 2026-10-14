@@ -61,6 +61,9 @@ namespace shoecomp
             std::printf("%s\n", doc.toStringPretty().c_str());
         else
             printSummary(stdout, left, right, r);
-        return r.status == PairStatus::Error ? kExitError : kExitOk;
+        return r.status == PairStatus::Error ||
+                       r.status == PairStatus::Timeout
+                   ? kExitError
+                   : kExitOk;
     }
 }  // namespace shoecomp
