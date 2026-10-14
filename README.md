@@ -76,6 +76,12 @@ scpp version                             # version + licenses
   x3p inputs use the sidecar's striations, else detect them.
   `--redetect` ignores sidecars; `--save-annotations DIR` writes what
   was detected (never next to the inputs).
+- **Matching rules:** shoe and handwriting points only pair with the
+  same point type. For EBTS, a point without a type or of type
+  `Other` may pair with any type, and two matched minutiae must keep
+  their relative direction (`theta`) within
+  `--align2d-minutia-angle-tol-deg` (default 20, 0 = off); the GUI
+  Align dialog applies the same rules.
 - **Parameters:** every value the Align / Detect dialogs expose is a
   flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`)
   and a key in the INI file given with `-p`; `scpp params` prints them
