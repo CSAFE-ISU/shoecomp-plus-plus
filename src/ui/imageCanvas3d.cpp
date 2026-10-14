@@ -962,6 +962,13 @@ namespace shoecomp
             ImageCanvas2D::style.peakColor);
         ImU32 valleyCol = ImGui::ColorConvertFloat4ToU32(
             ImageCanvas2D::style.valleyColor);
+        auto dimmed = [](ImVec4 c)
+        {
+            c.w *= kUnmatchedStriationAlpha;
+            return ImGui::ColorConvertFloat4ToU32(c);
+        };
+        ImU32 peakDim = dimmed(ImageCanvas2D::style.peakColor);
+        ImU32 valleyDim = dimmed(ImageCanvas2D::style.valleyColor);
         ImU32 activeCol = IM_COL32(255, 210, 60, 255);
         float thick = ImageCanvas2D::style.boundsLineThickness;
         float rad = ImageCanvas2D::style.pointRadius;
@@ -994,7 +1001,11 @@ namespace shoecomp
                     !projectPoint(mvp, modelPosOfPhysical(p1),
                                   canvasPos, avail, sp1))
                     continue;
+                const bool matched =
+                    k < striationLinks.size() && striationLinks[k] >= 0;
                 ImU32 col = ln.isPeak ? peakCol : valleyCol;
+                if (!striationLinks.empty() && !matched)
+                    col = ln.isPeak ? peakDim : valleyDim;
                 dl->AddLine(sp0, sp1, col, thick);
                 dl->AddCircleFilled(sp0, rad - 1.0f, col);
                 dl->AddCircleFilled(sp1, rad - 1.0f, col);
@@ -1005,8 +1016,7 @@ namespace shoecomp
                     ln1 = sp1;
                     haveLinked = true;
                 }
-                if (linking && k < striationLinks.size() &&
-                    striationLinks[k] >= 0)
+                if (linking && matched)
                 {
                     float d = segmentDistance(mouse, sp0, sp1);
                     if (d < bestDist)

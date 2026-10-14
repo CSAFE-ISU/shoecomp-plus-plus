@@ -16,6 +16,9 @@ namespace shoecomp
     static constexpr float kStripFillMargin = 1.5f;
     // Max cursor distance (px) to pick a striation for the hover link.
     static constexpr float kStriationHoverPx = 8.0f;
+    // Opacity factor for striations outside the active automatic
+    // alignment's matches.
+    static constexpr float kUnmatchedStriationAlpha = 0.3f;
 
     // UI sizing constants (multipliers relative to font size)
     // Rounding
