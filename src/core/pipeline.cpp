@@ -615,8 +615,12 @@ namespace shoecomp
                 ch, label, opts, timedOut,
                 [&]
                 {
+                    PointMatchRules rules;
+                    rules.type = left.type;
+                    rules.minutiaAngleTolDeg =
+                        params.minutiaAngleTolDeg;
                     runAutoAlign(left.annotations, right.annotations,
-                                 ch, res.align2d, p, &rows);
+                                 ch, res.align2d, p, rules, &rows);
                 });
             for (size_t i = 0; i < res.align2d.size(); ++i)
             {

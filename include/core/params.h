@@ -43,12 +43,16 @@ namespace shoecomp
         StriationAlignParams toParams(size_t numWorkers) const;
     };
 
+    // EBTS: allowed mismatch of relative minutia directions.
+    constexpr float kDefaultMinutiaAngleTolDeg = 20.0f;
+
     struct Params
     {
         Detect2DSettings detect2d;
         // upperBound 0 = min of the two point counts (the dialog's
         // default). numWorkers is a run option, not a parameter.
         AlignCalc::RTSParams align2d;
+        float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;
         StriationSettings striation;
         Align3DSettings align3d;
 

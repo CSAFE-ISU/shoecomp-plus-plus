@@ -6,11 +6,12 @@ namespace shoecomp
                       WorkerChannel& channel,
                       std::vector<AlignState>& results,
                       const AlignCalc::RTSParams& params,
+                      const PointMatchRules& rules,
                       std::vector<MatchedRows>* matched)
     {
         results.clear();
         if (matched) matched->clear();
-        runRTSAlign(leftAnn, rightAnn, channel, results, params,
+        runRTSAlign(leftAnn, rightAnn, channel, results, params, rules,
                     matched);
     }
 }  // namespace shoecomp

@@ -1,7 +1,10 @@
 #include "calc/align.h"
+#include "aligncalc/alignWithRules.h"
 #include "core/pointType.h"
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
+#include <limits>
 
 namespace shoecomp
 {
@@ -9,11 +12,72 @@ namespace shoecomp
     {
         ColX,
         ColY,
-        ColType,
+        ColType,   // PointType, or kUnlabeled
+        ColTheta,  // minutia direction (deg), NaN if none
         NumCols
     };
 
+    constexpr double kUnlabeled = -1.0;
+
+    // EBTS correspondences: an untyped or Other point pairs with any
+    // type, otherwise types must be equal. Two correspondences
+    // (i1 <-> i2), (j1 <-> j2) must keep the relative direction of
+    // their minutiae: theta(i1) - theta(j1) ~ theta(i2) - theta(j2)
+    // (mod 360). A rotation shifts all of one side's directions
+    // equally, so this holds whatever the angle convention.
+    struct EBTSRules : AlignCalc::LabelRules
+    {
+        double angleTolDeg = 0.0;  // 0 = no direction check
+
+        static bool matchesAny(double t)
+        {
+            return t == kUnlabeled ||
+                   t == static_cast<double>(PointType::Other);
+        }
+
+        bool admissible(const AlignCalc::DoubleMatrixR& L, int32_t l,
+                        const AlignCalc::DoubleMatrixR& R,
+                        int32_t r) const
+        {
+            const double a = L(l, ColType);
+            const double b = R(r, ColType);
+            return matchesAny(a) || matchesAny(b) || a == b;
+        }
+
+        bool directionsAgree(const AlignCalc::DoubleMatrixR& L,
+                             int32_t i1, int32_t j1,
+                             const AlignCalc::DoubleMatrixR& R,
+                             int32_t i2, int32_t j2) const
+        {
+            if (!(angleTolDeg > 0.0)) return true;
+            const double d = (L(i1, ColTheta) - L(j1, ColTheta)) -
+                             (R(i2, ColTheta) - R(j2, ColTheta));
+            if (std::isnan(d)) return true;
+            return std::fabs(std::remainder(d, 360.0)) <= angleTolDeg;
+        }
+
+        template <class Invariants>
+        bool edgeOk(const AlignCalc::DoubleMatrixR& L, int32_t i1,
+                    int32_t j1, const AlignCalc::DoubleMatrixR& R,
+                    int32_t i2, int32_t j2, const Invariants&) const
+        {
+            return directionsAgree(L, i1, j1, R, i2, j2);
+        }
+
+        bool tripleOk(const AlignCalc::DoubleMatrixR& L,
+                      const std::array<int32_t, 3>& l,
+                      const AlignCalc::DoubleMatrixR& R,
+                      const std::array<int32_t, 3>& r) const
+        {
+            return directionsAgree(L, l[0], l[1], R, r[0], r[1]) &&
+                   directionsAgree(L, l[0], l[2], R, r[0], r[2]) &&
+                   directionsAgree(L, l[1], l[2], R, r[1], r[2]);
+        }
+    };
+
+    // EBTS points may lack a type (unlabeled) and carry theta.
     static bool extractAnnotatedPoints(const jt::Json& annotations,
+                                       bool ebts,
                                        AlignCalc::DoubleMatrixR& mat)
     {
         const jt::Json& ann = annotations;
@@ -32,12 +96,19 @@ namespace shoecomp
             if (!el.isObject()) return false;
             if (!el.contains("x") || !el["x"].isNumber()) return false;
             if (!el.contains("y") || !el["y"].isNumber()) return false;
-            if (!el.contains("type") || !el["type"].isString())
-                return false;
+            const bool typed =
+                el.contains("type") && el["type"].isString();
+            if (!typed && !ebts) return false;
             mat(i, ColX) = el["x"].getNumber();
             mat(i, ColY) = el["y"].getNumber();
-            mat(i, ColType) = static_cast<double>(
-                stringToPointType(el["type"].getString()));
+            mat(i, ColType) =
+                typed ? static_cast<double>(
+                            stringToPointType(el["type"].getString()))
+                      : kUnlabeled;
+            mat(i, ColTheta) =
+                ebts && el.contains("theta") && el["theta"].isNumber()
+                    ? el["theta"].getNumber()
+                    : std::numeric_limits<double>::quiet_NaN();
         }
         return true;
     }
@@ -46,21 +117,23 @@ namespace shoecomp
                      WorkerChannel& channel,
                      std::vector<AlignState>& aligns,
                      const AlignCalc::RTSParams& params,
+                     const PointMatchRules& rules,
                      std::vector<MatchedRows>* matched)
     {
+        const bool ebts = rules.type == ImageType::EBTS;
         AlignCalc::DoubleMatrixR left_pts;
         AlignCalc::DoubleMatrixR right_pts;
         std::vector<AlignCalc::MatchedPoints> results;
 
         channel.report(0.0f, "loading points...");
-        if (!extractAnnotatedPoints(leftAnn, left_pts))
+        if (!extractAnnotatedPoints(leftAnn, ebts, left_pts))
         {
             channel.error(
                 "left image does not have 1 to 256 valid points");
             channel.cancelled();
             return;
         }
-        if (!extractAnnotatedPoints(rightAnn, right_pts))
+        if (!extractAnnotatedPoints(rightAnn, ebts, right_pts))
         {
             channel.error(
                 "right image does not have 1 to 256 valid points");
@@ -78,8 +151,21 @@ namespace shoecomp
         AlignCalc::PointCols cols;
         cols.dim = 2;
         cols.pos = {ColX, ColY, 0};
-        if (!AlignCalc::getAlignment(left_pts, right_pts, cols, ColType,
-                                     run, channel, results))
+        bool found = false;
+        if (ebts)
+        {
+            EBTSRules er;
+            er.angleTolDeg = rules.minutiaAngleTolDeg;
+            found = AlignCalc::getAlignmentWithRules(
+                left_pts, right_pts, cols, er, run, channel, results);
+        }
+        else
+        {
+            found =
+                AlignCalc::getAlignment(left_pts, right_pts, cols,
+                                        ColType, run, channel, results);
+        }
+        if (!found)
         {
             channel.cancelled();
             return;

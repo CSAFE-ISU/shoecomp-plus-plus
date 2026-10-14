@@ -150,6 +150,10 @@ namespace shoecomp
              ParamKind::Bool, SC_REF(align2d.sameScale)},
             {"align2d", "results", "Alignments to return",
              ParamKind::Size, SC_REF(align2d.numResults)},
+            {"align2d", "minutia_angle_tol_deg",
+             "EBTS only: max mismatch of relative minutia directions "
+             "(deg); 0 = off",
+             ParamKind::Float, SC_REF(minutiaAngleTolDeg)},
 
             {"striation", "min_length_mm", "Minimum striation length (mm)",
              ParamKind::Float, SC_REF(striation.minLengthMm)},
@@ -373,6 +377,10 @@ namespace shoecomp
                 "[align2d] max_points must be 0 or >= min_points");
         if (a.numResults < 1)
             return bad("[align2d] results must be >= 1");
+        if (p.minutiaAngleTolDeg < 0.0f ||
+            p.minutiaAngleTolDeg > 180.0f)
+            return bad(
+                "[align2d] minutia_angle_tol_deg must be in [0, 180]");
 
         const auto& s = p.striation;
         if (s.minLengthMm < 0.0f)
