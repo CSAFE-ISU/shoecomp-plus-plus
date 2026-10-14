@@ -1,6 +1,6 @@
 #include "formats/jpeg.h"
 #include "formats/png.h"
-#include "stb_image.h"
+#include "formats/imageDecode.h"
 
 namespace shoecomp
 {
@@ -8,17 +8,12 @@ namespace shoecomp
                           ImTextureID& outTextureId, int& outWidth,
                           int& outHeight)
     {
-        int w = 0, h = 0, channels = 0;
-        unsigned char* data =
-            stbi_load(filePath.c_str(), &w, &h, &channels, 4);
-        if (!data) return false;
-
-        outTextureId = createTextureRGBA(data, w, h);
-
-        stbi_image_free(data);
-
-        outWidth = w;
-        outHeight = h;
+        std::vector<unsigned char> rgba;
+        std::string err;
+        if (!decodeImageFile(filePath, rgba, outWidth, outHeight, err))
+            return false;
+        outTextureId =
+            createTextureRGBA(rgba.data(), outWidth, outHeight);
         return true;
     }
 }  // namespace shoecomp

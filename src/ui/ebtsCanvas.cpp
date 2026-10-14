@@ -1,5 +1,6 @@
 #include "ui/ebtsCanvas.h"
 #include "formats/ebts.h"
+#include "formats/imageDecode.h"
 #include "formats/png.h"
 
 namespace shoecomp
@@ -29,9 +30,31 @@ namespace shoecomp
         if (ext == ".an2" || ext == ".irr" || ext == ".lffs" ||
             ext == ".ebts")
         {
-            int n = loadNistFromDisk(
-                path, out,
-                [] { return std::make_unique<EBTSCanvas>(); });
+            std::vector<EBTSImage> records;
+            int n = 0;
+            if (parseEBTS(path, records, err) > 0)
+            {
+                for (auto& r : records)
+                {
+                    std::vector<unsigned char> rgba;
+                    int w = 0, h = 0;
+                    std::string decodeErr;
+                    if (!decodeImageMemory(r.encoded.data(),
+                                           r.encoded.size(), rgba, w, h,
+                                           decodeErr))
+                        continue;
+                    auto c = std::make_unique<EBTSCanvas>();
+                    c->image->name = r.name;
+                    c->image->path = path;
+                    c->image->textureId =
+                        createTextureRGBA(rgba.data(), w, h);
+                    c->image->width = w;
+                    c->image->height = h;
+                    c->image->annotations = std::move(r.annotations);
+                    out.push_back(std::move(c));
+                    ++n;
+                }
+            }
             if (n <= 0)
             {
                 err = "Failed to load NIST/EBTS file:\n" + path;

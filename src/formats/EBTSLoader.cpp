@@ -1,7 +1,4 @@
 #include "formats/ebts.h"
-#include "ui/imageCanvas2d.h"
-#include "formats/png.h"
-#include "stb_image.h"
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
@@ -241,10 +238,7 @@ namespace shoecomp
                     parts.push_back(cur);
                     cur.clear();
                 }
-                else
-                {
-                    cur += c;
-                }
+                else { cur += c; }
             }
             parts.push_back(cur);
             return parts;
@@ -422,12 +416,10 @@ namespace shoecomp
 
     }  // anonymous namespace
 
-    int loadNistFromDisk(
-        const std::string& filePath,
-        std::vector<std::unique_ptr<ImageCanvas>>& outCanvases,
-        const std::function<std::unique_ptr<ImageCanvas2D>()>&
-            makeCanvas)
+    int parseEBTS(const std::string& filePath,
+                  std::vector<EBTSImage>& out, std::string& err)
     {
+        err = "not a readable NIST/EBTS file: " + filePath;
         // Read entire file
         std::ifstream ifs(filePath, std::ios::binary | std::ios::ate);
         if (!ifs.is_open()) return -1;
@@ -541,30 +533,23 @@ namespace shoecomp
 
         for (auto& img : images)
         {
-            // Decode PNG from memory
-            int w = 0, h = 0, channels = 0;
-            unsigned char* rgba = stbi_load_from_memory(
-                img.pngData, (int)img.pngSize, &w, &h, &channels, 4);
-            if (!rgba) continue;
-
-            ImTextureID texId = createTextureRGBA(rgba, w, h);
-            stbi_image_free(rgba);
-
-            auto canvas = makeCanvas();
+            EBTSImage entry;
             char nameBuf[256];
             snprintf(nameBuf, sizeof(nameBuf),
                      "%s [Type-%d IDC:%02d FGP:%d]", basename.c_str(),
                      img.recordType, img.idc, img.fgp);
-            canvas->image->name = nameBuf;
-            canvas->image->path = filePath;
-            canvas->image->textureId = texId;
-            canvas->image->width = w;
-            canvas->image->height = h;
+            entry.name = nameBuf;
+            entry.recordType = img.recordType;
+            entry.idc = img.idc;
+            entry.fgp = img.fgp;
+            entry.ppi = img.ppi;
+            entry.encoded.assign(img.pngData,
+                                 img.pngData + img.pngSize);
 
-            // Build annotations
-            canvas->image->annotations.setObject();
-            canvas->image->annotations["bounds"].setArray();
-            canvas->image->annotations["points"].setArray();
+            jt::Json& ann = entry.annotations;
+            ann.setObject();
+            ann["bounds"].setArray();
+            ann["points"].setArray();
 
             // Find matching Type-9 record by IDC
             for (auto& rec : txn.records)
@@ -580,8 +565,7 @@ namespace shoecomp
                 auto* minField = rec.findField(331);
                 if (minField)
                 {
-                    parseMinutiae(minField->rawValue,
-                                  canvas->image->annotations["points"],
+                    parseMinutiae(minField->rawValue, ann["points"],
                                   pixelUnits, img.ppi);
                 }
 
@@ -589,8 +573,7 @@ namespace shoecomp
                 auto* corField = rec.findField(320);
                 if (corField)
                 {
-                    parseCores(corField->rawValue,
-                               canvas->image->annotations["points"],
+                    parseCores(corField->rawValue, ann["points"],
                                pixelUnits, img.ppi);
                 }
 
@@ -598,8 +581,7 @@ namespace shoecomp
                 auto* delField = rec.findField(321);
                 if (delField)
                 {
-                    parseDeltas(delField->rawValue,
-                                canvas->image->annotations["points"],
+                    parseDeltas(delField->rawValue, ann["points"],
                                 pixelUnits, img.ppi);
                 }
 
@@ -611,12 +593,13 @@ namespace shoecomp
             ebts.setObject();
             ebts["fingerPosition"] = jt::Json((double)img.fgp);
             ebts["ppi"] = jt::Json(img.ppi);
-            canvas->image->annotations["EBTS"] = std::move(ebts);
+            ann["EBTS"] = std::move(ebts);
 
-            outCanvases.push_back(std::move(canvas));
+            out.push_back(std::move(entry));
             ++loaded;
         }
 
+        if (loaded > 0) err.clear();
         return loaded > 0 ? loaded : -1;
     }
 

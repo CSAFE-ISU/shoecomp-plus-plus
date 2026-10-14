@@ -1,27 +1,32 @@
 #ifndef SHOECOMP_FORMATS_EBTS
 #define SHOECOMP_FORMATS_EBTS
 
-#include "ui/imageCanvas.h"
-#include <functional>
-#include <memory>
+#include <cstdint>
 #include <string>
 #include <vector>
+#include "jtjson/json.h"
 
 namespace shoecomp
 {
-    struct ImageCanvas2D;
+    // One PNG-compressed image record (Type-13/14/15) of a NIST
+    // ANSI/NIST-ITL transaction, with its Type-9 EFS minutiae, cores
+    // and deltas (matched by IDC) as annotation points.
+    struct EBTSImage
+    {
+        std::string name;  // "<file> [Type-T IDC:NN FGP:F]"
+        int recordType = 0;
+        int idc = 0;
+        int fgp = 0;
+        double ppi = 500.0;
+        std::vector<uint8_t> encoded;  // PNG bytes
+        jt::Json annotations;          // { bounds, points, EBTS }
+    };
 
-    // Loads all image records (Type-13/14/15) from a NIST
-    // ANSI/NIST-ITL transaction file. Each image record becomes a
-    // canvas built by `makeCanvas` (so callers control the concrete
-    // 2D kind). Type-9 EFS annotation data is matched to images by
-    // IDC and stored in the annotations JSON. Returns the number of
-    // images successfully loaded, or -1 on error.
-    int loadNistFromDisk(
-        const std::string& filePath,
-        std::vector<std::unique_ptr<ImageCanvas>>& outCanvases,
-        const std::function<std::unique_ptr<ImageCanvas2D>()>&
-            makeCanvas);
+    // Parses every PNG image record of the file at |filePath| into
+    // |out| (appended, file order). Returns the count, or -1 with
+    // |err| set.
+    int parseEBTS(const std::string& filePath,
+                  std::vector<EBTSImage>& out, std::string& err);
 } /* namespace shoecomp */
 
 #endif

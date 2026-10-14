@@ -129,6 +129,7 @@ set(SC_SRCS
     src/calc/cylinderFit.cpp
     src/calc/striationDetect.cpp
     src/calc/align3d.cpp
+    src/formats/imageDecode.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
