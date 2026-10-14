@@ -3,6 +3,9 @@
 
 namespace AlignCalc
 {
+    const char* const kNoPointMatch =
+        "no consistent set of points found";
+
     bool getAlignment(const DoubleMatrixR& left_pts,
                       const DoubleMatrixR& right_pts,
                       const PointCols& cols, int labelCol,

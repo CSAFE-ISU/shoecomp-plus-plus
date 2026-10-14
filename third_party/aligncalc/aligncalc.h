@@ -59,6 +59,10 @@ namespace AlignCalc
         void estimate(const MatchedPoints &, bool);
     };
 
+    // Error text the 2-D alignment posts when no clique reaches
+    // params.lowerBound (a non-match rather than a failure).
+    extern const char *const kNoPointMatch;
+
     // 2-D alignment: rigid (RigidPoints) when params.sameScale, else
     // similarity (SimilarityPoints2D). Positions come from |cols|;
     // labelCol >= 0 restricts matches to equal labels.

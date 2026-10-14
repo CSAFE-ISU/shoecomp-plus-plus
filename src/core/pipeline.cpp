@@ -640,12 +640,12 @@ namespace shoecomp
             }
             else if (!res.align2d.empty())
                 res.status = PairStatus::Ok;
-            else if (!err.empty())
+            else if (!err.empty() && err != AlignCalc::kNoPointMatch)
                 res.message = err;
             else
             {
                 res.status = PairStatus::NoMatch;
-                res.message = "no alignment found";
+                res.message = err.empty() ? "no alignment found" : err;
             }
             return finish();
         }

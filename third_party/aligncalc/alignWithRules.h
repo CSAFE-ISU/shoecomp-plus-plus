@@ -40,8 +40,7 @@ namespace AlignCalc
         channel.report(0.5f, "searching cliques...");
         if (!searchCliques(graph, cp, channel, cliques))
         {
-            if (!channel.should_cancel())
-                channel.error("clique search failed");
+            if (!channel.should_cancel()) channel.error(kNoPointMatch);
             return false;
         }
 
