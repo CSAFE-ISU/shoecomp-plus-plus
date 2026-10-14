@@ -50,7 +50,8 @@ namespace shoecomp
     {
         Detect2DSettings detect2d;
         // upperBound 0 = min of the two point counts (the dialog's
-        // default). numWorkers is a run option, not a parameter.
+        // default); minSupport 2. numWorkers is a run option, not a
+        // parameter.
         AlignCalc::RTSParams align2d;
         float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;
         StriationSettings striation;

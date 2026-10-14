@@ -118,7 +118,11 @@ namespace shoecomp
         return p;
     }
 
-    Params::Params() { align2d.upperBound = 0; }
+    Params::Params()
+    {
+        align2d.upperBound = 0;
+        align2d.minSupport = 2;
+    }
 
 #define SC_REF(member) \
     [](Params& p) -> void* { return &p.member; }
@@ -148,6 +152,10 @@ namespace shoecomp
              ParamKind::Int, SC_REF(align2d.upperBound)},
             {"align2d", "same_scale", "Force scale 1 (rigid)",
              ParamKind::Bool, SC_REF(align2d.sameScale)},
+            {"align2d", "min_support",
+             "Scaled matching: matched triangles an edge needs (>= 1); "
+             "matches need >= min_support + 2 points",
+             ParamKind::Int, SC_REF(align2d.minSupport)},
             {"align2d", "results", "Alignments to return",
              ParamKind::Size, SC_REF(align2d.numResults)},
             {"align2d", "minutia_angle_tol_deg",
@@ -377,6 +385,8 @@ namespace shoecomp
                 "[align2d] max_points must be 0 or >= min_points");
         if (a.numResults < 1)
             return bad("[align2d] results must be >= 1");
+        if (a.minSupport < 1)
+            return bad("[align2d] min_support must be >= 1");
         if (p.minutiaAngleTolDeg < 0.0f ||
             p.minutiaAngleTolDeg > 180.0f)
             return bad(

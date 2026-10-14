@@ -166,6 +166,19 @@ namespace shoecomp
 
             ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
 
+            if (!rtsParams.sameScale)
+            {
+                if (ImGui::InputInt("Min Edge Support",
+                                    &rtsParams.minSupport))
+                    rtsParams.minSupport =
+                        std::max(1, rtsParams.minSupport);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "Matched triangles needed to link two points; "
+                        "higher rejects coincidental matches.\n"
+                        "A match then needs at least this + 2 points.");
+            }
+
             if (type == ImageType::EBTS)
             {
                 ImGui::SliderFloat("Minutia Direction Tol. (deg)",
