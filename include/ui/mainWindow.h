@@ -16,6 +16,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvas3d.h"
 #include "ui/imageListDialog.h"
+#include "ui/align3dDialog.h"
 #include "ui/alignDialog.h"
 #include "ui/detectDialog.h"
 #include "ui/striationDetectDialog.h"
@@ -82,6 +83,7 @@ namespace shoecomp
         SaveBrowser annotationFileBrowser;
         ImageListDialog imageListDialog;
         AlignDialog alignDialog;
+        Align3DDialog align3DDialog;
         DetectDialog detectDialog;
         StriationDetectDialog striationDetectDialog;
 
@@ -92,6 +94,7 @@ namespace shoecomp
         ErrorPopup alignmentSaveError;
         ErrorPopup detectError;
         ErrorPopup striationDetectError;
+        ErrorPopup align3DError;
 
         // Alignment save
         SaveBrowser alignmentSaveBrowser;
@@ -137,6 +140,10 @@ namespace shoecomp
     // a comparison viewer must be the source gallery canvas).
     bool detectionAvailable(const ImageCanvas* c);
     void openDetect(AppState& state, ImageCanvas* c);
+
+    // A fresh comparison viewer for the active kind's canvas family.
+    std::unique_ptr<ImageCanvas> makeComparisonViewer(
+        ImageCanvas::Kind kind);
 } /* namespace shoecomp */
 
 #endif

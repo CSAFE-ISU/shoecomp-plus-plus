@@ -28,6 +28,12 @@ namespace shoecomp
         float scale = 1.0f;
         jt::Json info;
 
+        // Automatic registration: a rigid map from the left surface's
+        // physical frame to the right's (metres). Rendered through each
+        // surface's physicalToModel instead of the manual fields.
+        bool automatic = false;
+        Eigen::Isometry3d physical = Eigen::Isometry3d::Identity();
+
         Eigen::Affine3f matrix() const;
     };
 

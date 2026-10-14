@@ -2,6 +2,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvas3d.h"
 #include "ui/uiHelpers.h"
+#include "ui/eulerAngles.h"
 #include <algorithm>
 #include <cmath>
 
@@ -67,6 +68,8 @@ namespace shoecomp
     }
 
     static void renderAlignmentBox(AppState& state);
+    static std::shared_ptr<Surface3D> sourceSurface(AppState& state,
+                                                    int idx);
 
     static void renderComparisonContent(AppState& state, float contentW,
                                         float contentH)
@@ -93,20 +96,38 @@ namespace shoecomp
                 state.viewerRight->snapshotTargets();
 
             bool is3D = state.viewerLeft && state.viewerLeft->is3D();
+            const int prevLeftIdx = state.viewerLeftIdx;
+            const int prevRightIdx = state.viewerRightIdx;
             if (is3D)
             {
                 ImageCanvas3D* L = asCanvas3D(*state.viewerLeft);
                 ImageCanvas3D* R = asCanvas3D(*state.viewerRight);
                 if (L) L->compareXform = Eigen::Affine3f::Identity();
                 if (R)
-                    R->compareXform =
-                        (state.viewerLocked &&
-                         !state.viewerAlignments3D.empty())
-                            ? state
-                                  .viewerAlignments3D
-                                      [state.viewerAlignmentIdx3D]
-                                  .matrix()
-                            : Eigen::Affine3f::Identity();
+                {
+                    R->compareXform = Eigen::Affine3f::Identity();
+                    if (state.viewerLocked &&
+                        !state.viewerAlignments3D.empty())
+                    {
+                        const Align3DState& a =
+                            state.viewerAlignments3D
+                                [state.viewerAlignmentIdx3D];
+                        auto sl =
+                            sourceSurface(state, state.viewerLeftIdx);
+                        auto sr =
+                            sourceSurface(state, state.viewerRightIdx);
+                        if (!a.automatic)
+                            R->compareXform = a.matrix();
+                        else if (sl && sr)
+                            // right model -> right physical -> left
+                            // physical -> left model
+                            R->compareXform =
+                                (physicalToModel(*sl) *
+                                 a.physical.inverse() *
+                                 physicalToModel(*sr).inverse())
+                                    .cast<float>();
+                    }
+                }
             }
 
             // Detect operates on the SOURCE gallery canvas (the 2D
@@ -202,6 +223,13 @@ namespace shoecomp
                 openDetect(state, srcR);
             }
 
+            if (is3D && (state.viewerLeftIdx != prevLeftIdx ||
+                         state.viewerRightIdx != prevRightIdx))
+            {
+                state.viewerAlignments3D = {Align3DState{}};
+                state.viewerAlignmentIdx3D = 0;
+            }
+
             if (is3D)
             {
                 if (state.viewerLocked)
@@ -228,6 +256,14 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    static std::shared_ptr<Surface3D> sourceSurface(AppState& state,
+                                                    int idx)
+    {
+        if (idx < 0 || idx >= (int)state.images.size()) return nullptr;
+        ImageCanvas3D* c = asCanvas3D(*state.images[idx]);
+        return c ? c->surface : nullptr;
+    }
+
     static void render3DAlignBox(AppState& state)
     {
         float fullW = ImGui::GetContentRegionAvail().x;
@@ -245,9 +281,36 @@ namespace shoecomp
             return;
         }
 
+        // Lock and Align share a row.
         if (dockButton(state.viewerLocked ? "Unlock" : "Lock",
-                       ImVec2(fullW, 0)))
+                       ImVec2(halfW, 0)))
             state.viewerLocked = !state.viewerLocked;
+        ImGui::SameLine();
+        const bool canAlign =
+            state.images[state.viewerLeftIdx]->kind() ==
+                ImageCanvas::Kind::X3PBulletLand &&
+            state.images[state.viewerRightIdx]->kind() ==
+                ImageCanvas::Kind::X3PBulletLand;
+        ImGui::BeginDisabled(!canAlign);
+        if (dockButton("Align", ImVec2(halfW, 0)))
+        {
+            ImageCanvas3D* l =
+                asCanvas3D(*state.images[state.viewerLeftIdx]);
+            ImageCanvas3D* r =
+                asCanvas3D(*state.images[state.viewerRightIdx]);
+            if (l && r && !state.align3DDialog.openFor(*l, *r))
+            {
+                state.align3DError.show = true;
+                state.align3DError.message =
+                    std::string(state.align3DDialog.statusText);
+            }
+        }
+        ImGui::EndDisabled();
+        if (!canAlign &&
+            ImGui::IsItemHovered(ImGuiHoveredFlags_AllowWhenDisabled))
+            ImGui::SetTooltip(
+                "Automatic alignment matches striations "
+                "on bullet-land surfaces.");
 
         ImGui::BeginDisabled(!state.viewerLocked);
         if (dockButton("Save Alignment", ImVec2(fullW, 0)))
@@ -263,22 +326,89 @@ namespace shoecomp
         ImGui::Spacing();
         Align3DState& a =
             state.viewerAlignments3D[state.viewerAlignmentIdx3D];
-        ImGui::Text("Alignment %d/%d", state.viewerAlignmentIdx3D + 1,
-                    (int)state.viewerAlignments3D.size());
+        ImGui::Text(u8"Alignment %d/%d \u00B7 %s",
+                    state.viewerAlignmentIdx3D + 1,
+                    (int)state.viewerAlignments3D.size(),
+                    a.automatic ? "Auto" : "Manual");
 
-        ImGui::SetNextItemWidth(fullW);
-        ImGui::DragFloat3("##t3d", a.translation.data(), 0.005f, -5.0f,
-                          5.0f, "%.3f");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Translate (model units)");
-        ImGui::SetNextItemWidth(fullW);
-        ImGui::DragFloat3("##r3d", a.rotationDeg.data(), 0.5f, -180.0f,
-                          180.0f, u8"%.1f°");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip("Rotate: pitch, yaw, roll (degrees)");
-        ImGui::SetNextItemWidth(fullW);
-        ImGui::DragFloat("##s3d", &a.scale, 0.01f, 0.1f, 5.0f, "%.2f");
-        if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale");
+        if (a.automatic)
+        {
+            const Eigen::Vector3f e =
+                matrixToEuler(a.physical.linear().cast<float>());
+            const Eigen::Vector3d t = a.physical.translation() * 1e6;
+            const jt::Json& info = a.info;
+            int matched = 0;
+            double rms = 0.0;
+            bool axialWeak = false;
+            if (info.isObject())
+            {
+                if (info.contains("matchedStriations") &&
+                    info["matchedStriations"].isArray())
+                    matched = (int)info["matchedStriations"]
+                                  .getArray()
+                                  .size();
+                if (info.contains("rmsPerpUm") &&
+                    info["rmsPerpUm"].isNumber())
+                    rms = info["rmsPerpUm"].getNumber();
+                if (info.contains("axialWeak") &&
+                    info["axialWeak"].isBool())
+                    axialWeak = info["axialWeak"].getBool();
+            }
+            if (ImGui::BeginTable("##align3dInfo", 2,
+                                  ImGuiTableFlags_SizingFixedFit))
+            {
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(u8"\u03B8");  // theta: rotation
+                ImGui::TableNextColumn();
+                ImGui::Text(u8"%.2f, %.2f, %.2f\u00B0", e.x(), e.y(),
+                            e.z());
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip("pitch, yaw, roll (degrees)");
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted(
+                    u8"\u0394");  // delta: translation
+                ImGui::TableNextColumn();
+                ImGui::Text(u8"%.1f, %.1f, %.1f \u00B5m", t.x(), t.y(),
+                            t.z());
+
+                ImGui::TableNextRow();
+                ImGui::TableNextColumn();
+                ImGui::TextUnformatted("Lines");
+                ImGui::TableNextColumn();
+                ImGui::Text(u8"%d \u00B7 rms %.2f \u00B5m", matched,
+                            rms);
+                ImGui::EndTable();
+            }
+            if (axialWeak)
+            {
+                ImGui::TextWrapped("Axial offset from midpoints only");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "The matched striations are nearly parallel, "
+                        "so the shift along them\ncomes from their "
+                        "detected extents and is less certain.");
+            }
+        }
+        else
+        {
+            ImGui::SetNextItemWidth(fullW);
+            ImGui::DragFloat3("##t3d", a.translation.data(), 0.005f,
+                              -5.0f, 5.0f, "%.3f");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Translate (model units)");
+            ImGui::SetNextItemWidth(fullW);
+            ImGui::DragFloat3("##r3d", a.rotationDeg.data(), 0.5f,
+                              -180.0f, 180.0f, u8"%.1f°");
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip("Rotate: pitch, yaw, roll (degrees)");
+            ImGui::SetNextItemWidth(fullW);
+            ImGui::DragFloat("##s3d", &a.scale, 0.01f, 0.1f, 5.0f,
+                             "%.2f");
+            if (ImGui::IsItemHovered()) ImGui::SetTooltip("Scale");
+        }
 
         ImGui::Spacing();
         bool navDisabled = (int)state.viewerAlignments3D.size() <= 1;

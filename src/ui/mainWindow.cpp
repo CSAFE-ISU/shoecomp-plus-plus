@@ -2,6 +2,7 @@
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvasKinds.h"
 #include "ui/alignDialog.h"
+#include "ui/eulerAngles.h"
 #include "calc/onnxRuntime.h"
 #include "ui/uiHelpers.h"
 #include "ui/splash.h"
@@ -84,6 +85,39 @@ namespace shoecomp
                 "added\n",
                 count);
         }
+    }
+
+    static void consumeAlign3DResults(AppState& state)
+    {
+        Align3DDialog& d = state.align3DDialog;
+        if (d.open || !d.workerFinished || d.results.empty()) return;
+        const int first = (int)state.viewerAlignments3D.size();
+        for (const auto& r : d.results)
+        {
+            Align3DState a;
+            a.automatic = true;
+            a.physical = r.leftToRight;
+            a.info.setObject();
+            a.info["matchedStriations"].setArray();
+            for (const auto& pr : r.pairs)
+            {
+                jt::Json m;
+                m.setArray();
+                m.getArray().push_back(jt::Json(pr.first));
+                m.getArray().push_back(jt::Json(pr.second));
+                a.info["matchedStriations"].getArray().push_back(
+                    std::move(m));
+            }
+            a.info["rmsPerpUm"] = jt::Json(r.rmsPerp * 1e6);
+            a.info["axialWeak"] = jt::Json(r.axialWeak);
+            a.info["angleTolDeg"] = jt::Json((double)d.angleTolDeg);
+            a.info["sepTolUm"] = jt::Json((double)d.sepTolUm);
+            state.viewerAlignments3D.push_back(std::move(a));
+        }
+        state.viewerAlignmentIdx3D = first;
+        state.viewerLocked = true;
+        d.results.clear();
+        d.workerFinished = false;
     }
 
     static void renderAlignEditPopup(AppState& state)
@@ -173,7 +207,7 @@ namespace shoecomp
     // kind so the kind-specific overlay (e.g. X3PBulletLand striation
     // lines) draws in the comparison viewers too; 2D families use the
     // plain Canvas2D viewer, which only renders shared ImageData.
-    static std::unique_ptr<ImageCanvas> makeComparisonViewer(
+    std::unique_ptr<ImageCanvas> makeComparisonViewer(
         ImageCanvas::Kind kind)
     {
         if (kind == ImageCanvas::Kind::X3P ||
@@ -519,6 +553,8 @@ namespace shoecomp
                 state.viewerLocked = false;
                 state.viewerAlignments = {AlignState{}};
                 state.viewerAlignmentIdx = 0;
+                state.viewerAlignments3D = {Align3DState{}};
+                state.viewerAlignmentIdx3D = 0;
                 state.alignEditOpen = false;
                 state.alignEditPopupVisible = false;
                 state.viewerLeftIdx = -1;
@@ -532,12 +568,15 @@ namespace shoecomp
 
         state.alignDialog.render();
         consumeAlignResults(state);
+        state.align3DDialog.render();
+        consumeAlign3DResults(state);
         renderAlignEditPopup(state);
 
         state.detectDialog.render();
         state.detectError.render();
         state.striationDetectDialog.render();
         state.striationDetectError.render();
+        state.align3DError.render();
 
         switch (state.workspace)
         {
@@ -634,9 +673,34 @@ namespace shoecomp
         {
             auto& a =
                 state.viewerAlignments3D[state.viewerAlignmentIdx3D];
-            obj["translation"] = vec3ToJson(a.translation);
-            obj["rotationDeg"] = vec3ToJson(a.rotationDeg);
-            obj["scale"] = jt::Json((double)a.scale);
+            if (a.automatic)
+            {
+                // physical frame: left -> right, metres
+                obj["mode"] = jt::Json("Automatic");
+                jt::Json m;
+                m.setArray();
+                for (int r = 0; r < 4; ++r)
+                {
+                    jt::Json row;
+                    row.setArray();
+                    for (int c = 0; c < 4; ++c)
+                        row.getArray().push_back(
+                            jt::Json(a.physical.matrix()(r, c)));
+                    m.getArray().push_back(std::move(row));
+                }
+                obj["matrix"] = m;
+                obj["rotationDeg"] = vec3ToJson(
+                    matrixToEuler(a.physical.linear().cast<float>()));
+                obj["translation"] =
+                    vec3ToJson(a.physical.translation().cast<float>());
+            }
+            else
+            {
+                obj["mode"] = jt::Json("Manual");
+                obj["translation"] = vec3ToJson(a.translation);
+                obj["rotationDeg"] = vec3ToJson(a.rotationDeg);
+                obj["scale"] = jt::Json((double)a.scale);
+            }
             obj["info"] = a.info;
         }
         else
@@ -791,6 +855,7 @@ namespace shoecomp
         state.annotationError.title = "Annotation Error";
         state.detectError.title = "Detection Error";
         state.striationDetectError.title = "Striation Detection Error";
+        state.align3DError.title = "Surface Alignment Error";
 
         // First search for the optional onnxruntime library so the
         // Detect Points button reflects availability from the start.

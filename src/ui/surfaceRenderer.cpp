@@ -111,6 +111,22 @@ namespace shoecomp
                                (float)(d.z() * szr));
     }
 
+    Eigen::Affine3d physicalToModel(const Surface3D& surf)
+    {
+        const SurfaceModelParams P = computeModelParams(surf);
+        const double kx = surf.incX != 0.0 ? P.sx / surf.incX : 0.0;
+        const double ky = surf.incY != 0.0 ? P.sy / surf.incY : 0.0;
+        const double kz =
+            surf.incZ != 0.0 ? (double)P.zScale / surf.incZ : 0.0;
+        Eigen::Affine3d A = Eigen::Affine3d::Identity();
+        A.linear() = Eigen::Vector3d(kx, -ky, kz).asDiagonal();
+        A.translation() = Eigen::Vector3d(
+            -(surf.offX * kx + P.cx * P.sx),
+            surf.offY * ky + P.cy * P.sy,
+            -(surf.offZ * kz + (double)P.zc * P.zScale));
+        return A;
+    }
+
     void buildSurfaceMesh(const Surface3D& surf, SurfaceMesh& out)
     {
         const int X = surf.sizeX, Y = surf.sizeY;
@@ -181,10 +197,7 @@ namespace shoecomp
                     n /= len;
                     if (n.z() < 0.0f) n = -n;
                 }
-                else
-                {
-                    n = Eigen::Vector3f(0.0f, 0.0f, 1.0f);
-                }
+                else { n = Eigen::Vector3f(0.0f, 0.0f, 1.0f); }
                 float* V = &out.vertices[vi * 7];
                 V[3] = n.x();
                 V[4] = n.y();

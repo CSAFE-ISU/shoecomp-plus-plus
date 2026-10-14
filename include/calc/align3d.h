@@ -1,0 +1,52 @@
+#ifndef SHOECOMP_CALC_ALIGN3D
+#define SHOECOMP_CALC_ALIGN3D
+
+#include <utility>
+#include <vector>
+
+#include "aligncalc/alignTypes.h"
+#include "aligncalc/eigen/Eigen/Geometry"
+#include "aligncalc/workerChannel.h"
+#include "calc/cylinderFit.h"
+#include "formats/x3p.h"
+
+namespace shoecomp
+{
+    struct StriationAlignParams
+    {
+        double angleTolDeg = 0.5;
+        double sepTolUm = 4.0;
+        double maxLengthRatio = 0.0;  // > 1: bound on longer/shorter
+        size_t numWorkers = 4;
+        size_t numResults = 2;
+        int minLines = 3;
+    };
+
+    struct StriationAlignment
+    {
+        Eigen::Isometry3d leftToRight = Eigen::Isometry3d::Identity();
+        std::vector<std::pair<int, int>> pairs;  // peaks[] indices
+        Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
+        double rmsPerp = 0.0;  // metres
+        bool axialWeak = false;
+    };
+
+    // The striation lines in |surf|'s peaks[] (malformed entries are
+    // skipped, keeping peaks[] indices).
+    std::vector<StriationLine> surfaceStriations(const Surface3D& surf);
+
+    // One row per line: midpoint, direction, length, ridge flag.
+    AlignCalc::DoubleMatrixR striationRows(
+        const std::vector<StriationLine>& lines);
+
+    // Rigid registration of two lands from their striation lines:
+    // correspondence graph (RigidLines3D, ridges only match ridges),
+    // maximum cliques, and a line fit per clique, best first.
+    bool runStriationAlign(const AlignCalc::DoubleMatrixR& left,
+                           const AlignCalc::DoubleMatrixR& right,
+                           const StriationAlignParams& params,
+                           WorkerChannel& channel,
+                           std::vector<StriationAlignment>& out);
+}  // namespace shoecomp
+
+#endif

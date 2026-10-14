@@ -137,12 +137,16 @@ namespace shoecomp
                 state.viewerLocked = false;
                 state.viewerAlignments = {AlignState{}};
                 state.viewerAlignmentIdx = 0;
+                state.viewerAlignments3D = {Align3DState{}};
+                state.viewerAlignmentIdx3D = 0;
                 state.alignEditOpen = false;
                 state.alignEditPopupVisible = false;
                 state.viewerLeftIdx = -1;
                 state.viewerRightIdx = -1;
-                state.viewerLeft = std::make_unique<ImageCanvas2D>();
-                state.viewerRight = std::make_unique<ImageCanvas2D>();
+                state.viewerLeft =
+                    makeComparisonViewer(state.settings.activeKind);
+                state.viewerRight =
+                    makeComparisonViewer(state.settings.activeKind);
             }
             state.images.erase(state.images.begin() + removeIdx);
             clampViewerIndices(removeIdx, (int)state.images.size(),

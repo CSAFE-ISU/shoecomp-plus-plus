@@ -114,6 +114,7 @@ set(SC_SRCS
     src/ui/alignDialog.cpp
     src/ui/detectDialog.cpp
     src/ui/striationDetectDialog.cpp
+    src/ui/align3dDialog.cpp
     src/ui/syncViews.cpp
     src/ui/surfaceRenderer.cpp
     src/ui/imageCanvas3d.cpp
@@ -123,6 +124,7 @@ set(SC_SRCS
     src/calc/onnxRuntime.cpp
     src/calc/cylinderFit.cpp
     src/calc/striationDetect.cpp
+    src/calc/align3d.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp

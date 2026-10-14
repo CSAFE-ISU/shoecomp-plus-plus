@@ -81,6 +81,11 @@ namespace shoecomp
                                    const Surface3D& surf,
                                    const Eigen::Vector3d& d);
 
+    // The full physical (metres) -> model-space map of |surf|, as
+    // used by the mesh and modelPosOfPhysical (anisotropic: Z carries
+    // the relief exaggeration).
+    Eigen::Affine3d physicalToModel(const Surface3D& surf);
+
     class SurfaceRenderer
     {
        public:
