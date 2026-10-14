@@ -25,11 +25,17 @@ namespace AlignCalc
     };
 
     // Tolerances on pair invariants. sepTol is in position units
-    // (the default suits x3p metres: 4 um).
+    // (the default suits x3p metres: 4 um). extentScale > 0 widens
+    // a pair's separation tolerance for segments whose detected
+    // extents differ: a midpoint shifted by d along a line moves the
+    // separation by d * sin(angle / 2), and the shift is at most half
+    // the length difference, so the tolerance becomes
+    // sepTol + extentScale * sin(angle / 2) * (dLen_i + dLen_j) / 2.
     struct LineParams
     {
         double angleTol = 0.5 * 3.14159265358979323846 / 180.0;  // rad
         double sepTol = 4e-6;
+        double extentScale = 0.0;
     };
 
     // Invariants of a line pair, left (i1, j1) and right (i2, j2):
@@ -90,6 +96,15 @@ namespace AlignCalc
                 return;
             nL_ = int32_t(L_.rows());
             nR_ = int32_t(R_.rows());
+            lenL_.resize(nL_);
+            lenR_.resize(nR_);
+            for (int32_t i = 0; i < nL_; ++i)
+                lenL_[i] = std::fabs(L_(i, cols.length));
+            for (int32_t i = 0; i < nR_; ++i)
+            {
+                lenR_[i] = std::fabs(R_(i, cols.length));
+                maxLenR_ = std::max(maxLenR_, lenR_[i]);
+            }
             detail::sortBySeparation(nR_, sepR_, sortedR_);
             valid_ = true;
         }
@@ -120,17 +135,25 @@ namespace AlignCalc
                 sortedR_.data() + size_t(i2) * (nR_ - 1);
             const detail::SepEntry* end = row + (nR_ - 1);
             const double slack = 1e-12 + 1e-9 * params_.sepTol;
+            const bool extent = params_.extentScale > 0.0;
+            const double dI =
+                extent ? std::fabs(lenL_[i1] - lenR_[i2]) : 0.0;
             for (int32_t j1 = 0; j1 < nL_; ++j1)
             {
                 if (j1 == i1) continue;
                 const double sL = sepL_[size_t(i1) * nL_ + j1];
                 const double tL = angL_[size_t(i1) * nL_ + j1];
+                // window: the largest tolerance any j2 could get
+                double window = params_.sepTol;
+                if (extent)
+                    window +=
+                        extentTerm(tL + params_.angleTol,
+                                   dI + std::max(lenL_[j1], maxLenR_));
                 const detail::SepEntry* it = std::lower_bound(
-                    row, end, sL - params_.sepTol - slack,
+                    row, end, sL - window - slack,
                     [](const detail::SepEntry& e, double v)
                     { return e.sep < v; });
-                for (; it != end &&
-                       it->sep <= sL + params_.sepTol + slack;
+                for (; it != end && it->sep <= sL + window + slack;
                      ++it)
                 {
                     const int32_t j2 = it->j;
@@ -138,7 +161,12 @@ namespace AlignCalc
                     const double tR = angR_[size_t(i2) * nR_ + j2];
                     const double k = detail::clampTolScale(
                         rules_.tolScale(L_, i1, j1, R_, i2, j2));
-                    if (std::fabs(sL - sR) <= params_.sepTol * k &&
+                    double sepTol = params_.sepTol;
+                    if (extent)
+                        sepTol += extentTerm(
+                            std::max(tL, tR),
+                            dI + std::fabs(lenL_[j1] - lenR_[j2]));
+                    if (std::fabs(sL - sR) <= sepTol * k &&
                         std::fabs(tL - tR) <= params_.angleTol * k &&
                         rules_.edgeOk(L_, i1, j1, R_, i2, j2,
                                       Invariants{tL, tR, sL, sR}))
@@ -150,6 +178,16 @@ namespace AlignCalc
         }
 
        private:
+        // separation slack for a pair angle and summed length
+        // differences
+        double extentTerm(double angle, double dLen) const
+        {
+            return params_.extentScale *
+                   std::sin(std::min(angle, 3.14159265358979323846) /
+                            2.0) *
+                   dLen / 2.0;
+        }
+
         const DoubleMatrixR& L_;
         const DoubleMatrixR& R_;
         LineParams params_;
@@ -158,6 +196,8 @@ namespace AlignCalc
         int32_t nL_ = 0;
         int32_t nR_ = 0;
         std::vector<double> angL_, sepL_, angR_, sepR_;
+        std::vector<double> lenL_, lenR_;
+        double maxLenR_ = 0.0;
         std::vector<detail::SepEntry> sortedR_;
     };
 
