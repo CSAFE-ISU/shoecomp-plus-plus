@@ -1,6 +1,7 @@
 #include "clq/clqmtch.h"
 #include "graphBuild.h"
 #include <algorithm>
+#include <atomic>
 
 namespace AlignCalc
 {
@@ -35,52 +36,107 @@ namespace AlignCalc
             pending_.clear();
         }
 
+        template <class Fn>
+        static void parallelFor(size_t numWorkers, size_t total,
+                                size_t block, Fn&& fn)
+        {
+            std::atomic<size_t> next{0};
+            runWorkers(
+                std::min(numWorkers, (total + block - 1) / block),
+                [&](size_t)
+                {
+                    for (;;)
+                    {
+                        size_t b = next.fetch_add(block);
+                        if (b >= total) return;
+                        size_t e = std::min(b + block, total);
+                        for (size_t i = b; i < e; ++i) fn(i);
+                    }
+                });
+        }
+
         void finalizeRows(std::vector<Correspondence>&& nodes,
                           std::vector<std::vector<int32_t>>&& rows,
-                          GraphRows& out)
+                          size_t numWorkers, GraphRows& out)
         {
             const size_t n = nodes.size();
             std::vector<int32_t> remap(n, -1);
-            int32_t kept = 0;
+            std::vector<int32_t> keptIdx;
             for (size_t i = 0; i < n; ++i)
-            {
-                auto& row = rows[i];
-                std::sort(row.begin(), row.end());
-                row.erase(std::unique(row.begin(), row.end()),
-                          row.end());
-                if (!row.empty()) remap[i] = kept++;
-            }
+                if (!rows[i].empty())
+                {
+                    remap[i] = static_cast<int32_t>(keptIdx.size());
+                    keptIdx.push_back(static_cast<int32_t>(i));
+                }
+            const size_t kept = keptIdx.size();
+            constexpr size_t kBlock = 256;
 
-            out.nodes.clear();
-            out.adj.clear();
-            out.offsets.assign(1, 0);
-            out.nodes.reserve(kept);
-            out.offsets.reserve(kept + 1);
-            for (size_t i = 0; i < n; ++i)
-            {
-                if (remap[i] < 0) continue;
-                out.nodes.push_back(nodes[i]);
-                for (int32_t j : rows[i])
-                    if (remap[j] >= 0) out.adj.push_back(remap[j]);
-                out.offsets.push_back(out.adj.size());
-            }
+            out.offsets.assign(kept + 1, 0);
+            parallelFor(numWorkers, kept, kBlock,
+                        [&](size_t k)
+                        {
+                            uint64_t d = 0;
+                            for (int32_t j : rows[keptIdx[k]])
+                                d += remap[j] >= 0;
+                            out.offsets[k + 1] = d;
+                        });
+            for (size_t k = 0; k < kept; ++k)
+                out.offsets[k + 1] += out.offsets[k];
+
+            out.nodes.resize(kept);
+            out.adj.resize(out.offsets[kept]);
+            parallelFor(numWorkers, kept, kBlock,
+                        [&](size_t k)
+                        {
+                            auto& row = rows[keptIdx[k]];
+                            int32_t* dst =
+                                out.adj.data() + out.offsets[k];
+                            for (int32_t j : row)
+                                if (remap[j] >= 0) *dst++ = remap[j];
+                            out.nodes[k] = nodes[keptIdx[k]];
+                            std::vector<int32_t>().swap(row);
+                        });
         }
 
         void finalizeEdges(std::vector<Correspondence>&& nodes,
                            std::vector<EdgeAccumulator>& accs,
                            int32_t minSupport, GraphRows& out)
         {
-            std::vector<std::pair<uint64_t, int32_t>> all;
-            for (auto& acc : accs)
+            using Run = std::vector<std::pair<uint64_t, int32_t>>;
+            const size_t numWorkers = std::max<size_t>(1, accs.size());
+            std::vector<Run> runs(accs.size());
+            parallelFor(numWorkers, accs.size(), 1,
+                        [&](size_t t)
+                        {
+                            accs[t].flush();
+                            runs[t].swap(accs[t].counted_);
+                        });
+            while (runs.size() > 1)
             {
-                acc.flush();
-                all.insert(all.end(), acc.counted_.begin(),
-                           acc.counted_.end());
-                acc.counted_.clear();
-                acc.counted_.shrink_to_fit();
+                std::vector<Run> merged((runs.size() + 1) / 2);
+                parallelFor(numWorkers, merged.size(), 1,
+                            [&](size_t m)
+                            {
+                                if (2 * m + 1 >= runs.size())
+                                {
+                                    merged[m].swap(runs[2 * m]);
+                                    return;
+                                }
+                                Run& a = runs[2 * m];
+                                Run& b = runs[2 * m + 1];
+                                merged[m].resize(a.size() + b.size());
+                                std::merge(a.begin(), a.end(),
+                                           b.begin(), b.end(),
+                                           merged[m].begin());
+                                Run().swap(a);
+                                Run().swap(b);
+                            });
+                runs.swap(merged);
             }
-            std::sort(all.begin(), all.end());
+            Run all;
+            if (!runs.empty()) all.swap(runs[0]);
 
+            // rows come out sorted: keys are ordered by (a, b), a < b
             std::vector<std::vector<int32_t>> rows(nodes.size());
             for (size_t p = 0; p < all.size();)
             {
@@ -94,7 +150,9 @@ namespace AlignCalc
                 rows[a].push_back(b);
                 rows[b].push_back(a);
             }
-            finalizeRows(std::move(nodes), std::move(rows), out);
+            Run().swap(all);
+            finalizeRows(std::move(nodes), std::move(rows), numWorkers,
+                         out);
         }
     }  // namespace detail
 

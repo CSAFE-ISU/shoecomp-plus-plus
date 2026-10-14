@@ -88,9 +88,10 @@ namespace AlignCalc
             void flush();
         };
 
+        // |rows| must be sorted and duplicate-free.
         void finalizeRows(std::vector<Correspondence>&& nodes,
                           std::vector<std::vector<int32_t>>&& rows,
-                          GraphRows& out);
+                          size_t numWorkers, GraphRows& out);
         void finalizeEdges(std::vector<Correspondence>&& nodes,
                            std::vector<EdgeAccumulator>& accs,
                            int32_t minSupport, GraphRows& out);
@@ -190,6 +191,9 @@ namespace AlignCalc
                                 ids[size_t(c.left) * nR + c.right];
                             if (id >= 0) row.push_back(id);
                         }
+                        std::sort(row.begin(), row.end());
+                        row.erase(std::unique(row.begin(), row.end()),
+                                  row.end());
                     }
                     if (tid == 0)
                         detail::reportProgress(channel, e, total,
@@ -197,7 +201,8 @@ namespace AlignCalc
                 }
             });
         if (stop.load()) return false;
-        detail::finalizeRows(std::move(nodes), std::move(rows), out);
+        detail::finalizeRows(std::move(nodes), std::move(rows),
+                             params.numWorkers, out);
         return true;
     }
 
