@@ -27,6 +27,34 @@ namespace shoecomp
         return m;
     }
 
+    bool Align3DState::tuned() const
+    {
+        return !tuneTranslationUm.isZero() || !tuneRotationDeg.isZero();
+    }
+
+    Eigen::Isometry3d Align3DState::effectivePhysical() const
+    {
+        if (!tuned()) return physical;
+        // delta acts on right points already mapped into the left
+        // frame: x -> R (x - c) + c + t
+        Eigen::Isometry3d delta = Eigen::Isometry3d::Identity();
+        delta.translate(tuneCenter +
+                        tuneTranslationUm.cast<double>() * 1e-6);
+        delta.rotate(eulerToMatrix(tuneRotationDeg.x(),
+                                   tuneRotationDeg.y(),
+                                   tuneRotationDeg.z())
+                         .cast<double>());
+        delta.translate(-tuneCenter);
+        return physical * delta.inverse();
+    }
+
+    Eigen::Vector3d surfaceCenter(const Surface3D& surf)
+    {
+        return {surf.px(0) + 0.5 * (surf.sizeX - 1) * surf.incX,
+                surf.py(0) + 0.5 * (surf.sizeY - 1) * surf.incY,
+                surf.pz(0.5f * (surf.zMin + surf.zMax))};
+    }
+
     void ImageCanvas3D::sync3DCameras(ImageCanvas3D& other, bool locked)
     {
         if (!locked) return;

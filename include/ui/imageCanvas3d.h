@@ -34,8 +34,23 @@ namespace shoecomp
         bool automatic = false;
         Eigen::Isometry3d physical = Eigen::Isometry3d::Identity();
 
+        // Manual fine-tune on top of an automatic alignment: moves the
+        // right surface in the left surface's physical frame
+        // (micrometres; pitch/yaw/roll degrees about tuneCenter, the
+        // left surface's centre in metres).
+        Eigen::Vector3f tuneTranslationUm = Eigen::Vector3f::Zero();
+        Eigen::Vector3f tuneRotationDeg = Eigen::Vector3f::Zero();
+        Eigen::Vector3d tuneCenter = Eigen::Vector3d::Zero();
+
         Eigen::Affine3f matrix() const;
+        bool tuned() const;
+        // |physical| with the fine-tune applied (left -> right,
+        // metres).
+        Eigen::Isometry3d effectivePhysical() const;
     };
+
+    // Centre of a surface's physical extent (metres).
+    Eigen::Vector3d surfaceCenter(const Surface3D& surf);
 
     // Base for 3D surface canvases. Owns the Surface3D (shared, like
     // ImageCanvas2D::ImageData), an orbit camera, and an OpenGL

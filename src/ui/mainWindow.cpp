@@ -97,6 +97,11 @@ namespace shoecomp
             Align3DState a;
             a.automatic = true;
             a.physical = r.leftToRight;
+            if (ImageCanvas3D* l = state.viewerLeft
+                                       ? asCanvas3D(*state.viewerLeft)
+                                       : nullptr)
+                if (l->surface)
+                    a.tuneCenter = surfaceCenter(*l->surface);
             a.info = striationMatchInfo(r, d.leftPeakIdx,
                                         d.rightPeakIdx, d.settings);
             state.viewerAlignments3D.push_back(std::move(a));
@@ -652,7 +657,21 @@ namespace shoecomp
                 state.viewerAlignments3D[state.viewerAlignmentIdx3D];
             if (a.automatic)
             {
-                obj = automatic3DToJson(a.physical, a.info);
+                jt::Json info = a.info;
+                if (a.tuned())
+                {
+                    jt::Json tune;
+                    tune.setObject();
+                    tune["translationUm"] =
+                        vec3fToJson(a.tuneTranslationUm);
+                    tune["rotationDeg"] =
+                        vec3fToJson(a.tuneRotationDeg);
+                    tune["centerM"] =
+                        vec3fToJson(a.tuneCenter.cast<float>());
+                    if (!info.isObject()) info.setObject();
+                    info["fineTune"] = std::move(tune);
+                }
+                obj = automatic3DToJson(a.effectivePhysical(), info);
             }
             else
             {

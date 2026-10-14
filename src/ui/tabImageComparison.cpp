@@ -127,7 +127,7 @@ namespace shoecomp
                             // physical -> left model
                             R->compareXform =
                                 (physicalToModel(*sl) *
-                                 a.physical.inverse() *
+                                 a.effectivePhysical().inverse() *
                                  physicalToModel(*sr).inverse())
                                     .cast<float>();
                     }
@@ -398,13 +398,15 @@ namespace shoecomp
         ImGui::Text(u8"Alignment %d/%d \u00B7 %s",
                     state.viewerAlignmentIdx3D + 1,
                     (int)state.viewerAlignments3D.size(),
-                    a.automatic ? "Auto" : "Manual");
+                    a.automatic ? (a.tuned() ? "Auto (tuned)" : "Auto")
+                                : "Manual");
 
         if (a.automatic)
         {
+            const Eigen::Isometry3d phys = a.effectivePhysical();
             const Eigen::Vector3f e =
-                matrixToEuler(a.physical.linear().cast<float>());
-            const Eigen::Vector3d t = a.physical.translation() * 1e6;
+                matrixToEuler(phys.linear().cast<float>());
+            const Eigen::Vector3d t = phys.translation() * 1e6;
             const jt::Json& info = a.info;
             int matched = 0;
             double rms = 0.0;
@@ -450,6 +452,35 @@ namespace shoecomp
                 ImGui::Text(u8"%d \u00B7 rms %.2f \u00B5m", matched,
                             rms);
                 ImGui::EndTable();
+            }
+            if (ImGui::TreeNode("Fine-tune"))
+            {
+                ImGui::SetNextItemWidth(fullW * 0.9f);
+                ImGui::DragFloat3("##tune_t",
+                                  a.tuneTranslationUm.data(), 0.5f,
+                                  -5000.0f, 5000.0f, u8"%.1f \u00B5m");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "Move the right surface (left "
+                        "surface frame, micrometres)");
+                ImGui::SetNextItemWidth(fullW * 0.9f);
+                ImGui::DragFloat3("##tune_r", a.tuneRotationDeg.data(),
+                                  0.05f, -180.0f, 180.0f,
+                                  u8"%.2f\u00B0");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "Rotate about the left surface "
+                        "centre: pitch, yaw, roll "
+                        "(degrees)");
+                ImGui::BeginDisabled(!a.tuned());
+                if (dockButton("Reset fine-tune",
+                               ImVec2(fullW * 0.9f, 0)))
+                {
+                    a.tuneTranslationUm.setZero();
+                    a.tuneRotationDeg.setZero();
+                }
+                ImGui::EndDisabled();
+                ImGui::TreePop();
             }
             if (axialWeak)
             {
