@@ -1,6 +1,8 @@
 #include "similarity2d.h"
 #include "rts/triangle2d.internal.h"
+#include <algorithm>
 #include <cmath>
+#include <limits>
 
 namespace AlignCalc
 {
@@ -40,6 +42,29 @@ namespace AlignCalc
                 lu2 = std::log(b / p);
             }
 
+            // Sorted circular gaps (smallest two) between the three
+            // angles of a triangle; NaN if any angle is NaN.
+            std::array<float, 2> angleGaps(const DoubleMatrixR& m,
+                                           int col, int32_t i,
+                                           int32_t j, int32_t k)
+            {
+                const float nan =
+                    std::numeric_limits<float>::quiet_NaN();
+                if (col < 0) return {nan, nan};
+                double a[3] = {m(i, col), m(j, col), m(k, col)};
+                for (double& v : a)
+                {
+                    if (std::isnan(v)) return {nan, nan};
+                    v = std::fmod(v, 360.0);
+                    if (v < 0) v += 360.0;
+                }
+                std::sort(a, a + 3);
+                double g[3] = {a[1] - a[0], a[2] - a[1],
+                               360.0 - (a[2] - a[0])};
+                std::sort(g, g + 3);
+                return {float(g[0]), float(g[1])};
+            }
+
             int64_t cellKey(int64_t b1, int64_t b2)
             {
                 return int64_t(uint64_t(b1) << 32) |
@@ -67,6 +92,8 @@ namespace AlignCalc
             double width = 1.0;
             std::vector<int64_t> keys;
             std::vector<std::array<int32_t, 3>> tris;
+            std::vector<std::array<float, 2>> gaps;  // per tris entry
+            bool oriented = false;
 
             Impl(const DoubleMatrixR& left, const DoubleMatrixR& right,
                  const PointCols& c, const SimilarityParams& p)
@@ -77,6 +104,10 @@ namespace AlignCalc
                     !(params.scaleRange > 0.0))
                     return;
                 valid = true;
+                oriented = params.angleCol >= 0 &&
+                           params.angleCol < L.cols() &&
+                           params.angleCol < R.cols() &&
+                           params.angleTolDeg > 0.0;
                 const double tmin =
                     1.0 / params.scaleRange - params.epsilon;
                 if (tmin > 1e-12)
@@ -114,6 +145,13 @@ namespace AlignCalc
                     keys.push_back(e.first);
                     tris.push_back(e.second);
                 }
+                if (oriented)
+                {
+                    gaps.reserve(tris.size());
+                    for (const auto& t : tris)
+                        gaps.push_back(angleGaps(R, params.angleCol,
+                                                 t[0], t[1], t[2]));
+                }
             }
 
             int64_t bin(double lu) const
@@ -122,9 +160,19 @@ namespace AlignCalc
             }
 
             void test(const RTS::Triangle2D& tl,
+                      const std::array<float, 2>& gl,
                       const std::array<int32_t, 3>& l, size_t idx,
                       std::vector<TupleMatch<3>>& out) const
             {
+                if (oriented && !std::isnan(gl[0]))
+                {
+                    const auto& gr = gaps[idx];
+                    const double tol = params.angleTolDeg + 1e-3;
+                    if (!std::isnan(gr[0]) &&
+                        (std::fabs(gl[0] - gr[0]) > tol ||
+                         std::fabs(gl[1] - gr[1]) > tol))
+                        return;
+                }
                 const auto& tri = tris[idx];
                 RTS::Triangle2D tr;
                 sides(R, cols, tri[0], tri[1], tri[2], tr);
@@ -161,10 +209,14 @@ namespace AlignCalc
             RTS::Triangle2D tl;
             sides(m.L, m.cols, l[0], l[1], l[2], tl);
             if (!tl.valid()) return;
+            const std::array<float, 2> gl =
+                m.oriented ? angleGaps(m.L, m.params.angleCol, l[0],
+                                       l[1], l[2])
+                           : std::array<float, 2>{0.0f, 0.0f};
             if (m.brute)
             {
                 for (size_t idx = 0; idx < m.tris.size(); ++idx)
-                    m.test(tl, l, idx, out);
+                    m.test(tl, gl, l, idx, out);
                 return;
             }
             double lu1, lu2;
@@ -180,7 +232,8 @@ namespace AlignCalc
                                                   m.keys.end(), key);
                     for (auto it = range.first; it != range.second;
                          ++it)
-                        m.test(tl, l, size_t(it - m.keys.begin()), out);
+                        m.test(tl, gl, l, size_t(it - m.keys.begin()),
+                               out);
                 }
         }
     }  // namespace detail

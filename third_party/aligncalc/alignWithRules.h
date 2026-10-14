@@ -87,6 +87,8 @@ namespace AlignCalc
         SimilarityParams sp;
         sp.scaleRange = params.scaleRange;
         sp.epsilon = params.epsilon;
+        sp.angleCol = params.angleCol;
+        sp.angleTolDeg = params.angleTolDeg;
         SimilarityPoints2D<Rules> model(left_pts, right_pts, cols, sp,
                                         rules);
         return alignWith(model, left_pts, right_pts, cols, params,

@@ -23,6 +23,10 @@ namespace AlignCalc
         bool sameScale;
         // Similarity only: an edge needs this many matched triangles.
         int32_t minSupport;
+        // Similarity only: oriented-point prefilter, see
+        // SimilarityParams (angleCol < 0 = off).
+        int32_t angleCol;
+        double angleTolDeg;
 
         RTSParams()
         {
@@ -34,6 +38,8 @@ namespace AlignCalc
             upperBound = 500;
             sameScale = false;
             minSupport = 1;
+            angleCol = -1;
+            angleTolDeg = 0.0;
         }
     };
 

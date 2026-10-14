@@ -10,6 +10,15 @@ namespace AlignCalc
     {
         double scaleRange = 5.0;
         double epsilon = 0.005;
+        // Oriented points (e.g. minutiae): with angleCol >= 0 and
+        // angleTolDeg > 0, a triangle pair is skipped before the
+        // similarity test unless the sorted circular gaps between its
+        // three directions (degrees; rotation- and order-invariant)
+        // agree within angleTolDeg. Points with a NaN angle disable
+        // the check for their triangles. The exact per-pair direction
+        // test is left to the Rules (tripleOk).
+        int angleCol = -1;
+        double angleTolDeg = 0.0;
     };
 
     namespace detail
