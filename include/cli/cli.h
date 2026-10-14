@@ -46,6 +46,7 @@ namespace shoecomp
         bool recursive = false;
         bool saveAnnotations = false;  // -> <out>/annotations
         bool saveMatched = false;      // -> <out>/matched
+        bool resume = false;  // keep finished ok/none pairs in <out>
     };
 
     int runCompare(CliRun& c, const CompareArgs& a);

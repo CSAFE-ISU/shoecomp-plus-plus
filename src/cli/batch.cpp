@@ -164,6 +164,84 @@ namespace shoecomp
 
     namespace
     {
+        // Fields of one CSV line as written by csvRow (RFC 4180
+        // quoting).
+        std::vector<std::string> splitCsv(const std::string& line)
+        {
+            std::vector<std::string> f(1);
+            bool quoted = false;
+            for (size_t i = 0; i < line.size(); ++i)
+            {
+                const char ch = line[i];
+                if (quoted)
+                {
+                    if (ch == '"' && i + 1 < line.size() &&
+                        line[i + 1] == '"')
+                    {
+                        f.back() += '"';
+                        ++i;
+                    }
+                    else if (ch == '"')
+                        quoted = false;
+                    else
+                        f.back() += ch;
+                }
+                else if (ch == '"')
+                    quoted = true;
+                else if (ch == ',')
+                    f.emplace_back();
+                else
+                    f.back() += ch;
+            }
+            return f;
+        }
+
+        std::string pairFileName(const Item& left, const Item& right)
+        {
+            return fileSafe(left.label) + "__" + fileSafe(right.label) +
+                   ".json";
+        }
+
+        // Rows of a previous run's summary.csv that need no rerun
+        // (status ok or none), keyed by "left\nright". False with
+        // |err| when the folder holds a run with other parameters or
+        // another input type.
+        bool loadFinished(const CliRun& c, const fs::path& out,
+                          std::map<std::string, std::string>& rows,
+                          std::string& err)
+        {
+            std::ifstream prev(out / "params.ini", std::ios::binary);
+            if (prev)
+            {
+                std::ostringstream ss;
+                ss << prev.rdbuf();
+                if (ss.str() != paramsToIni(c.params))
+                {
+                    err = "--resume: " + (out / "params.ini").string() +
+                          " differs from the current parameters (use "
+                          "-p with that file, or a new --out-dir)";
+                    return false;
+                }
+            }
+            std::ifstream csv(out / "summary.csv");
+            std::string line;
+            if (!csv || !std::getline(csv, line)) return true;
+            if (line != csvHeader(c.type))
+            {
+                err = "--resume: " + (out / "summary.csv").string() +
+                      " is from a different input type";
+                return false;
+            }
+            while (std::getline(csv, line))
+            {
+                const auto f = splitCsv(line);
+                if (f.size() < 3 || (f[2] != "ok" && f[2] != "none"))
+                    continue;
+                rows[f[0] + "\n" + f[1]] = line;
+            }
+            return true;
+        }
+
         // Prepare (once) + compare + write one pair's files. File
         // write failures are counted in |errors| and reported; the
         // returned result is the comparison's.
@@ -184,9 +262,7 @@ namespace shoecomp
             bool written = false;
             try
             {
-                const std::string name = fileSafe(left.label) + "__" +
-                                         fileSafe(right.label) +
-                                         ".json";
+                const std::string name = pairFileName(left, right);
                 const jt::Json doc =
                     pairDocument(c.type, left, right, r);
                 written =
@@ -249,6 +325,26 @@ namespace shoecomp
                          ec.message().c_str());
             return kExitError;
         }
+        std::map<std::string, std::string> finished;
+        if (a.resume && !loadFinished(c, out, finished, err))
+        {
+            std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+            return kExitUsage;
+        }
+        std::vector<char> done(pairs.size(), 0);
+        size_t numDone = 0;
+        for (size_t k = 0; k < pairs.size(); ++k)
+        {
+            const Item& l = items[pairs[k].first];
+            const Item& r = items[pairs[k].second];
+            if (finished.count(l.label + "\n" + r.label) &&
+                fs::exists(out / "pairs" / pairFileName(l, r)))
+            {
+                done[k] = 1;
+                ++numDone;
+            }
+        }
+
         if (a.saveAnnotations)
             c.run.saveAnnotationsDir = (out / "annotations").string();
         const std::string matchedDir =
@@ -267,16 +363,33 @@ namespace shoecomp
             return kExitError;
         }
         csv << csvHeader(c.type) << "\n";
+        for (size_t k = 0; k < pairs.size(); ++k)
+        {
+            if (!done[k]) continue;
+            const Item& l = items[pairs[k].first];
+            const Item& r = items[pairs[k].second];
+            csv << finished[l.label + "\n" + r.label] << "\n";
+        }
+        csv.flush();
 
         if (!c.quiet)
+        {
             std::fprintf(stderr,
                          "scpp batch: %zu input(s), %zu pair(s)\n",
                          items.size(), pairs.size());
+            if (a.resume)
+                std::fprintf(
+                    stderr,
+                    "scpp batch: resuming, %zu pair(s) already "
+                    "done\n",
+                    numDone);
+        }
 
         int errors = 0;  // failed result writes
         int failed = 0;  // error / timeout pairs
         for (size_t k = 0; k < pairs.size(); ++k)
         {
+            if (done[k]) continue;
             Item& left = items[pairs[k].first];
             Item& right = items[pairs[k].second];
             PairResult r;

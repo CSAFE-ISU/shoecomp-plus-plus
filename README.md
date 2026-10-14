@@ -93,9 +93,17 @@ scpp version                             # version + licenses
   `pairs/<A>__<B>.json`, the `params.ini` used, and, with the
   `--save-annotations` / `--save-matched` flags, `annotations/` and
   `matched/`.
+- **Failures:** an input or pair that fails (unreadable file, no
+  annotations, an error or exception in a comparison) is recorded as
+  `error` with its reason, and the batch moves on. `--timeout SEC`
+  cancels any one detection or comparison that runs longer and records
+  it as `timeout`. `summary.csv` is written as pairs finish;
+  `scpp batch ... --resume` with the same `--out-dir` and parameters
+  keeps the finished `ok`/`none` pairs and runs the rest (including
+  earlier `error`/`timeout` pairs).
 - **Exit status:** 0 when every comparison ran (finding no match is
-  not an error), 1 if an input or comparison failed, 2 for bad
-  arguments or parameters.
+  not an error), 1 if an input or comparison failed or timed out, 2
+  for bad arguments or parameters.
 
 ## Optional automatic point detection (ONNX Runtime)
 

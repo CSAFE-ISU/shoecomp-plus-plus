@@ -321,6 +321,12 @@ int main(int argc, char** argv)
                    "Write detected annotations to OUT/annotations/")
         ->group("Input/Output");
     batch
+        ->add_flag("--resume", bat.resume,
+                   "Keep the ok/none pairs of a previous run in "
+                   "--out-dir (same parameters) and run the rest, "
+                   "including its error/timeout pairs")
+        ->group("Input/Output");
+    batch
         ->add_flag("--save-matched", bat.saveMatched,
                    "Write matched-only annotations (and 2-D PNGs) to "
                    "OUT/matched/")
