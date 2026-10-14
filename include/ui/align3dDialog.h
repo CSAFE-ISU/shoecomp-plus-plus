@@ -24,7 +24,7 @@ namespace shoecomp
         float angleTolDeg = 0.5f;
         float sepTolUm = 4.0f;
         float maxLengthRatio = 0.0f;  // 0 = off
-        int minLines = 3;
+        int minLines = 10;
         int numResults = 2;
         int numWorkers = 4;
 

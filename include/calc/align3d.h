@@ -19,7 +19,7 @@ namespace shoecomp
         double maxLengthRatio = 0.0;  // > 1: bound on longer/shorter
         size_t numWorkers = 4;
         size_t numResults = 2;
-        int minLines = 3;
+        int minLines = 10;
     };
 
     struct StriationAlignment
