@@ -25,12 +25,13 @@ namespace shoecomp
             surfaceStriations(*left.surface, &leftPeakIdx);
         std::vector<StriationLine> r =
             surfaceStriations(*right.surface, &rightPeakIdx);
-        if ((int)l.size() < minLines || (int)r.size() < minLines)
+        if ((int)l.size() < settings.minLines ||
+            (int)r.size() < settings.minLines)
         {
             std::snprintf(statusText, sizeof(statusText),
                           "Need at least %d striations on each land "
                           "(found %zu and %zu). Run Detect first.",
-                          minLines, l.size(), r.size());
+                          settings.minLines, l.size(), r.size());
             statusIsError = true;
             return false;
         }
@@ -107,20 +108,22 @@ namespace shoecomp
         const bool running = channel.is_running.load();
         ImGui::BeginDisabled(running);
         ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.4f);
-        ImGui::DragFloat("Angle tolerance (deg)", &angleTolDeg, 0.05f,
-                         0.01f, 10.0f, "%.2f");
-        ImGui::DragFloat("Separation tolerance (um)", &sepTolUm, 0.1f,
-                         0.1f, 100.0f, "%.1f");
-        ImGui::DragFloat("Max length ratio (0 = off)", &maxLengthRatio,
-                         0.05f, 0.0f, 10.0f, "%.2f");
+        ImGui::DragFloat("Angle tolerance (deg)", &settings.angleTolDeg,
+                         0.05f, 0.01f, 10.0f, "%.2f");
+        ImGui::DragFloat("Separation tolerance (um)",
+                         &settings.sepTolUm, 0.1f, 0.1f, 100.0f,
+                         "%.1f");
+        ImGui::DragFloat("Max length ratio (0 = off)",
+                         &settings.maxLengthRatio, 0.05f, 0.0f, 10.0f,
+                         "%.2f");
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
                 "Only match striations whose lengths "
                 "differ by at most this factor.");
-        ImGui::InputInt("Min matched lines", &minLines);
-        if (minLines < 2) minLines = 2;
-        ImGui::InputInt("Results", &numResults);
-        if (numResults < 1) numResults = 1;
+        ImGui::InputInt("Min matched lines", &settings.minLines);
+        if (settings.minLines < 2) settings.minLines = 2;
+        ImGui::InputInt("Results", &settings.numResults);
+        if (settings.numResults < 1) settings.numResults = 1;
         ImGui::SliderInt("Workers", &numWorkers, 1, 16);
         ImGui::PopItemWidth();
         ImGui::EndDisabled();
@@ -171,13 +174,7 @@ namespace shoecomp
         statusText[0] = '\0';
         statusIsError = false;
 
-        StriationAlignParams p;
-        p.angleTolDeg = angleTolDeg;
-        p.sepTolUm = sepTolUm;
-        p.maxLengthRatio = maxLengthRatio;
-        p.minLines = minLines;
-        p.numResults = (size_t)numResults;
-        p.numWorkers = (size_t)numWorkers;
+        StriationAlignParams p = settings.toParams((size_t)numWorkers);
         workerThread = std::thread(
             [this, p]()
             {

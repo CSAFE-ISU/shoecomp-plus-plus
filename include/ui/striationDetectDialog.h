@@ -8,6 +8,7 @@
 
 #include "aligncalc/workerChannel.h"
 #include "calc/striationDetect.h"
+#include "core/params.h"
 #include "ui/imageCanvas3d.h"
 
 namespace shoecomp
@@ -28,14 +29,7 @@ namespace shoecomp
         std::shared_ptr<Surface3D> surface;
 
         // Editable thresholds in UI units (converted to SI on run).
-        // Defaults lean permissive so the smaller, shorter central
-        // striations survive; see .claude/striation-hough-plan.md
-        // "Ranking / tuning (later)".
-        float minLengthMm = 0.1f;     // min striation length, mm
-        float minHeightUm = 0.2f;     // min |height diff|, micrometres
-        float maxSurfDevDeg = 20.0f;  // max deviation from surface, deg
-        int maxCount = 200;           // keep the strongest N
-        bool includeValleys = true;  // detect grooves as well as ridges
+        StriationSettings settings;
 
         // Async worker state.
         WorkerChannel channel;

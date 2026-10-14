@@ -73,6 +73,7 @@ namespace shoecomp
         bool normalize = true;  // divide by 255
         float confThreshold = 0.25f;
         float iouThreshold = 0.45f;
+        int numThreads = 0;  // intra-op threads; 0 = ORT default
     };
 
     // Load |modelPath|, run bbox inference on |in|, and append the

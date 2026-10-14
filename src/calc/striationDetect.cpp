@@ -413,7 +413,10 @@ namespace shoecomp
         // thread count (important: detection stays reproducible). Small
         // inputs run serially; the thread setup would not pay off.
         int nThreads =
-            (int)std::max(1u, std::thread::hardware_concurrency());
+            params.numThreads > 0
+                ? params.numThreads
+                : (int)std::max(1u,
+                                std::thread::hardware_concurrency());
         nThreads = std::min(nThreads, (int)dirs.size());
         if (nThreads < 1 || N < 512) nThreads = 1;
         std::vector<std::vector<int>> gridPool(
@@ -606,7 +609,8 @@ namespace shoecomp
         {
             std::vector<int> order(kept.size());
             for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
-            std::sort(order.begin(), order.end(), [&](int a, int b)
+            std::sort(order.begin(), order.end(),
+                      [&](int a, int b)
                       { return keptScore[a] > keptScore[b]; });
             const double cosTol = std::cos(8.0 * kDeg);
             const double perpTol = kBinCells * gridStep;
@@ -680,7 +684,8 @@ namespace shoecomp
 
         std::vector<int> order(kept.size());
         for (int i = 0; i < (int)order.size(); ++i) order[i] = i;
-        std::sort(order.begin(), order.end(), [&](int a, int b)
+        std::sort(order.begin(), order.end(),
+                  [&](int a, int b)
                   { return rankScore[a] > rankScore[b]; });
         if (params.maxCount >= 0 && (int)order.size() > params.maxCount)
             order.resize(params.maxCount);

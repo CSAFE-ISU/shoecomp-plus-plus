@@ -382,6 +382,12 @@ namespace shoecomp
             return false;
         }
         g_ort->SetSessionGraphOptimizationLevel(opts, ORT_ENABLE_ALL);
+        if (in.numThreads > 0)
+        {
+            if (OrtStatus* st =
+                    g_ort->SetIntraOpNumThreads(opts, in.numThreads))
+                g_ort->ReleaseStatus(st);
+        }
 
         // Optional GPU execution providers: try, silently fall back to
         // CPU. These are separately-exported C functions that only

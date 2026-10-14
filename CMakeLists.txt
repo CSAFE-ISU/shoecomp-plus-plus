@@ -121,6 +121,7 @@ set(SC_SRCS
     src/ui/splash.cpp
     src/core/pointType.cpp
     src/core/imageType.cpp
+    src/core/params.cpp
     src/calc/align.cpp
     src/calc/rts_align.cpp
     src/calc/onnxRuntime.cpp

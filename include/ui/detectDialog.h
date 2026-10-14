@@ -7,6 +7,7 @@
 #include <vector>
 #include "aligncalc/workerChannel.h"
 #include "calc/onnxRuntime.h"
+#include "core/params.h"
 #include "ui/imageCanvas.h"
 #include "ui/imageCanvas2d.h"
 #include "ui/loadBrowser.h"
@@ -35,11 +36,9 @@ namespace shoecomp
 
         // Model weights picker (.onnx).
         LoadBrowser weightsBrowser;
-        std::string modelPath;
 
-        // Editable thresholds, seeded from spec on open.
-        float confThreshold = 0.25f;
-        float iouThreshold = 0.45f;
+        // Model path + editable thresholds (seeded from spec on open).
+        Detect2DSettings settings;
 
         // Async worker state.
         WorkerChannel channel;

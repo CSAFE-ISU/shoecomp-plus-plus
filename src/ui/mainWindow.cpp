@@ -112,8 +112,9 @@ namespace shoecomp
             }
             a.info["rmsPerpUm"] = jt::Json(r.rmsPerp * 1e6);
             a.info["axialWeak"] = jt::Json(r.axialWeak);
-            a.info["angleTolDeg"] = jt::Json((double)d.angleTolDeg);
-            a.info["sepTolUm"] = jt::Json((double)d.sepTolUm);
+            a.info["angleTolDeg"] =
+                jt::Json((double)d.settings.angleTolDeg);
+            a.info["sepTolUm"] = jt::Json((double)d.settings.sepTolUm);
             state.viewerAlignments3D.push_back(std::move(a));
         }
         state.viewerAlignmentIdx3D = first;

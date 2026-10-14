@@ -7,6 +7,7 @@
 
 #include "aligncalc/workerChannel.h"
 #include "calc/align3d.h"
+#include "core/params.h"
 #include "ui/imageCanvas3d.h"
 
 namespace shoecomp
@@ -21,11 +22,7 @@ namespace shoecomp
         bool open = false;
         std::string leftName, rightName;
 
-        float angleTolDeg = 0.5f;
-        float sepTolUm = 4.0f;
-        float maxLengthRatio = 0.0f;  // 0 = off
-        int minLines = 10;
-        int numResults = 2;
+        Align3DSettings settings;
         int numWorkers = 4;
 
         AlignCalc::DoubleMatrixR leftRows, rightRows;

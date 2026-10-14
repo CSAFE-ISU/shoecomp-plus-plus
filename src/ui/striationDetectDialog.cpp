@@ -10,11 +10,6 @@
 
 namespace shoecomp
 {
-    namespace
-    {
-        constexpr double kPi = 3.14159265358979323846;
-    }
-
     bool StriationDetectDialog::openFor(X3PBulletLand& canvas)
     {
         if (!canvas.surface || !canvas.surface->valid())
@@ -136,18 +131,20 @@ namespace shoecomp
                 ImGui::BeginDisabled(running);
                 ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x *
                                      0.4f);
-                ImGui::DragFloat("Min length (mm)", &minLengthMm, 0.01f,
-                                 0.0f, 100.0f, "%.3f");
-                ImGui::DragFloat("Min height |dr| (um)", &minHeightUm,
-                                 0.1f, 0.0f, 1000.0f, "%.2f");
+                ImGui::DragFloat("Min length (mm)",
+                                 &settings.minLengthMm, 0.01f, 0.0f,
+                                 100.0f, "%.3f");
+                ImGui::DragFloat("Min height |dr| (um)",
+                                 &settings.minHeightUm, 0.1f, 0.0f,
+                                 1000.0f, "%.2f");
                 ImGui::DragFloat("Max deviation from surface (deg)",
-                                 &maxSurfDevDeg, 0.5f, 0.0f, 90.0f,
-                                 "%.1f");
-                ImGui::InputInt("Max count", &maxCount);
-                if (maxCount < 1) maxCount = 1;
+                                 &settings.maxSurfDevDeg, 0.5f, 0.0f,
+                                 90.0f, "%.1f");
+                ImGui::InputInt("Max count", &settings.maxCount);
+                if (settings.maxCount < 1) settings.maxCount = 1;
                 ImGui::PopItemWidth();
                 ImGui::Checkbox("Detect valleys as well as peaks",
-                                &includeValleys);
+                                &settings.includeValleys);
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip(
                         "On: ridges (peaks) and grooves (valleys).\n"
@@ -180,10 +177,7 @@ namespace shoecomp
                         ImGui::TextWrapped("%s", statusText);
                         ImGui::PopStyleColor();
                     }
-                    else
-                    {
-                        ImGui::TextWrapped("%s", statusText);
-                    }
+                    else { ImGui::TextWrapped("%s", statusText); }
                 }
 
                 ImGui::Separator();
@@ -212,12 +206,7 @@ namespace shoecomp
         statusText[0] = '\0';
         statusIsError = false;
 
-        StriationParams params;
-        params.minLength = minLengthMm * 1e-3;
-        params.minHeight = minHeightUm * 1e-6;
-        params.maxSurfaceDev = maxSurfDevDeg * kPi / 180.0;
-        params.maxCount = maxCount;
-        params.includeValleys = includeValleys;
+        StriationParams params = settings.toParams();
 
         // The worker holds its own shared_ptr so the run stays valid
         // even if the dialog target changes.

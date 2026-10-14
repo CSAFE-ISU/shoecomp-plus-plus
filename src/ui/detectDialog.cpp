@@ -23,8 +23,8 @@ namespace shoecomp
 
         targetImage = canvas.image;
         spec = canvas.detectionSpec();
-        confThreshold = spec.confThreshold;
-        iouThreshold = spec.iouThreshold;
+        settings.confThreshold = spec.confThreshold;
+        settings.iouThreshold = spec.iouThreshold;
 
         frameW = targetImage->width;
         frameH = targetImage->height;
@@ -53,7 +53,7 @@ namespace shoecomp
         weightsBrowser.dirNeedsRefresh = true;
         weightsBrowser.onSelect =
             [this](const std::string& path, const std::string&)
-        { modelPath = path; };
+        { settings.model = path; };
 
         show = true;
         return true;
@@ -167,9 +167,9 @@ namespace shoecomp
 
                 ImGui::TextUnformatted("Model:");
                 ImGui::SameLine();
-                ImGui::TextWrapped("%s", modelPath.empty()
+                ImGui::TextWrapped("%s", settings.model.empty()
                                              ? "(none selected)"
-                                             : modelPath.c_str());
+                                             : settings.model.c_str());
                 bool running = channel.is_running.load();
                 ImGui::BeginDisabled(running);
                 if (ImGui::Button("Browse..."))
@@ -181,10 +181,11 @@ namespace shoecomp
                             spec.inputWidth, spec.inputHeight,
                             spec.classToPointType.size());
                 ImGui::BeginDisabled(running);
-                ImGui::SliderFloat("Confidence", &confThreshold, 0.0f,
-                                   1.0f, "%.2f");
-                ImGui::SliderFloat("IoU (NMS)", &iouThreshold, 0.0f,
-                                   1.0f, "%.2f");
+                ImGui::SliderFloat("Confidence",
+                                   &settings.confThreshold, 0.0f, 1.0f,
+                                   "%.2f");
+                ImGui::SliderFloat("IoU (NMS)", &settings.iouThreshold,
+                                   0.0f, 1.0f, "%.2f");
                 ImGui::EndDisabled();
 
                 ImGui::Spacing();
@@ -192,7 +193,7 @@ namespace shoecomp
 
                 if (!running)
                 {
-                    ImGui::BeginDisabled(modelPath.empty());
+                    ImGui::BeginDisabled(settings.model.empty());
                     if (ImGui::Button("Run")) startInference();
                     ImGui::EndDisabled();
                 }
@@ -250,9 +251,9 @@ namespace shoecomp
 
         // Snapshot the run configuration; the worker reads members that
         // the UI does not mutate while a run is in flight.
-        std::string model = modelPath;
-        float conf = confThreshold;
-        float iou = iouThreshold;
+        std::string model = settings.model;
+        float conf = settings.confThreshold;
+        float iou = settings.iouThreshold;
         workerThread = std::thread(
             [this, model, conf, iou]()
             {

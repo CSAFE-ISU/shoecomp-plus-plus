@@ -35,6 +35,7 @@ namespace shoecomp
         bool includeValleys = true;  // true: detect ridges (peaks) and
                                      // grooves (valleys); false: only
                                      // ridges (positive local height)
+        int numThreads = 0;          // 0 = hardware concurrency
     };
 
     // Detect striations on |surf| and emit one StriationLine per
