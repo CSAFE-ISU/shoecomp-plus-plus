@@ -156,6 +156,11 @@ namespace shoecomp
         {
             EBTSRules er;
             er.angleTolDeg = rules.minutiaAngleTolDeg;
+            if (er.angleTolDeg > 0.0)
+            {
+                run.angleCol = ColTheta;
+                run.angleTolDeg = er.angleTolDeg;
+            }
             found = AlignCalc::getAlignmentWithRules(
                 left_pts, right_pts, cols, er, run, channel, results);
         }
