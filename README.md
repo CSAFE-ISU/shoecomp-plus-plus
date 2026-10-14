@@ -48,6 +48,55 @@ kind is still selectable but the view shows a "3D view not available on
 this build" placeholder. The ZIP container is read with the vendored
 **zlib** submodule; no new dependencies are added.
 
+## Command-line tool (`scpp`)
+
+`scpp` runs the same detection and automatic alignment as the GUI
+without a window, for scripting, tests and comparing many inputs at
+once. It is built alongside `shoecomp` (`-DSHOECOMP_BUILD_CLI=OFF` to
+skip it, `-DSHOECOMP_BUILD_GUI=OFF` to build only `scpp`, e.g. on a
+headless machine) and is not part of the web build.
+
+```sh
+scpp -t shoe left.png right.png          # compare one pair
+scpp -t x3p a.x3p b.x3p --json -o ab.json
+scpp batch -t x3p lands/ --all-pairs --out-dir results/
+scpp batch -t ebts prints/ --pairs pairs.txt --out-dir results/
+scpp params > my.ini                     # current defaults, editable
+scpp -t x3p a.x3p b.x3p -p my.ini --align3d-sep-tol-um 6
+scpp help batch                          # or --help / --help-all
+scpp version                             # version + licenses
+```
+
+- **Types:** `-t shoe | hw | ebts | x3p`. An EBTS transaction holding
+  several images takes `file.ebts@N` (0-based record); in batch mode
+  every record becomes an input.
+- **Annotations:** 2-D inputs use the sidecar `<stem>.json` next to the
+  image (`--left-ann/--right-ann` to override), else EBTS Type-9
+  minutiae, else ONNX detection with `--detect2d-model model.onnx`.
+  x3p inputs use the sidecar's striations, else detect them.
+  `--redetect` ignores sidecars; `--save-annotations DIR` writes what
+  was detected (never next to the inputs).
+- **Parameters:** every value the Align / Detect dialogs expose is a
+  flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`)
+  and a key in the INI file given with `-p`; `scpp params` prints them
+  with their defaults. `-j N` sets the threads for every stage
+  (default: all cores); results do not depend on it.
+- **Output:** a summary per alignment on stdout; `--json` prints, and
+  `-o FILE` writes, the full result, whose alignments use the GUI's
+  *Save Alignment* format. `--save-matched DIR` writes each input's
+  matched points/striations only (JSON, loadable in the GUI) and, for
+  2-D inputs, a PNG with the matched points numbered so left #k pairs
+  with right #k.
+- **Batch:** `--all-pairs` compares every pair in the folder (`-r` to
+  recurse); `--pairs FILE` takes one `left,right` per line. The output
+  folder gets `summary.csv` (one row per pair, best alignment),
+  `pairs/<A>__<B>.json`, the `params.ini` used, and, with the
+  `--save-annotations` / `--save-matched` flags, `annotations/` and
+  `matched/`.
+- **Exit status:** 0 when every comparison ran (finding no match is
+  not an error), 1 if an input or comparison failed, 2 for bad
+  arguments or parameters.
+
 ## Optional automatic point detection (ONNX Runtime)
 
 `shoecomp` can run a YOLO-style object-detection model on the active
@@ -79,7 +128,8 @@ To enable it:
      downloaded lib may need `xattr -dr com.apple.quarantine`).
 
    Alternatively, point the `SHOECOMP_ONNXRUNTIME` environment variable
-   at the full path of the library.
+   at the full path of the library. `scpp --detect2d-model` finds the
+   runtime the same way (next to `scpp`, or the environment variable).
 
 The app targets the CPU execution provider by default and will opt into a
 GPU provider (CUDA / DirectML / CoreML) automatically if the loaded
