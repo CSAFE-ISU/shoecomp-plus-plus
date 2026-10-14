@@ -25,15 +25,16 @@ namespace shoecomp
     struct StriationAlignment
     {
         Eigen::Isometry3d leftToRight = Eigen::Isometry3d::Identity();
-        std::vector<std::pair<int, int>> pairs;  // peaks[] indices
+        std::vector<std::pair<int, int>> pairs;  // row indices
         Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
         double rmsPerp = 0.0;  // metres
         bool axialWeak = false;
     };
 
-    // The striation lines in |surf|'s peaks[] (malformed entries are
-    // skipped, keeping peaks[] indices).
-    std::vector<StriationLine> surfaceStriations(const Surface3D& surf);
+    // The striation lines in |surf|'s peaks[]. Malformed entries are
+    // skipped; |peakIndex| (optional) gets each line's peaks[] index.
+    std::vector<StriationLine> surfaceStriations(
+        const Surface3D& surf, std::vector<int>* peakIndex = nullptr);
 
     // One row per line: midpoint, direction, length, ridge flag.
     AlignCalc::DoubleMatrixR striationRows(

@@ -60,17 +60,22 @@ namespace shoecomp
         }
     }  // namespace
 
-    std::vector<StriationLine> surfaceStriations(const Surface3D& surf)
+    std::vector<StriationLine> surfaceStriations(
+        const Surface3D& surf, std::vector<int>* peakIndex)
     {
         std::vector<StriationLine> out;
+        if (peakIndex) peakIndex->clear();
         const jt::Json& ann = surf.annotations;
         if (!ann.isObject() || !ann.contains("peaks")) return out;
         const jt::Json& peaks = ann["peaks"];
         if (!peaks.isArray()) return out;
-        for (const auto& pk : peaks.getArray())
+        const auto& arr = peaks.getArray();
+        for (size_t k = 0; k < arr.size(); ++k)
         {
             StriationLine ln;
-            if (striationLineFromJson(pk, ln)) out.push_back(ln);
+            if (!striationLineFromJson(arr[k], ln)) continue;
+            out.push_back(ln);
+            if (peakIndex) peakIndex->push_back((int)k);
         }
         return out;
     }

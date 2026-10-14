@@ -21,9 +21,10 @@ namespace shoecomp
             statusIsError = true;
             return false;
         }
-        std::vector<StriationLine> l = surfaceStriations(*left.surface);
+        std::vector<StriationLine> l =
+            surfaceStriations(*left.surface, &leftPeakIdx);
         std::vector<StriationLine> r =
-            surfaceStriations(*right.surface);
+            surfaceStriations(*right.surface, &rightPeakIdx);
         if ((int)l.size() < minLines || (int)r.size() < minLines)
         {
             std::snprintf(statusText, sizeof(statusText),

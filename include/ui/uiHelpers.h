@@ -14,6 +14,8 @@ namespace shoecomp
     // strip so it doesn't touch the viewport edges (1.0 = fills
     // exactly).
     static constexpr float kStripFillMargin = 1.5f;
+    // Max cursor distance (px) to pick a striation for the hover link.
+    static constexpr float kStriationHoverPx = 8.0f;
 
     // UI sizing constants (multipliers relative to font size)
     // Rounding

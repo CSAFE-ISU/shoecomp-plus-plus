@@ -70,6 +70,9 @@ namespace shoecomp
     static void renderAlignmentBox(AppState& state);
     static std::shared_ptr<Surface3D> sourceSurface(AppState& state,
                                                     int idx);
+    static X3PBulletLand* asBulletLand(ImageCanvas* c);
+    static void setStriationLinks(AppState& state, X3PBulletLand& L,
+                                  X3PBulletLand& R);
 
     static void renderComparisonContent(AppState& state, float contentW,
                                         float contentH)
@@ -128,6 +131,11 @@ namespace shoecomp
                                     .cast<float>();
                     }
                 }
+                X3PBulletLand* bl =
+                    asBulletLand(state.viewerLeft.get());
+                X3PBulletLand* br =
+                    asBulletLand(state.viewerRight.get());
+                if (bl && br) setStriationLinks(state, *bl, *br);
             }
 
             // Detect operates on the SOURCE gallery canvas (the 2D
@@ -232,6 +240,23 @@ namespace shoecomp
 
             if (is3D)
             {
+                X3PBulletLand* bl =
+                    asBulletLand(state.viewerLeft.get());
+                X3PBulletLand* br =
+                    asBulletLand(state.viewerRight.get());
+                if (bl && br)
+                {
+                    auto partner = [](const X3PBulletLand& c)
+                    {
+                        const int h = c.hoveredStriation;
+                        return (h >= 0 &&
+                                h < (int)c.striationLinks.size())
+                                   ? c.striationLinks[h]
+                                   : -1;
+                    };
+                    bl->linkedStriation = partner(*br);
+                    br->linkedStriation = partner(*bl);
+                }
                 if (state.viewerLocked)
                 {
                     ImageCanvas3D* L = asCanvas3D(*state.viewerLeft);
@@ -254,6 +279,49 @@ namespace shoecomp
             }
         }
         ImGui::EndChild();
+    }
+
+    static X3PBulletLand* asBulletLand(ImageCanvas* c)
+    {
+        return (c && c->kind() == ImageCanvas::Kind::X3PBulletLand)
+                   ? static_cast<X3PBulletLand*>(c)
+                   : nullptr;
+    }
+
+    // Peaks[] partner maps for the striation hover link, from the
+    // current automatic alignment (empty otherwise).
+    static void setStriationLinks(AppState& state, X3PBulletLand& L,
+                                  X3PBulletLand& R)
+    {
+        L.striationLinks.clear();
+        R.striationLinks.clear();
+        const ImVec4 c = state.settings.correspondingColor;
+        L.linkColor = R.linkColor = ImVec4(c.x, c.y, c.z, 1.0f);
+        if (!state.viewerLocked || state.viewerAlignments3D.empty())
+            return;
+        const Align3DState& a =
+            state.viewerAlignments3D[state.viewerAlignmentIdx3D];
+        if (!a.automatic || !a.info.isObject() ||
+            !a.info.contains("matchedStriations") ||
+            !a.info["matchedStriations"].isArray())
+            return;
+        auto setLink = [](std::vector<int>& links, int k, int partner)
+        {
+            if (k < 0) return;
+            if ((int)links.size() <= k) links.resize(k + 1, -1);
+            links[k] = partner;
+        };
+        for (const auto& pr : a.info["matchedStriations"].getArray())
+        {
+            if (!pr.isArray() || pr.getArray().size() != 2 ||
+                !pr.getArray()[0].isNumber() ||
+                !pr.getArray()[1].isNumber())
+                continue;
+            const int l = (int)pr.getArray()[0].getNumber();
+            const int r = (int)pr.getArray()[1].getNumber();
+            setLink(L.striationLinks, l, r);
+            setLink(R.striationLinks, r, l);
+        }
     }
 
     static std::shared_ptr<Surface3D> sourceSurface(AppState& state,

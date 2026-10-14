@@ -103,8 +103,10 @@ namespace shoecomp
             {
                 jt::Json m;
                 m.setArray();
-                m.getArray().push_back(jt::Json(pr.first));
-                m.getArray().push_back(jt::Json(pr.second));
+                m.getArray().push_back(
+                    jt::Json(d.leftPeakIdx[pr.first]));
+                m.getArray().push_back(
+                    jt::Json(d.rightPeakIdx[pr.second]));
                 a.info["matchedStriations"].getArray().push_back(
                     std::move(m));
             }

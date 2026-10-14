@@ -317,6 +317,8 @@ namespace shoecomp
             }
         }
 
+        overlayHovered = hovered && !panning;
+
         // --- overlay: project stored annotations onto the view ---
         Eigen::Matrix4f mvp = camera.proj(avail.x / avail.y) *
                               camera.view() * modelXform.matrix();
@@ -878,10 +880,7 @@ namespace shoecomp
             pendingStart = {col, row};
             hasPendingStart = true;
         }
-        else
-        {
-            commitStriationLine(col, row);
-        }
+        else { commitStriationLine(col, row); }
     }
 
     void X3PBulletLand::commitStriationLine(int col, int row)
@@ -938,6 +937,19 @@ namespace shoecomp
         if (best >= 0) arr.erase(arr.begin() + best);
     }
 
+    // Screen-space distance from |p| to the segment |a|-|b|.
+    static float segmentDistance(const ImVec2& p, const ImVec2& a,
+                                 const ImVec2& b)
+    {
+        const float dx = b.x - a.x, dy = b.y - a.y;
+        const float len2 = dx * dx + dy * dy;
+        float t = len2 > 0.0f
+                      ? ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2
+                      : 0.0f;
+        t = std::clamp(t, 0.0f, 1.0f);
+        return std::hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
+    }
+
     void X3PBulletLand::drawAnnotationOverlay(
         ImDrawList* dl, const Eigen::Matrix4f& mvp,
         const ImVec2& canvasPos, const ImVec2& avail)
@@ -954,18 +966,26 @@ namespace shoecomp
         float thick = ImageCanvas2D::style.boundsLineThickness;
         float rad = ImageCanvas2D::style.pointRadius;
 
-        auto projectCell = [&](int c, int r, ImVec2& out) -> bool
-        {
+        auto projectCell = [&](int c, int r, ImVec2& out) -> bool {
             return projectPoint(mvp, modelPosOf(c, r), canvasPos, avail,
                                 out);
         };
 
+        hoveredStriation = -1;
         if (surface->annotations["peaks"].isArray())
         {
-            for (auto& pk : surface->annotations["peaks"].getArray())
+            const auto& peaks =
+                surface->annotations["peaks"].getArray();
+            const ImVec2 mouse = ImGui::GetIO().MousePos;
+            const bool linking =
+                overlayHovered && !striationLinks.empty();
+            float bestDist = kStriationHoverPx;
+            ImVec2 hl0, hl1, ln0, ln1;
+            bool haveLinked = false;
+            for (size_t k = 0; k < peaks.size(); ++k)
             {
                 StriationLine ln;
-                if (!striationLineFromJson(pk, ln)) continue;
+                if (!striationLineFromJson(peaks[k], ln)) continue;
                 Eigen::Vector3d p0 = ln.start;
                 Eigen::Vector3d p1 = ln.start + ln.length * ln.dir;
                 ImVec2 sp0, sp1;
@@ -978,7 +998,36 @@ namespace shoecomp
                 dl->AddLine(sp0, sp1, col, thick);
                 dl->AddCircleFilled(sp0, rad - 1.0f, col);
                 dl->AddCircleFilled(sp1, rad - 1.0f, col);
+
+                if ((int)k == linkedStriation)
+                {
+                    ln0 = sp0;
+                    ln1 = sp1;
+                    haveLinked = true;
+                }
+                if (linking && k < striationLinks.size() &&
+                    striationLinks[k] >= 0)
+                {
+                    float d = segmentDistance(mouse, sp0, sp1);
+                    if (d < bestDist)
+                    {
+                        bestDist = d;
+                        hoveredStriation = (int)k;
+                        hl0 = sp0;
+                        hl1 = sp1;
+                    }
+                }
             }
+            // drawn last so they sit on top of the other lines
+            ImU32 link = ImGui::ColorConvertFloat4ToU32(linkColor);
+            auto drawLink = [&](const ImVec2& a, const ImVec2& b)
+            {
+                dl->AddLine(a, b, link, thick + 2.0f);
+                dl->AddCircleFilled(a, rad, link);
+                dl->AddCircleFilled(b, rad, link);
+            };
+            if (hoveredStriation >= 0) drawLink(hl0, hl1);
+            if (haveLinked && hoveredStriation < 0) drawLink(ln0, ln1);
         }
 
         // In-progress striation: the pending start cell.

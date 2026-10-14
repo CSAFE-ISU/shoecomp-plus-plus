@@ -67,6 +67,9 @@ namespace shoecomp
         bool hoverValid = false;
         int hoverCol = -1;
         int hoverRow = -1;
+        // Cursor over the canvas this frame (and not panning), for
+        // screen-space overlay hit tests.
+        bool overlayHovered = false;
         // The surface the renderer's GPU mesh was last built from, so
         // shared viewers rebuild only when their selection changes.
         const Surface3D* meshSource = nullptr;
@@ -252,6 +255,17 @@ namespace shoecomp
         // surface->annotations["peaks"].
         bool hasPendingStart = false;
         std::pair<int, int> pendingStart;
+
+        // Comparison hover link, set by the comparison workspace each
+        // frame from the current automatic alignment: striationLinks[k]
+        // is the partner (in the other viewer's land) of peaks[k], or
+        // -1. The overlay reports the matched line under the cursor in
+        // hoveredStriation and draws it, and linkedStriation (the
+        // partner of the other viewer's hovered line), in linkColor.
+        std::vector<int> striationLinks;
+        int hoveredStriation = -1;
+        int linkedStriation = -1;
+        ImVec4 linkColor = ImVec4(0.0f, 1.0f, 100 / 255.f, 1.0f);
 
        protected:
         // Bullet markup: striation lines only (no single points /

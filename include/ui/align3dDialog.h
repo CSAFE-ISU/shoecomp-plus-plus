@@ -29,6 +29,7 @@ namespace shoecomp
         int numWorkers = 4;
 
         AlignCalc::DoubleMatrixR leftRows, rightRows;
+        std::vector<int> leftPeakIdx, rightPeakIdx;  // row -> peaks[]
 
         WorkerChannel channel;
         std::thread workerThread;
