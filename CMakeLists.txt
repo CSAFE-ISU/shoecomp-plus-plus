@@ -5,6 +5,15 @@ project(shoecomp)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+option(SHOECOMP_BUILD_GUI "Build the shoecomp GUI" ON)
+option(SHOECOMP_BUILD_CLI "Build the scpp command-line tool" ON)
+if(EMSCRIPTEN)
+    set(SHOECOMP_BUILD_CLI OFF CACHE BOOL "" FORCE)
+else()
+    find_package(Threads REQUIRED)
+    set(SC_THREADS_LIB Threads::Threads)
+endif()
+
 # Force static linking for all third-party libraries
 set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
 
@@ -45,11 +54,13 @@ list(PREPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_BINARY_DIR}/cmake_modules")
 # =====================================================================
 # 2. freetype (uses zlib, harfbuzz/brotli/bzip2/png disabled)
 # =====================================================================
-set(FT_DISABLE_HARFBUZZ TRUE CACHE BOOL "" FORCE)
-set(FT_DISABLE_BROTLI TRUE CACHE BOOL "" FORCE)
-set(FT_DISABLE_BZIP2 TRUE CACHE BOOL "" FORCE)
-set(FT_DISABLE_PNG TRUE CACHE BOOL "" FORCE)
-add_subdirectory(third_party/freetype EXCLUDE_FROM_ALL)
+if(SHOECOMP_BUILD_GUI)
+    set(FT_DISABLE_HARFBUZZ TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_BROTLI TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_BZIP2 TRUE CACHE BOOL "" FORCE)
+    set(FT_DISABLE_PNG TRUE CACHE BOOL "" FORCE)
+    add_subdirectory(third_party/freetype EXCLUDE_FROM_ALL)
+endif()
 
 # =====================================================================
 # 3. jtjson (no deps)
@@ -70,14 +81,16 @@ add_subdirectory(third_party/libpng EXCLUDE_FROM_ALL)
 # =====================================================================
 # 4. hello_imgui (detects TARGET freetype automatically)
 # =====================================================================
-set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED OFF CACHE BOOL "" FORCE)
-set(HELLOIMGUI_USE_FREETYPE ON CACHE BOOL "" FORCE)
-if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui)
-    add_subdirectory(third_party/hello_imgui EXCLUDE_FROM_ALL)
-endif()
+if(SHOECOMP_BUILD_GUI)
+    set(HELLOIMGUI_DOWNLOAD_FREETYPE_IF_NEEDED OFF CACHE BOOL "" FORCE)
+    set(HELLOIMGUI_USE_FREETYPE ON CACHE BOOL "" FORCE)
+    if(IS_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui)
+        add_subdirectory(third_party/hello_imgui EXCLUDE_FROM_ALL)
+    endif()
 
-if (NOT TARGET hello_imgui)
-    message(FATAL_ERROR "couldn't find hello_imgui, submodule missing?")
+    if (NOT TARGET hello_imgui)
+        message(FATAL_ERROR "couldn't find hello_imgui, submodule missing?")
+    endif()
 endif()
 
 # =====================================================================
@@ -86,13 +99,71 @@ endif()
 add_subdirectory(third_party/aligncalc EXCLUDE_FROM_ALL)
 
 # =====================================================================
-# 6. App target
+# 6. Core library (GUI-free: formats, calc, core) shared by both binaries
 # =====================================================================
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/third_party
 )
 
+set(SC_CORE_SRCS
+    src/core/pointType.cpp
+    src/core/imageType.cpp
+    src/core/params.cpp
+    src/core/alignmentJson.cpp
+    src/core/pipeline.cpp
+    src/calc/align.cpp
+    src/calc/rts_align.cpp
+    src/calc/onnxRuntime.cpp
+    src/calc/cylinderFit.cpp
+    src/calc/striationDetect.cpp
+    src/calc/align3d.cpp
+    src/formats/imageDecode.cpp
+    src/formats/EBTSLoader.cpp
+    src/formats/annotationIo.cpp
+    src/formats/x3pLoader.cpp
+    src/formats/x3pAnnotationIo.cpp
+)
+add_library(shoecomp_core STATIC ${SC_CORE_SRCS})
+# zlib headers (zlib.h / zconf.h) for the x3p ZIP-container reader.
+target_include_directories(shoecomp_core PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib
+    ${CMAKE_CURRENT_BINARY_DIR}/third_party/zlib)
+# stb_image: hello_imgui compiles it as stb_hello_imgui; without the GUI
+# we compile it ourselves.
+if(TARGET stb_hello_imgui)
+    set(SC_STB_LIB stb_hello_imgui)
+else()
+    add_library(shoecomp_stb STATIC src/formats/stbImpl.cpp)
+    target_include_directories(shoecomp_stb PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/stb_hello_imgui)
+    set(SC_STB_LIB shoecomp_stb)
+endif()
+# ${CMAKE_DL_LIBS} pulls in libdl on Linux for the runtime dlopen of the
+# optional onnxruntime library (empty on Windows/macOS). onnxruntime
+# itself is NOT built or linked -- it is loaded at runtime if present.
+target_link_libraries(shoecomp_core PUBLIC json aligncalc zlibstatic
+                      ${SC_STB_LIB} ${SC_THREADS_LIB} ${CMAKE_DL_LIBS})
+
+# =====================================================================
+# 6b. scpp command-line tool
+# =====================================================================
+if(SHOECOMP_BUILD_CLI)
+    add_executable(scpp
+        src/cli/main.cpp
+        src/cli/compare.cpp
+        src/cli/batch.cpp
+        src/cli/report.cpp
+    )
+    # CLI11 is header-only (include/CLI/CLI.hpp).
+    target_include_directories(scpp PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/CLI11/include)
+    target_link_libraries(scpp PRIVATE shoecomp_core)
+endif()
+
+# =====================================================================
+# 6c. GUI app sources
+# =====================================================================
 set(SC_SRCS
     src/ui/mainWindow.cpp
     src/ui/imageCanvas2d.cpp
@@ -119,120 +190,98 @@ set(SC_SRCS
     src/ui/surfaceRenderer.cpp
     src/ui/imageCanvas3d.cpp
     src/ui/splash.cpp
-    src/core/pointType.cpp
-    src/core/imageType.cpp
-    src/core/params.cpp
-    src/core/alignmentJson.cpp
-    src/core/pipeline.cpp
-    src/calc/align.cpp
-    src/calc/rts_align.cpp
-    src/calc/onnxRuntime.cpp
-    src/calc/cylinderFit.cpp
-    src/calc/striationDetect.cpp
-    src/calc/align3d.cpp
-    src/formats/imageDecode.cpp
     src/formats/pngLoader.cpp
     src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
-    src/formats/EBTSLoader.cpp
-    src/formats/annotationIo.cpp
-    src/formats/x3pLoader.cpp
-    src/formats/x3pAnnotationIo.cpp
     src/formats/platforms.cpp
     src/main.cpp
 )
 
-# =====================================================================
-# 7. Embedded static assets (generated via binary_to_compressed_c)
-# =====================================================================
-if (NOT EMSCRIPTEN)
-    add_executable(binary_to_compressed_c
-        third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
-    set_target_properties(binary_to_compressed_c PROPERTIES
-        RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
-    set(B2CC_TOOL $<TARGET_FILE:binary_to_compressed_c>)
-    set(B2CC_DEP  binary_to_compressed_c)
-else()
-    # Build a native host tool even when cross-compiling for Emscripten
-    find_program(HOST_CXX NAMES c++ g++ clang++)
-    if(NOT HOST_CXX)
-        message(FATAL_ERROR
-            "No native C++ compiler found for host tool build. "
-            "Set HOST_CXX to a native compiler path.")
+if(SHOECOMP_BUILD_GUI)
+    # =====================================================================
+    # 7. Embedded static assets (generated via binary_to_compressed_c)
+    # =====================================================================
+    if (NOT EMSCRIPTEN)
+        add_executable(binary_to_compressed_c
+            third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp)
+        set_target_properties(binary_to_compressed_c PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+        set(B2CC_TOOL $<TARGET_FILE:binary_to_compressed_c>)
+        set(B2CC_DEP  binary_to_compressed_c)
+    else()
+        # Build a native host tool even when cross-compiling for Emscripten
+        find_program(HOST_CXX NAMES c++ g++ clang++)
+        if(NOT HOST_CXX)
+            message(FATAL_ERROR
+                "No native C++ compiler found for host tool build. "
+                "Set HOST_CXX to a native compiler path.")
+        endif()
+        set(_B2CC_SRC
+            "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp")
+        set(_B2CC_BIN
+            "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c")
+        add_custom_command(
+            OUTPUT  ${_B2CC_BIN}
+            COMMAND ${HOST_CXX} ${_B2CC_SRC} -o ${_B2CC_BIN}
+            DEPENDS ${_B2CC_SRC}
+            COMMENT "Building native binary_to_compressed_c"
+            VERBATIM
+        )
+        add_custom_target(binary_to_compressed_c DEPENDS ${_B2CC_BIN})
+        set(B2CC_TOOL ${_B2CC_BIN})
+        set(B2CC_DEP  binary_to_compressed_c)
     endif()
-    set(_B2CC_SRC
-        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/hello_imgui/external/imgui/misc/fonts/binary_to_compressed_c.cpp")
-    set(_B2CC_BIN
-        "${CMAKE_CURRENT_BINARY_DIR}/binary_to_compressed_c")
-    add_custom_command(
-        OUTPUT  ${_B2CC_BIN}
-        COMMAND ${HOST_CXX} ${_B2CC_SRC} -o ${_B2CC_BIN}
-        DEPENDS ${_B2CC_SRC}
-        COMMENT "Building native binary_to_compressed_c"
-        VERBATIM
+
+    set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
+    file(MAKE_DIRECTORY ${SC_GENERATED_ASSETS_DIR})
+
+    set(SC_ASSET_SPECS
+        "assets/fonts/Montserrat-Regular.ttf|MontserratRegular|compress"
+        "assets/fonts/Montserrat-SemiBold.ttf|MontserratSemiBold|compress"
+        "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
+        "assets/fonts/MaterialIcons-Regular.ttf|MaterialIcons|compress"
+        "assets/fonts/icon.png|ShoeCompIcon|raw"
+        "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
+        "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"
+        "third_party/aligncalc/eigen/COPYING.MPL2|LicEigen|raw"
+        "third_party/freetype/docs/FTL.TXT|LicFreetype|raw"
+        "third_party/jtjson/LICENSE|LicJsonCpp|raw"
+        "third_party/libpng/LICENSE|LicLibpng|raw"
+        "third_party/zlib/LICENSE|LicZlib|raw"
+        "third_party/libjpeg-turbo/LICENSE.md|LicLibjpegTurbo|raw"
+        "third_party/jtjson/double-conversion/LICENSE|LicDoubleConversion|raw"
+        "assets/fonts/Inconsolata-OFL.txt|LicInconsolata|raw"
+        "assets/fonts/Montserrat-OFL.txt|LicMontserrat|raw"
+        "assets/fonts/MaterialIcons-Apache.txt|LicMaterialIcons|raw"
     )
-    add_custom_target(binary_to_compressed_c DEPENDS ${_B2CC_BIN})
-    set(B2CC_TOOL ${_B2CC_BIN})
-    set(B2CC_DEP  binary_to_compressed_c)
+    set(SC_ASSET_SCRIPT
+        ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
+    set(SC_GENERATED_ASSET_SRCS)
+    foreach(spec IN LISTS SC_ASSET_SPECS)
+        string(REPLACE "|" ";" parts ${spec})
+        list(GET parts 0 src_rel)
+        list(GET parts 1 sym)
+        list(GET parts 2 mode)
+        set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.cpp)
+        add_custom_command(
+            OUTPUT ${out_c}
+            COMMAND ${CMAKE_COMMAND}
+                    -DTOOL=${B2CC_TOOL}
+                    -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                    -DSYMBOL=${sym}
+                    -DOUTPUT=${out_c}
+                    -DMODE=${mode}
+                    -P ${SC_ASSET_SCRIPT}
+            DEPENDS ${B2CC_DEP}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                    ${SC_ASSET_SCRIPT}
+            VERBATIM
+        )
+        list(APPEND SC_GENERATED_ASSET_SRCS ${out_c})
+    endforeach()
+
+    list(APPEND SC_SRCS ${SC_GENERATED_ASSET_SRCS})
+
+    hello_imgui_add_app(shoecomp ${SC_SRCS})
+    target_link_libraries(shoecomp PRIVATE shoecomp_core png_static)
 endif()
-
-set(SC_GENERATED_ASSETS_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated_assets)
-file(MAKE_DIRECTORY ${SC_GENERATED_ASSETS_DIR})
-
-set(SC_ASSET_SPECS
-    "assets/fonts/Montserrat-Regular.ttf|MontserratRegular|compress"
-    "assets/fonts/Montserrat-SemiBold.ttf|MontserratSemiBold|compress"
-    "assets/fonts/Inconsolata-Regular.ttf|InconsolataRegular|compress"
-    "assets/fonts/MaterialIcons-Regular.ttf|MaterialIcons|compress"
-    "assets/fonts/icon.png|ShoeCompIcon|raw"
-    "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
-    "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"
-    "third_party/aligncalc/eigen/COPYING.MPL2|LicEigen|raw"
-    "third_party/freetype/docs/FTL.TXT|LicFreetype|raw"
-    "third_party/jtjson/LICENSE|LicJsonCpp|raw"
-    "third_party/libpng/LICENSE|LicLibpng|raw"
-    "third_party/zlib/LICENSE|LicZlib|raw"
-    "third_party/libjpeg-turbo/LICENSE.md|LicLibjpegTurbo|raw"
-    "third_party/jtjson/double-conversion/LICENSE|LicDoubleConversion|raw"
-    "assets/fonts/Inconsolata-OFL.txt|LicInconsolata|raw"
-    "assets/fonts/Montserrat-OFL.txt|LicMontserrat|raw"
-    "assets/fonts/MaterialIcons-Apache.txt|LicMaterialIcons|raw"
-)
-set(SC_ASSET_SCRIPT
-    ${CMAKE_CURRENT_SOURCE_DIR}/cmake/strip_compressed_suffix.cmake)
-set(SC_GENERATED_ASSET_SRCS)
-foreach(spec IN LISTS SC_ASSET_SPECS)
-    string(REPLACE "|" ";" parts ${spec})
-    list(GET parts 0 src_rel)
-    list(GET parts 1 sym)
-    list(GET parts 2 mode)
-    set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.cpp)
-    add_custom_command(
-        OUTPUT ${out_c}
-        COMMAND ${CMAKE_COMMAND}
-                -DTOOL=${B2CC_TOOL}
-                -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
-                -DSYMBOL=${sym}
-                -DOUTPUT=${out_c}
-                -DMODE=${mode}
-                -P ${SC_ASSET_SCRIPT}
-        DEPENDS ${B2CC_DEP}
-                ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
-                ${SC_ASSET_SCRIPT}
-        VERBATIM
-    )
-    list(APPEND SC_GENERATED_ASSET_SRCS ${out_c})
-endforeach()
-
-list(APPEND SC_SRCS ${SC_GENERATED_ASSET_SRCS})
-
-hello_imgui_add_app(shoecomp ${SC_SRCS})
-# ${CMAKE_DL_LIBS} pulls in libdl on Linux for the runtime dlopen of the
-# optional onnxruntime library (empty on Windows/macOS). onnxruntime
-# itself is NOT built or linked -- it is loaded at runtime if present.
-target_link_libraries(shoecomp PRIVATE json aligncalc png_static
-                      zlibstatic ${CMAKE_DL_LIBS})
-# zlib headers (zlib.h / zconf.h) for the x3p ZIP-container reader.
-target_include_directories(shoecomp PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/zlib
-    ${CMAKE_CURRENT_BINARY_DIR}/third_party/zlib)
