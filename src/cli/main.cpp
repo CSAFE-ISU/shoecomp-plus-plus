@@ -161,6 +161,26 @@ namespace
             if (e.binaries & kInCli) dump(e);
     }
 
+    // Last resort: report an escaped exception instead of aborting.
+    template <typename F>
+    int guarded(F&& f)
+    {
+        try
+        {
+            return f();
+        }
+        catch (const std::exception& e)
+        {
+            std::fprintf(stderr, "scpp: unexpected error: %s\n",
+                         e.what());
+        }
+        catch (...)
+        {
+            std::fprintf(stderr, "scpp: unexpected error\n");
+        }
+        return kExitError;
+    }
+
     // Defaults <- params file <- flag overrides, then validated.
     bool resolveParams(const State& st, Params& p, std::string& err)
     {
@@ -379,7 +399,7 @@ int main(int argc, char** argv)
                 "OUT/matched/)\n");
             return kExitUsage;
         }
-        return runBatch(run, bat);
+        return guarded([&] { return runBatch(run, bat); });
     }
     if (cmp.left.empty() || cmp.right.empty())
     {
@@ -388,5 +408,5 @@ int main(int argc, char** argv)
                      "--help)\n");
         return kExitUsage;
     }
-    return runCompare(run, cmp);
+    return guarded([&] { return runCompare(run, cmp); });
 }

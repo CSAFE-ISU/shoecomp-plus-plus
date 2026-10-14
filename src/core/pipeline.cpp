@@ -5,6 +5,7 @@
 #include <cctype>
 #include <chrono>
 #include <cstring>
+#include <exception>
 #include <filesystem>
 #include <thread>
 
@@ -304,11 +305,19 @@ namespace shoecomp
                 }
             };
             std::atomic<bool> finished{false};
+            std::exception_ptr thrown;
             ch.is_running.store(true);
             std::thread t(
                 [&]
                 {
-                    work();
+                    try
+                    {
+                        work();
+                    }
+                    catch (...)
+                    {
+                        thrown = std::current_exception();
+                    }
                     finished.store(true);
                 });
             while (!finished.load())
@@ -319,9 +328,17 @@ namespace shoecomp
             }
             t.join();
             drain();
+            if (thrown) std::rethrow_exception(thrown);
             return lastError;
         }
     }  // namespace
+
+    static bool prepareItemImpl(Item& it, const Params& params,
+                                const RunOptions& opts);
+    static PairResult comparePairImpl(const Item& left,
+                                      const Item& right,
+                                      const Params& params,
+                                      const RunOptions& opts);
 
     const char* pairStatusName(PairStatus s)
     {
@@ -356,8 +373,14 @@ namespace shoecomp
                         [](char c)
                         { return std::isdigit((unsigned char)c); }))
         {
+            const std::string num = spec.substr(at + 1);
+            if (num.size() > 6)
+            {
+                err = "record index out of range: " + spec;
+                return false;
+            }
             out.path = spec.substr(0, at);
-            out.record = std::stoi(spec.substr(at + 1));
+            out.record = std::stoi(num);
         }
         if (!fs::is_regular_file(out.path))
         {
@@ -422,8 +445,60 @@ namespace shoecomp
             .string();
     }
 
+    namespace
+    {
+        std::string describe(const std::exception_ptr& e)
+        {
+            try
+            {
+                std::rethrow_exception(e);
+            }
+            catch (const std::exception& x)
+            {
+                return std::string("unexpected error: ") + x.what();
+            }
+            catch (...)
+            {
+                return "unexpected error";
+            }
+        }
+    }  // namespace
+
     bool prepareItem(Item& it, const Params& params,
                      const RunOptions& opts)
+    {
+        try
+        {
+            return prepareItemImpl(it, params, opts);
+        }
+        catch (...)
+        {
+            it.prepared = false;
+            it.error =
+                it.label + ": " + describe(std::current_exception());
+            return false;
+        }
+    }
+
+    PairResult comparePair(const Item& left, const Item& right,
+                           const Params& params, const RunOptions& opts)
+    {
+        try
+        {
+            return comparePairImpl(left, right, params, opts);
+        }
+        catch (...)
+        {
+            PairResult res;
+            res.alignments.setArray();
+            res.status = PairStatus::Error;
+            res.message = describe(std::current_exception());
+            return res;
+        }
+    }
+
+    static bool prepareItemImpl(Item& it, const Params& params,
+                                const RunOptions& opts)
     {
         it.prepared = false;
         it.error.clear();
@@ -444,8 +519,10 @@ namespace shoecomp
         return true;
     }
 
-    PairResult comparePair(const Item& left, const Item& right,
-                           const Params& params, const RunOptions& opts)
+    static PairResult comparePairImpl(const Item& left,
+                                      const Item& right,
+                                      const Params& params,
+                                      const RunOptions& opts)
     {
         PairResult res;
         res.alignments.setArray();

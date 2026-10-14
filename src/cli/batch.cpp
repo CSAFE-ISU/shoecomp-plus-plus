@@ -52,28 +52,41 @@ namespace shoecomp
                     hasTypeExtension(c.type, e.path()))
                     files.push_back(e.path());
             };
-            std::error_code ec;
-            if (a.recursive)
+            try
             {
-                for (const auto& e :
-                     fs::recursive_directory_iterator(a.dir, ec))
-                    consider(e);
+                if (a.recursive)
+                {
+                    for (const auto& e :
+                         fs::recursive_directory_iterator(
+                             a.dir, fs::directory_options::
+                                        skip_permission_denied))
+                        consider(e);
+                }
+                else
+                {
+                    for (const auto& e : fs::directory_iterator(a.dir))
+                        consider(e);
+                }
             }
-            else
+            catch (const std::exception& e)
             {
-                for (const auto& e : fs::directory_iterator(a.dir, ec))
-                    consider(e);
-            }
-            if (ec)
-            {
-                err = "cannot scan " + a.dir + ": " + ec.message();
+                err = "cannot scan " + a.dir + ": " + e.what();
                 return false;
             }
             std::sort(files.begin(), files.end());
             for (const auto& f : files)
             {
                 std::vector<Item> got;
-                if (!itemsForFile(c.type, f.string(), got, err))
+                bool ok = false;
+                try
+                {
+                    ok = itemsForFile(c.type, f.string(), got, err);
+                }
+                catch (const std::exception& e)
+                {
+                    err = e.what();
+                }
+                if (!ok)
                 {
                     std::fprintf(stderr,
                                  "scpp batch: skipping %s: %s\n",
@@ -149,6 +162,55 @@ namespace shoecomp
         }
     }  // namespace
 
+    namespace
+    {
+        // Prepare (once) + compare + write one pair's files. File
+        // write failures are counted in |errors| and reported; the
+        // returned result is the comparison's.
+        PairResult runPair(CliRun& c, Item& left, Item& right,
+                           const fs::path& out,
+                           const std::string& matchedDir, int& errors)
+        {
+            std::string err;
+            for (Item* it : {&left, &right})
+            {
+                if (it->prepared || !it->error.empty()) continue;
+                if (!prepareItem(*it, c.params, c.run) && !c.quiet)
+                    std::fprintf(stderr, "  %s\n", it->error.c_str());
+            }
+            PairResult r = comparePair(left, right, c.params, c.run);
+
+            bool written = false;
+            try
+            {
+                const std::string name = fileSafe(left.label) + "__" +
+                                         fileSafe(right.label) +
+                                         ".json";
+                const jt::Json doc =
+                    pairDocument(c.type, left, right, r);
+                written =
+                    writeTextFile((out / "pairs" / name).string(),
+                                  doc.toStringPretty() + "\n", err) &&
+                    (matchedDir.empty() ||
+                     saveMatched(matchedDir, left, right, r,
+                                 c.matchedResults, err));
+            }
+            catch (const std::exception& e)
+            {
+                err = std::string("writing results: ") + e.what();
+            }
+            if (!written)
+            {
+                std::fprintf(
+                    stderr, "scpp batch: %s: %s\n",
+                    (left.label + " vs " + right.label).c_str(),
+                    err.c_str());
+                ++errors;
+            }
+            return r;
+        }
+    }  // namespace
+
     int runBatch(CliRun& c, const BatchArgs& a)
     {
         std::string err;
@@ -215,33 +277,25 @@ namespace shoecomp
         {
             Item& left = items[pairs[k].first];
             Item& right = items[pairs[k].second];
-            for (Item* it : {&left, &right})
+            PairResult r;
+            try
             {
-                if (it->prepared || !it->error.empty()) continue;
-                if (!prepareItem(*it, c.params, c.run) && !c.quiet)
-                    std::fprintf(stderr, "  %s: %s\n",
-                                 it->label.c_str(), it->error.c_str());
+                r = runPair(c, left, right, out, matchedDir, errors);
             }
-            const PairResult r =
-                comparePair(left, right, c.params, c.run);
+            catch (const std::exception& e)
+            {
+                r = PairResult{};
+                r.alignments.setArray();
+                r.message =
+                    std::string("unexpected error: ") + e.what();
+            }
+            catch (...)
+            {
+                r = PairResult{};
+                r.alignments.setArray();
+                r.message = "unexpected error";
+            }
             if (r.status == PairStatus::Error) ++errors;
-
-            const std::string name = fileSafe(left.label) + "__" +
-                                     fileSafe(right.label) + ".json";
-            const jt::Json doc = pairDocument(c.type, left, right, r);
-            if (!writeTextFile((out / "pairs" / name).string(),
-                               doc.toStringPretty() + "\n", err))
-            {
-                std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
-                ++errors;
-            }
-            if (!matchedDir.empty() &&
-                !saveMatched(matchedDir, left, right, r,
-                             c.matchedResults, err))
-            {
-                std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
-                ++errors;
-            }
             csv << csvRow(left, right, r) << "\n";
             csv.flush();
             if (!c.quiet)
