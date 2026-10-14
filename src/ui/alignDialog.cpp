@@ -166,6 +166,17 @@ namespace shoecomp
 
             ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
 
+            if (type == ImageType::EBTS)
+            {
+                ImGui::SliderFloat("Minutia Direction Tol. (deg)",
+                                   &minutiaAngleTolDeg, 0.0f, 90.0f,
+                                   "%.0f");
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "Max mismatch between the relative directions "
+                        "of two matched minutiae; 0 = off.");
+            }
+
             ImGui::Spacing();
             ImGui::Spacing();
 
@@ -223,11 +234,14 @@ namespace shoecomp
         auto left = leftImage;
         auto right = rightImage;
         auto params = rtsParams;
+        PointMatchRules rules;
+        rules.type = type;
+        rules.minutiaAngleTolDeg = minutiaAngleTolDeg;
         workerThread = std::thread(
-            [this, left, right, params]()
+            [this, left, right, params, rules]()
             {
                 runAutoAlign(left->annotations, right->annotations,
-                             channel, workerResults, params);
+                             channel, workerResults, params, rules);
             });
     }
 

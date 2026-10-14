@@ -13,6 +13,10 @@ namespace shoecomp
     // pointer so both 2D and 3D kinds flow through the same active-kind
     // pipeline). Unknown/Canvas2D falls back to a plain ImageCanvas2D.
     std::unique_ptr<ImageCanvas> makeCanvas(ImageCanvas::Kind kind);
+
+    // The comparison input type of a canvas kind; false for kinds
+    // without one (plain Canvas2D, generic x3p surfaces).
+    bool imageTypeForKind(ImageCanvas::Kind kind, ImageType& out);
 }  // namespace shoecomp
 
 #endif

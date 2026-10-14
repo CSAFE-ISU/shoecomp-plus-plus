@@ -8,6 +8,7 @@
 #include "imgui.h"
 #include "calc/align.h"
 #include "core/alignment.h"
+#include "core/params.h"
 #include "jtjson/json.h"
 #include "ui/imageCanvas2d.h"
 
@@ -31,6 +32,9 @@ namespace shoecomp
         std::thread workerThread;
         bool workerFinished = false;
         AlignCalc::RTSParams rtsParams;
+        // Input type of the two images (EBTS adds the minutia rules).
+        ImageType type = ImageType::Shoe;
+        float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;
         char statusText[120]{};
         bool statusIsError = false;
 

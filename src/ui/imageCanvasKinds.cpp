@@ -22,4 +22,25 @@ namespace shoecomp
                 return std::make_unique<ImageCanvas2D>();
         }
     }
+
+    bool imageTypeForKind(ImageCanvas::Kind kind, ImageType& out)
+    {
+        switch (kind)
+        {
+            case ImageCanvas::Kind::ShoeCanvas:
+                out = ImageType::Shoe;
+                return true;
+            case ImageCanvas::Kind::HWCanvas:
+                out = ImageType::HW;
+                return true;
+            case ImageCanvas::Kind::EBTSCanvas:
+                out = ImageType::EBTS;
+                return true;
+            case ImageCanvas::Kind::X3PBulletLand:
+                out = ImageType::X3P;
+                return true;
+            default:
+                return false;
+        }
+    }
 }  // namespace shoecomp

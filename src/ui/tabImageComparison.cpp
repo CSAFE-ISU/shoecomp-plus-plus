@@ -1,6 +1,7 @@
 #include "ui/mainWindow.h"
 #include "ui/imageCanvas2d.h"
 #include "ui/imageCanvas3d.h"
+#include "ui/imageCanvasKinds.h"
 #include "ui/uiHelpers.h"
 #include "core/eulerAngles.h"
 #include <algorithm>
@@ -555,6 +556,10 @@ namespace shoecomp
                 state.images[state.viewerRightIdx]->name();
             state.alignDialog.leftImage = lsel ? lsel->image : nullptr;
             state.alignDialog.rightImage = rsel ? rsel->image : nullptr;
+            ImageType type = ImageType::Shoe;
+            imageTypeForKind(state.images[state.viewerLeftIdx]->kind(),
+                             type);
+            state.alignDialog.type = type;
             state.viewerLocked = false;
             state.viewerLeft->resetView();
             state.viewerRight->resetView();
