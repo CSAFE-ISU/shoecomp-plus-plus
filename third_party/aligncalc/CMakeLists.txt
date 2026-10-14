@@ -11,6 +11,7 @@ add_library(aligncalc
     clq/clqmtch.cpp
     clq/graphInfo.cpp
     clq/search.cpp
+    models/rigidPoints.cpp
     transform.cpp
     rts/rtsFill.cpp
     rts/rtsUpdate.cpp

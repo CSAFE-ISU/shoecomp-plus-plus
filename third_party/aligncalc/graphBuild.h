@@ -9,8 +9,7 @@
 
 namespace AlignCalc
 {
-    // Model contract (no virtual functions; see
-    // .claude/aligncalc-generic-notes.md):
+    // Model contract (plain member functions, no virtual dispatch):
     //   int32_t leftCount() const;
     //   int32_t rightCount() const;
     //   bool admissible(int32_t left, int32_t right) const;

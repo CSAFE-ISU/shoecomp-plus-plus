@@ -2,6 +2,7 @@
 #define ALIGNCALC_H
 
 #include "Eigen/Dense"
+#include "alignTypes.h"
 #include "workerChannel.h"
 #include "multiQueue.h"
 #include <cstdint>
@@ -10,11 +11,6 @@
 
 namespace AlignCalc
 {
-
-    static constexpr size_t MAX_POINTS = 256;
-    using DoubleMatrixR =
-        Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
-                      Eigen::RowMajor>;
 
     struct RTSParams
     {
