@@ -149,16 +149,18 @@ target_link_libraries(shoecomp_core PUBLIC json aligncalc zlibstatic
 # 6b. scpp command-line tool
 # =====================================================================
 if(SHOECOMP_BUILD_CLI)
+    # CLI11 as a precompiled static library (defines CLI11_COMPILE for
+    # its users) instead of header-only, so it compiles once.
+    set(CLI11_PRECOMPILED ON CACHE BOOL "" FORCE)
+    add_subdirectory(third_party/CLI11 EXCLUDE_FROM_ALL)
+
     add_executable(scpp
         src/cli/main.cpp
         src/cli/compare.cpp
         src/cli/batch.cpp
         src/cli/report.cpp
     )
-    # CLI11 is header-only (include/CLI/CLI.hpp).
-    target_include_directories(scpp PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/third_party/CLI11/include)
-    target_link_libraries(scpp PRIVATE shoecomp_core)
+    target_link_libraries(scpp PRIVATE shoecomp_core CLI11::CLI11)
 endif()
 
 # =====================================================================
