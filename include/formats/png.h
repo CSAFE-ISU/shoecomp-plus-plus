@@ -2,6 +2,7 @@
 #define SHOECOMP_FORMATS_PNG
 
 #include "imgui.h"
+#include "formats/pngWrite.h"
 #include <string>
 
 namespace shoecomp
@@ -9,10 +10,6 @@ namespace shoecomp
     bool loadPngFromDisk(const std::string& filePath,
                          ImTextureID& outTextureId, int& outWidth,
                          int& outHeight);
-
-    int savePngToDisk(const std::string& filePath,
-                      const unsigned char* rgbaData, int width,
-                      int height);
 
     ImTextureID createTextureRGBA(const unsigned char* rgba, int width,
                                   int height);

@@ -37,6 +37,7 @@ namespace
         bool quiet = false;
         bool redetect = false;
         std::string saveAnnotationsDir;
+        int matchedResults = 1;
         ParamOverrides overrides;
     };
 
@@ -108,6 +109,12 @@ namespace
         app->add_flag("--redetect", st.redetect,
                       "Ignore annotation sidecars and always detect "
                       "(needs --detect2d-model for 2-D types)")
+            ->group("Input/Output");
+        app->add_option("--matched-results", st.matchedResults,
+                        "Alignments per pair written by --save-matched "
+                        "(best first)")
+            ->check(CLI::PositiveNumber)
+            ->capture_default_str()
             ->group("Input/Output");
         app->add_flag("-v,--progress", st.verbose,
                       "Print progress to stderr")
@@ -187,6 +194,7 @@ namespace
         c.run.redetect = st.redetect;
         c.run.saveAnnotationsDir = st.saveAnnotationsDir;
         c.quiet = st.quiet;
+        c.matchedResults = st.matchedResults;
         if (st.verbose && !st.quiet)
         {
             c.run.log = [](const std::string& m)
@@ -240,6 +248,12 @@ int main(int argc, char** argv)
                    "(not next to the inputs)")
         ->type_name("DIR")
         ->group("Input/Output");
+    app.add_option(
+           "--save-matched", cmp.matchedDir,
+           "Write the matched points/striations only, per input, "
+           "to DIR (JSON; 2-D also a numbered PNG)")
+        ->type_name("DIR")
+        ->group("Input/Output");
     addRunOptions(&app, st);
 
     BatchArgs bat;
@@ -274,6 +288,11 @@ int main(int argc, char** argv)
     batch
         ->add_flag("--save-annotations", bat.saveAnnotations,
                    "Write detected annotations to OUT/annotations/")
+        ->group("Input/Output");
+    batch
+        ->add_flag("--save-matched", bat.saveMatched,
+                   "Write matched-only annotations (and 2-D PNGs) to "
+                   "OUT/matched/")
         ->group("Input/Output");
     addRunOptions(batch, st);
 
@@ -351,11 +370,13 @@ int main(int argc, char** argv)
                 "scpp batch: give --all-pairs or --pairs FILE\n");
             return kExitUsage;
         }
-        if (!st.saveAnnotationsDir.empty())
+        if (!st.saveAnnotationsDir.empty() || !cmp.matchedDir.empty())
         {
-            std::fprintf(stderr,
-                         "scpp batch: use the --save-annotations flag "
-                         "(writes OUT/annotations/)\n");
+            std::fprintf(
+                stderr,
+                "scpp batch: --save-annotations/--save-matched "
+                "are flags here (OUT/annotations/, "
+                "OUT/matched/)\n");
             return kExitUsage;
         }
         return runBatch(run, bat);

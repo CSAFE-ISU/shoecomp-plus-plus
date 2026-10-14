@@ -22,20 +22,6 @@ namespace shoecomp
             return s.substr(a, b - a);
         }
 
-        // File-name-safe form of an item label.
-        std::string safeName(const std::string& label)
-        {
-            std::string s = label;
-            for (char& ch : s)
-            {
-                const unsigned char u = (unsigned char)ch;
-                if (!std::isalnum(u) && ch != '.' && ch != '-' &&
-                    ch != '_' && ch != '@')
-                    ch = '_';
-            }
-            return s;
-        }
-
         bool hasTypeExtension(ImageType type, const fs::path& p)
         {
             const std::string ext = p.extension().string();
@@ -202,6 +188,8 @@ namespace shoecomp
         }
         if (a.saveAnnotations)
             c.run.saveAnnotationsDir = (out / "annotations").string();
+        const std::string matchedDir =
+            a.saveMatched ? (out / "matched").string() : std::string();
         if (!writeTextFile((out / "params.ini").string(),
                            paramsToIni(c.params), err))
         {
@@ -238,11 +226,18 @@ namespace shoecomp
                 comparePair(left, right, c.params, c.run);
             if (r.status == PairStatus::Error) ++errors;
 
-            const std::string name = safeName(left.label) + "__" +
-                                     safeName(right.label) + ".json";
+            const std::string name = fileSafe(left.label) + "__" +
+                                     fileSafe(right.label) + ".json";
             const jt::Json doc = pairDocument(c.type, left, right, r);
             if (!writeTextFile((out / "pairs" / name).string(),
                                doc.toStringPretty() + "\n", err))
+            {
+                std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+                ++errors;
+            }
+            if (!matchedDir.empty() &&
+                !saveMatched(matchedDir, left, right, r,
+                             c.matchedResults, err))
             {
                 std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
                 ++errors;

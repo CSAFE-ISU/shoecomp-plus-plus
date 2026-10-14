@@ -41,7 +41,7 @@ namespace shoecomp
              LicJsonCpp_data, LicJsonCpp_size, kBoth},
             {"libpng", "1.6.55", "libpng/zlib License",
              "http://www.libpng.org/",
-             LicLibpng_data, LicLibpng_size, kInGui},
+             LicLibpng_data, LicLibpng_size, kBoth},
             {"zlib", "1.3.2", "zlib License",
              "https://zlib.net/",
              LicZlib_data, LicZlib_size, kBoth},

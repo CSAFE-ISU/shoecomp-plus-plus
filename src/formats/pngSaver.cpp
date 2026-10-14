@@ -1,4 +1,4 @@
-#include "formats/png.h"
+#include "formats/pngWrite.h"
 #include <png.h>
 #include <cstdio>
 #include <vector>

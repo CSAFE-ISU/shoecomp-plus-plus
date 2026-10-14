@@ -24,6 +24,14 @@ namespace shoecomp
         Peak = 11
     };
 
+    struct PointColor
+    {
+        float r, g, b, a;
+    };
+
+    // The GUI's default marker color per type (RGBA, 0..1).
+    PointColor defaultPointColor(PointType t);
+
     const char* pointTypeToString(PointType t);
     // Unknown strings map to Corner.
     PointType stringToPointType(const std::string& s);

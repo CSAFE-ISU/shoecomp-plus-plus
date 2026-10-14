@@ -25,14 +25,16 @@ namespace shoecomp
         Params params;
         RunOptions run;
         bool quiet = false;
+        int matchedResults = 1;  // alignments written by --save-matched
     };
 
     struct CompareArgs
     {
         std::string left, right;
         std::string leftAnn, rightAnn;
-        bool json = false;    // full JSON on stdout
-        std::string outFile;  // -o
+        bool json = false;       // full JSON on stdout
+        std::string outFile;     // -o
+        std::string matchedDir;  // --save-matched
     };
 
     struct BatchArgs
@@ -43,6 +45,7 @@ namespace shoecomp
         std::string outDir;
         bool recursive = false;
         bool saveAnnotations = false;  // -> <out>/annotations
+        bool saveMatched = false;      // -> <out>/matched
     };
 
     int runCompare(CliRun& c, const CompareArgs& a);
@@ -59,6 +62,28 @@ namespace shoecomp
                        const PairResult& r);
     bool writeTextFile(const std::string& path, const std::string& text,
                        std::string& err);
+
+    // File-name-safe form of an item label.
+    std::string fileSafe(const std::string& label);
+
+    // Matched-only output for the first |maxResults| alignments:
+    // <A>__<B>[_rK].{left,right}.matched.json (points / peaks[] in
+    // pair order) and, for 2-D types, .matched.png with numbered
+    // markers. Kept apart from detection output.
+    bool saveMatched(const std::string& dir, const Item& left,
+                     const Item& right, const PairResult& r,
+                     int maxResults, std::string& err);
+
+    struct Marker
+    {
+        double x, y;  // image pixels, top-left origin
+        PointColor color;
+        int number;  // drawn next to the marker
+    };
+    // Filled, outlined circles with white-boxed numbers, sized to the
+    // image.
+    void drawMarkers(std::vector<unsigned char>& rgba, int w, int h,
+                     const std::vector<Marker>& markers);
 }  // namespace shoecomp
 
 #endif

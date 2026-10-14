@@ -28,21 +28,30 @@ namespace shoecomp
 
         using PointType = ImageCanvas::PointType;
 
+        static ImVec4 defaultColor(PointType t)
+        {
+            const PointColor c = defaultPointColor(t);
+            return ImVec4(c.r, c.g, c.b, c.a);
+        }
+
         struct AnnotationStyle
         {
             float pointRadius = 5.0f;
-            ImVec4 cornerColor = ImVec4(1.0f, 0.2f, 0.2f, 0.86f);
-            ImVec4 centerColor = ImVec4(0.2f, 0.39f, 1.0f, 0.86f);
-            ImVec4 ridgeEndingColor = ImVec4(1.0f, 0.85f, 0.0f, 0.86f);
-            ImVec4 bifurcationColor = ImVec4(1.0f, 0.55f, 0.0f, 0.86f);
-            ImVec4 otherColor = ImVec4(0.8f, 0.8f, 0.0f, 0.86f);
-            ImVec4 coreColor = ImVec4(0.0f, 0.85f, 0.85f, 0.86f);
-            ImVec4 deltaColor = ImVec4(0.85f, 0.0f, 0.85f, 0.86f);
-            ImVec4 wordStartColor = ImVec4(0.1f, 0.8f, 0.35f, 0.86f);
-            ImVec4 wordEndColor = ImVec4(0.95f, 0.22f, 0.12f, 0.86f);
-            ImVec4 intersectionColor = ImVec4(0.65f, 0.1f, 0.9f, 0.86f);
-            ImVec4 curveTurnColor = ImVec4(0.95f, 0.62f, 0.05f, 0.86f);
-            ImVec4 peakColor = ImVec4(1.0f, 0.85f, 0.1f, 0.95f);
+            ImVec4 cornerColor = defaultColor(PointType::Corner);
+            ImVec4 centerColor = defaultColor(PointType::Center);
+            ImVec4 ridgeEndingColor =
+                defaultColor(PointType::RidgeEnding);
+            ImVec4 bifurcationColor =
+                defaultColor(PointType::Bifurcation);
+            ImVec4 otherColor = defaultColor(PointType::Other);
+            ImVec4 coreColor = defaultColor(PointType::Core);
+            ImVec4 deltaColor = defaultColor(PointType::Delta);
+            ImVec4 wordStartColor = defaultColor(PointType::WordStart);
+            ImVec4 wordEndColor = defaultColor(PointType::WordEnd);
+            ImVec4 intersectionColor =
+                defaultColor(PointType::Intersection);
+            ImVec4 curveTurnColor = defaultColor(PointType::CurveTurn);
+            ImVec4 peakColor = defaultColor(PointType::Peak);
             ImVec4 valleyColor = ImVec4(0.1f, 0.6f, 1.0f, 0.95f);
             float boundsLineThickness = 2.0f;
             ImVec4 boundsColor = ImVec4(0.2f, 1.0f, 0.2f, 0.86f);

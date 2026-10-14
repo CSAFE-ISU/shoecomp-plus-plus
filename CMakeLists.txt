@@ -130,6 +130,7 @@ set(SC_CORE_SRCS
     src/formats/annotationIo.cpp
     src/formats/x3pLoader.cpp
     src/formats/x3pAnnotationIo.cpp
+    src/formats/pngSaver.cpp
 )
 add_library(shoecomp_core STATIC ${SC_CORE_SRCS})
 # zlib headers (zlib.h / zconf.h) for the x3p ZIP-container reader.
@@ -150,7 +151,8 @@ endif()
 # optional onnxruntime library (empty on Windows/macOS). onnxruntime
 # itself is NOT built or linked -- it is loaded at runtime if present.
 target_link_libraries(shoecomp_core PUBLIC json aligncalc zlibstatic
-                      ${SC_STB_LIB} ${SC_THREADS_LIB} ${CMAKE_DL_LIBS})
+                      png_static ${SC_STB_LIB} ${SC_THREADS_LIB}
+                      ${CMAKE_DL_LIBS})
 
 # =====================================================================
 # 6a. Embedded assets (binary_to_compressed_c) and license texts
@@ -257,6 +259,8 @@ if(SHOECOMP_BUILD_CLI)
         src/cli/compare.cpp
         src/cli/batch.cpp
         src/cli/report.cpp
+        src/cli/matched.cpp
+        src/cli/overlay.cpp
     )
     target_link_libraries(scpp PRIVATE shoecomp_core shoecomp_licenses
                           CLI11::CLI11)
@@ -291,7 +295,6 @@ set(SC_SRCS
     src/ui/imageCanvas3d.cpp
     src/ui/splash.cpp
     src/formats/pngLoader.cpp
-    src/formats/pngSaver.cpp
     src/formats/jpegLoader.cpp
     src/formats/platforms.cpp
     src/main.cpp
@@ -311,6 +314,5 @@ if(SHOECOMP_BUILD_GUI)
     list(APPEND SC_SRCS ${SC_GUI_ASSET_SRCS})
 
     hello_imgui_add_app(shoecomp ${SC_SRCS})
-    target_link_libraries(shoecomp PRIVATE shoecomp_core shoecomp_licenses
-                          png_static)
+    target_link_libraries(shoecomp PRIVATE shoecomp_core shoecomp_licenses)
 endif()

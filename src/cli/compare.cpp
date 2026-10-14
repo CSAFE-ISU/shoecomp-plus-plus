@@ -1,4 +1,5 @@
 #include <cstdio>
+#include <filesystem>
 
 #include "cli/cli.h"
 
@@ -13,6 +14,20 @@ namespace shoecomp
         {
             std::fprintf(stderr, "scpp: %s\n", err.c_str());
             return kExitUsage;
+        }
+        if (!a.matchedDir.empty() && !c.run.saveAnnotationsDir.empty())
+        {
+            namespace fs = std::filesystem;
+            std::error_code ec;
+            if (fs::weakly_canonical(a.matchedDir, ec) ==
+                fs::weakly_canonical(c.run.saveAnnotationsDir, ec))
+            {
+                std::fprintf(
+                    stderr,
+                    "scpp: --save-matched and --save-annotations "
+                    "need different directories\n");
+                return kExitUsage;
+            }
         }
         left.annPath = a.leftAnn;
         right.annPath = a.rightAnn;
@@ -31,6 +46,13 @@ namespace shoecomp
         const jt::Json doc = pairDocument(c.type, left, right, r);
         if (!a.outFile.empty() &&
             !writeTextFile(a.outFile, doc.toStringPretty() + "\n", err))
+        {
+            std::fprintf(stderr, "scpp: %s\n", err.c_str());
+            return kExitError;
+        }
+        if (!a.matchedDir.empty() &&
+            !saveMatched(a.matchedDir, left, right, r, c.matchedResults,
+                         err))
         {
             std::fprintf(stderr, "scpp: %s\n", err.c_str());
             return kExitError;
