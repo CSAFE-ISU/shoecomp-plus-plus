@@ -96,10 +96,14 @@ namespace AlignCalc
                            std::vector<EdgeAccumulator>& accs,
                            int32_t minSupport, GraphRows& out);
 
+        // Progress posts in 5% steps: with the clique search's, a run
+        // stays well under the channel's 64-message ring, so a later
+        // error message is never dropped however slowly the reader
+        // drains it.
         inline void reportProgress(WorkerChannel& channel, size_t done,
                                    size_t total, int& lastPct)
         {
-            int pct = total ? int((100 * done) / total) : 100;
+            int pct = total ? int((100 * done) / total) / 5 * 5 : 100;
             if (pct == lastPct) return;
             lastPct = pct;
             channel.report(0.25f + 0.0025f * pct, "building graph...");

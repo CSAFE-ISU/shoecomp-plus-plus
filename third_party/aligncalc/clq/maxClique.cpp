@@ -435,7 +435,9 @@ namespace AlignCalc
                         const int32_t d = done.fetch_add(1) + 1;
                         if (tid == 0)
                         {
-                            int pct = int((100LL * d) / n);
+                            // 5% steps (see reportProgress in
+                            // graphBuild.h).
+                            int pct = int((100LL * d) / n) / 5 * 5;
                             if (pct != lastPct)
                             {
                                 lastPct = pct;
