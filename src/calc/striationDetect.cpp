@@ -60,15 +60,6 @@ namespace shoecomp
             Eigen::Vector3d e2;
         };
 
-        // A worker thread's best (densest) Hough bin over its slice of
-        // the candidate directions. di = -1 means the slice was empty.
-        struct DirBest
-        {
-            long count = 0;  // votes in the densest bin
-            int di = -1;     // winning direction index
-            long key = 0;    // packed bin key of that bin
-        };
-
         // Separable NaN-aware box mean of a (H x W) float grid
         // (row-major index r*W+c), half-window |hw| cells, into |dst|.
         // Cells with no finite neighbour stay NaN.
@@ -128,12 +119,6 @@ namespace shoecomp
                             (float)((ps[hi + 1] - ps[lo]) / cnt);
                 }
             }
-        }
-
-        // Bin key packing signed indices (|idx| < 32768) into one long.
-        long binKey(long iu, long iv)
-        {
-            return (iu + 32768L) * 65536L + (iv + 32768L);
         }
     }  // namespace
 
@@ -386,91 +371,117 @@ namespace shoecomp
             std::min(500, std::max(20, params.maxCount * 6));
         const double distThresh = 2.0 * binSize;
 
-        // Every candidate direction projects the crests onto the plane
-        // perpendicular to it, and a projection can never be longer
-        // than the crest's distance from the origin p0, so one square
-        // bin grid of half-extent R (in bins) covers the projections
-        // for ALL directions. A dense grid indexed by (iu+R, iv+R)
-        // replaces the per-direction hash map -- array indexing instead
-        // of hashing -- and a per-direction "touched" list resets only
-        // the cells that were written, so both the fill and the clear
-        // stay O(alive crests) rather than O(grid) (a full clear would
-        // dwarf the fill).
-        double maxRad = 0.0;
-        for (const auto& cr : crests)
-            maxRad = std::max(maxRad, (cr.p - p0).norm());
-        const long R = (long)std::ceil(maxRad / binSize) + 2;
-        const long gside = 2 * R + 1;
-        const size_t gcells = (size_t)gside * (size_t)gside;
+        // Each pass takes the densest (direction, bin) of the alive
+        // crests as the next line. Rather than re-project every alive
+        // crest onto every direction on every pass, each direction
+        // keeps a vote grid across passes: filled once, then the
+        // crests a pass consumes have their votes subtracted. Over the
+        // whole run that is about two full projection sweeps instead
+        // of one per extracted line. The winner is the one a full
+        // rescan would pick -- highest vote count, ties to the lowest
+        // direction index, and within that direction the bin that
+        // reaches the count first in crest order -- so the output does
+        // not depend on the thread count and matches the rescan.
+        const int D = (int)dirs.size();
+        std::vector<Eigen::Vector3d> off((size_t)N);
+        for (int i = 0; i < N; ++i) off[i] = crests[i].p - p0;
+        auto binOf = [&](const HoughDir& hd, const Eigen::Vector3d& d,
+                         long& iu, long& iv)
+        {
+            iu = (long)std::llround(d.dot(hd.e1) / binSize);
+            iv = (long)std::llround(d.dot(hd.e2) / binSize);
+        };
 
-        // Direction-loop parallelism. Each iteration's search over the
-        // candidate directions is independent per direction (every
-        // direction fills its own grid over the read-only crest cloud),
-        // so split the directions across worker threads and reduce
-        // their local bests. The reduction keeps the serial tie-break
-        // -- highest vote count, then lowest direction index -- so the
-        // outcome is identical to the single-threaded scan for any
-        // thread count (important: detection stays reproducible). Small
-        // inputs run serially; the thread setup would not pay off.
+        // Votes of one direction, dense over the bounding box of its
+        // bins (a few hundred bins a side: the crests spread across
+        // the striations and in depth, not along them).
+        struct VoteGrid
+        {
+            long u0 = 0, v0 = 0;  // bin of cell 0
+            long nv = 1;          // cells per u row
+            std::vector<int> count;
+            std::vector<size_t> cells;  // cells that ever had votes
+            int max = 0;
+            bool stale = false;  // a cell at |max| lost a vote
+
+            size_t cell(long iu, long iv) const
+            {
+                return (size_t)((iu - u0) * nv + (iv - v0));
+            }
+            void refreshMax()
+            {
+                max = 0;
+                for (size_t c : cells) max = std::max(max, count[c]);
+                stale = false;
+            }
+        };
+        std::vector<VoteGrid> votes((size_t)D);
+
+        // Small inputs run serially; the thread setup would not pay
+        // off. Workers always own whole directions, so they never
+        // share a grid.
         int nThreads =
             params.numThreads > 0
                 ? params.numThreads
                 : (int)std::max(1u,
                                 std::thread::hardware_concurrency());
-        nThreads = std::min(nThreads, (int)dirs.size());
+        nThreads = std::min(nThreads, D);
         if (nThreads < 1 || N < 512) nThreads = 1;
-        std::vector<std::vector<int>> gridPool(
-            nThreads, std::vector<int>(gcells, 0));
-        std::vector<std::vector<size_t>> touchPool(nThreads);
-        for (auto& tv : touchPool) tv.reserve((size_t)N);
-        std::vector<DirBest> partial(nThreads);
-
-        // Scan the direction slice assigned to worker |t| against the
-        // current |alive| crests, recording that slice's densest bin.
-        // The grid is all-zero on entry to each direction and is
-        // restored to all-zero via the touched list before the next
-        // one.
-        auto scanChunk = [&](int t)
+        auto forDirections = [&](int workers, auto&& fn)
         {
-            const int D = (int)dirs.size();
-            const int lo = (int)((long)t * D / nThreads);
-            const int hi = (int)((long)(t + 1) * D / nThreads);
-            std::vector<int>& grid = gridPool[t];
-            std::vector<size_t>& touched = touchPool[t];
-            DirBest best;
-            for (int di = lo; di < hi; ++di)
+            auto run = [&](int t)
             {
-                const HoughDir& hd = dirs[di];
-                touched.clear();
-                long dCount = 0, dKey = 0;
+                const int lo = (int)((long)t * D / workers);
+                const int hi = (int)((long)(t + 1) * D / workers);
+                for (int di = lo; di < hi; ++di) fn(di);
+            };
+            std::vector<std::thread> pool;
+            pool.reserve(workers - 1);
+            for (int t = 1; t < workers; ++t) pool.emplace_back(run, t);
+            run(0);
+            for (std::thread& th : pool) th.join();
+        };
+
+        // Fill every direction's grid with all crests.
+        forDirections(
+            nThreads,
+            [&](int di)
+            {
+                std::vector<long> bins(2 * (size_t)N);
+                long umin = std::numeric_limits<long>::max();
+                long vmin = umin;
+                long umax = std::numeric_limits<long>::min();
+                long vmax = umax;
                 for (int i = 0; i < N; ++i)
                 {
-                    if (!alive[i]) continue;
-                    Eigen::Vector3d d = crests[i].p - p0;
-                    long iu =
-                        (long)std::llround(d.dot(hd.e1) / binSize);
-                    long iv =
-                        (long)std::llround(d.dot(hd.e2) / binSize);
-                    size_t idx = (size_t)(iu + R) * (size_t)gside +
-                                 (size_t)(iv + R);
-                    int cnt = ++grid[idx];
-                    if (cnt == 1) touched.push_back(idx);
-                    if (cnt > dCount)
-                    {
-                        dCount = cnt;
-                        dKey = binKey(iu, iv);
-                    }
+                    long iu, iv;
+                    binOf(dirs[di], off[i], iu, iv);
+                    bins[2 * i] = iu;
+                    bins[2 * i + 1] = iv;
+                    umin = std::min(umin, iu);
+                    umax = std::max(umax, iu);
+                    vmin = std::min(vmin, iv);
+                    vmax = std::max(vmax, iv);
                 }
-                for (size_t idx : touched) grid[idx] = 0;
-                if (dCount > best.count)
-                {
-                    best.count = dCount;
-                    best.di = di;
-                    best.key = dKey;
-                }
-            }
-            partial[t] = best;
-        };
+                VoteGrid& g = votes[di];
+                g.u0 = umin;
+                g.v0 = vmin;
+                g.nv = vmax - vmin + 1;
+                g.count.assign((size_t)(umax - umin + 1) * g.nv, 0);
+                for (int i = 0; i < N; ++i)
+                    ++g.count[g.cell(bins[2 * i], bins[2 * i + 1])];
+                for (size_t c = 0; c < g.count.size(); ++c)
+                    if (g.count[c] > 0) g.cells.push_back(c);
+                g.refreshMax();
+            });
+
+        std::vector<int> live((size_t)N);  // alive crests, ascending
+        for (int i = 0; i < N; ++i) live[i] = i;
+        size_t maxCells = 0;
+        for (const VoteGrid& g : votes)
+            maxCells = std::max(maxCells, g.count.size());
+        std::vector<int> tieCount(maxCells, 0);
+        std::vector<size_t> tieTouched;
 
         for (int iter = 0; iter < maxIter; ++iter)
         {
@@ -482,53 +493,85 @@ namespace shoecomp
             tick(0.5f + 0.45f * (float)iter / (float)maxIter,
                  "Detecting lines...");
 
-            if (nThreads == 1) { scanChunk(0); }
-            else
-            {
-                std::vector<std::thread> pool;
-                pool.reserve(nThreads - 1);
-                for (int t = 1; t < nThreads; ++t)
-                    pool.emplace_back(scanChunk, t);
-                scanChunk(0);
-                for (std::thread& th : pool) th.join();
-            }
-
-            // Reduce the per-thread bests: highest vote count wins,
-            // ties go to the lowest direction index (matching the
-            // serial scan).
-            long bestCount = 0, bestKey = 0;
+            // Highest vote count, ties to the lowest direction.
+            int bestCount = 0;
             int bestDir = -1;
-            for (int t = 0; t < nThreads; ++t)
+            for (int di = 0; di < D; ++di)
             {
-                const DirBest& b = partial[t];
-                if (b.di < 0) continue;
-                if (b.count > bestCount ||
-                    (b.count == bestCount && b.di < bestDir))
+                VoteGrid& g = votes[di];
+                if (g.stale) g.refreshMax();
+                if (g.max > bestCount)
                 {
-                    bestCount = b.count;
-                    bestDir = b.di;
-                    bestKey = b.key;
+                    bestCount = g.max;
+                    bestDir = di;
                 }
             }
-
             if (bestDir < 0 || bestCount < minVotes) break;
 
-            // Gather inliers of the winning bin (+/-1 bin tolerance).
+            // The winning bin: the only one at bestCount, or else the
+            // first of them to reach it when counting the alive
+            // crests in order.
             const HoughDir& hd = dirs[bestDir];
-            long keyIu = bestKey / 65536L - 32768L;
-            long keyIv = bestKey % 65536L - 32768L;
-            std::vector<int> gathered;
-            for (int i = 0; i < N; ++i)
+            const VoteGrid& bg = votes[bestDir];
+            size_t top = 0, numTop = 0;
+            for (size_t c : bg.cells)
+                if (bg.count[c] == bestCount && numTop++ == 0) top = c;
+            if (numTop > 1)
             {
-                if (!alive[i]) continue;
-                Eigen::Vector3d d = crests[i].p - p0;
-                long iu = (long)std::llround(d.dot(hd.e1) / binSize);
-                long iv = (long)std::llround(d.dot(hd.e2) / binSize);
+                for (int i : live)
+                {
+                    long iu, iv;
+                    binOf(hd, off[i], iu, iv);
+                    const size_t c = bg.cell(iu, iv);
+                    if (tieCount[c]++ == 0) tieTouched.push_back(c);
+                    if (tieCount[c] == bestCount)
+                    {
+                        top = c;
+                        break;
+                    }
+                }
+                for (size_t c : tieTouched) tieCount[c] = 0;
+                tieTouched.clear();
+            }
+            const long keyIu = (long)(top / (size_t)bg.nv) + bg.u0;
+            const long keyIv = (long)(top % (size_t)bg.nv) + bg.v0;
+
+            // Gather inliers of the winning bin (+/-1 bin tolerance).
+            std::vector<int> gathered;
+            for (int i : live)
+            {
+                // Most crests are far from the line: a bin within one
+                // of keyIu needs |u - keyIu| <= 1.5, so reject clear
+                // misses before the full binning.
+                const double u = off[i].dot(hd.e1) / binSize;
+                if (std::abs(u - (double)keyIu) > 2.0) continue;
+                long iu, iv;
+                binOf(hd, off[i], iu, iv);
                 if (std::abs(iu - keyIu) <= 1 &&
                     std::abs(iv - keyIv) <= 1)
                     gathered.push_back(i);
             }
-            for (int i : gathered) alive[i] = 0;  // consume (NMS)
+            // Consume them (NMS): drop them from the live list and
+            // subtract their votes in every direction.
+            for (int i : gathered) alive[i] = 0;
+            live.erase(std::remove_if(live.begin(), live.end(),
+                                      [&](int i) { return !alive[i]; }),
+                       live.end());
+            const int workers =
+                gathered.size() * (size_t)D >= 65536 ? nThreads : 1;
+            forDirections(
+                workers,
+                [&](int di)
+                {
+                    VoteGrid& g = votes[di];
+                    for (int i : gathered)
+                    {
+                        long iu, iv;
+                        binOf(dirs[di], off[i], iu, iv);
+                        if (g.count[g.cell(iu, iv)]-- == g.max)
+                            g.stale = true;
+                    }
+                });
             if ((int)gathered.size() < minVotes) continue;
 
             // PCA refit of the gathered crest positions.
