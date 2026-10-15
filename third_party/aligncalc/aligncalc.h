@@ -27,7 +27,7 @@ namespace AlignCalc
         // SimilarityParams (angleCol < 0 = off).
         int32_t angleCol;
         double angleTolDeg;
-        // Anchored clique search (SimilarityAnchor2D; scale range 1
+        // Anchored clique search (PointAnchor2D; scale range 1
         // when sameScale) with this relative tolerance; 0 = off.
         double anchorTol;
 

@@ -1,6 +1,7 @@
 #ifndef ALIGNCALC_ALIGN_WITH_RULES_H
 #define ALIGNCALC_ALIGN_WITH_RULES_H
 #include "aligncalc.h"
+#include "pointAnchor2d.h"
 #include "rigidPoints.h"
 #include "similarity2d.h"
 
@@ -87,8 +88,8 @@ namespace AlignCalc
                 return alignWith(model, left_pts, right_pts, cols,
                                  params, channel, results);
             // scale range 1: a rigid anchor, no reflection
-            SimilarityAnchor2D anchor(left_pts, right_pts, cols, 1.0,
-                                      params.anchorTol);
+            PointAnchor2D anchor(left_pts, right_pts, cols, 1.0,
+                                 params.anchorTol);
             return alignWith(model, left_pts, right_pts, cols, params,
                              channel, results, &anchor);
         }
@@ -102,8 +103,8 @@ namespace AlignCalc
         if (!(params.anchorTol > 0.0))
             return alignWith(model, left_pts, right_pts, cols, params,
                              channel, results);
-        SimilarityAnchor2D anchor(left_pts, right_pts, cols,
-                                  params.scaleRange, params.anchorTol);
+        PointAnchor2D anchor(left_pts, right_pts, cols,
+                             params.scaleRange, params.anchorTol);
         return alignWith(model, left_pts, right_pts, cols, params,
                          channel, results, &anchor);
     }
