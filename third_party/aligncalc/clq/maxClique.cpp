@@ -2,7 +2,9 @@
 #include "graphBuild.h"
 #include <algorithm>
 #include <atomic>
+#include <limits>
 #include <mutex>
+#include <set>
 
 #ifdef _MSC_VER
 #include <intrin.h>
@@ -90,19 +92,30 @@ namespace AlignCalc
         // Branch and bound over each root's later neighbors with a
         // greedy-coloring bound (MCQ/BBMC style). Prunes only when the
         // bound is below the incumbent, so every maximum clique is
-        // reached and the result set does not depend on thread timing.
+        // reached and the result set does not depend on thread timing
+        // -- up to the tie cap; past it, searchCliques re-searches on
+        // one thread (see capped()).
         class Solver
         {
            public:
             static constexpr size_t kTieCap = 4096;
 
+            // |fixedSize| > 0: deterministic mode for that exact clique
+            // size (see searchCliques): every root keeps the first
+            // clique its search finds, and run() returns those of the
+            // |tieCap| lowest roots that have one, in root order.
             Solver(const GraphRows& g, const CliqueParams& p,
-                   WorkerChannel& channel)
-                : g_(g), p_(p), channel_(channel)
+                   WorkerChannel& channel, size_t tieCap = kTieCap,
+                   int32_t fixedSize = 0)
+                : g_(g), p_(p), channel_(channel), tieCap_(tieCap),
+                  fixed_(fixedSize)
             {
             }
 
             bool run(std::vector<std::vector<int32_t>>& out);
+            // More maximum cliques existed than the tie cap kept:
+            // which ones were kept depends on thread timing.
+            bool capped() const { return strict_.load(); }
 
            private:
             struct Scratch
@@ -119,6 +132,8 @@ namespace AlignCalc
                 std::vector<uint8_t> keep;
                 size_t words = 0;
                 uint32_t ticks = 0;
+                int32_t rootIdx = 0;  // index in root order
+                bool hit = false;     // fixed mode: root has its clique
             };
 
             int32_t threshold() const
@@ -132,17 +147,36 @@ namespace AlignCalc
             void anchoredRoot(int32_t v, Scratch& s);
             void branch(Scratch& s);
             void expand(size_t depth, Scratch& s);
-            void record(const std::vector<int32_t>& clique);
+            void record(Scratch& s);
+            // stop the current root: cancelled, or (fixed mode) done or
+            // past the cutoff
+            bool quit(const Scratch& s) const
+            {
+                return stop_.load(std::memory_order_relaxed) || s.hit ||
+                       s.rootIdx >
+                           cutoff_.load(std::memory_order_relaxed);
+            }
 
             const GraphRows& g_;
             const CliqueParams& p_;
             WorkerChannel& channel_;
+            const size_t tieCap_;
+            const int32_t fixed_;
             std::vector<int32_t> order_, pos_, core_;
             std::atomic<int32_t> best_{0};
             std::atomic<bool> strict_{false};
             std::atomic<bool> stop_{false};
+            // tie cap reached at upperBound: nothing left to find
+            std::atomic<bool> complete_{false};
             std::mutex mu_;
             std::vector<std::vector<int32_t>> found_;
+            // fixed mode: first clique per root, the roots that have
+            // one, and the tieCap-th lowest of them (roots past it can
+            // be skipped)
+            std::vector<std::vector<int32_t>> rootHit_;
+            std::set<int32_t> hitRoots_;
+            std::atomic<int32_t> cutoff_{
+                std::numeric_limits<int32_t>::max()};
         };
 
         int32_t Solver::greedy() const
@@ -180,8 +214,21 @@ namespace AlignCalc
             return bestSize;
         }
 
-        void Solver::record(const std::vector<int32_t>& clique)
+        void Solver::record(Scratch& sc)
         {
+            const std::vector<int32_t>& clique = sc.clique;
+            if (fixed_ > 0)
+            {
+                if (int32_t(clique.size()) < fixed_ || sc.hit) return;
+                sc.hit = true;
+                rootHit_[sc.rootIdx] = clique;
+                std::lock_guard<std::mutex> lock(mu_);
+                hitRoots_.insert(sc.rootIdx);
+                if (hitRoots_.size() >= tieCap_)
+                    cutoff_.store(
+                        *std::next(hitRoots_.begin(), tieCap_ - 1));
+                return;
+            }
             const int32_t s = int32_t(clique.size());
             if (s < threshold()) return;
             std::lock_guard<std::mutex> lock(mu_);
@@ -195,10 +242,17 @@ namespace AlignCalc
             }
             else if (s == b && !strict_.load())
             {
-                if (found_.size() < kTieCap)
+                if (found_.size() < tieCap_)
                     found_.push_back(clique);
                 else
                     strict_.store(true);
+                // No larger clique can exist, so a full tie set ends
+                // the search.
+                if (found_.size() >= tieCap_ && b >= p_.upperBound)
+                {
+                    complete_.store(true);
+                    stop_.store(true);
+                }
             }
         }
 
@@ -239,7 +293,7 @@ namespace AlignCalc
             if (later.empty() || p_.upperBound <= 1)
             {
                 s.clique.assign(1, v);
-                record(s.clique);
+                record(s);
                 return;
             }
             if (int32_t(later.size()) + 1 < thr) return;
@@ -256,7 +310,7 @@ namespace AlignCalc
                 if (((++s.ticks) & 0xff) == 0 &&
                     channel_.should_cancel())
                     stop_.store(true);
-                if (stop_.load(std::memory_order_relaxed)) return;
+                if (quit(s)) return;
                 thr = threshold();
                 const size_t rest = later.size() - i - 1;
                 if (int32_t(rest) + 2 < thr) return;
@@ -320,7 +374,7 @@ namespace AlignCalc
             for (size_t a = 0; a < m; ++a)
                 s.stack[a / 64] |= Word(1) << (a % 64);
             if (m == 0 || int32_t(s.clique.size()) >= p_.upperBound)
-                record(s.clique);
+                record(s);
             else
                 expand(0, s);
         }
@@ -373,7 +427,7 @@ namespace AlignCalc
                 if (((++s.ticks) & 0xfff) == 0 &&
                     channel_.should_cancel())
                     stop_.store(true);
-                if (stop_.load(std::memory_order_relaxed)) return;
+                if (quit(s)) return;
                 if (csize + col[i] < threshold()) return;
                 const int32_t v = ord[i];
                 const Word* nv = s.adj.data() + size_t(v) * W;
@@ -385,7 +439,7 @@ namespace AlignCalc
                 }
                 s.clique.push_back(s.members[v]);
                 if (!any || int32_t(s.clique.size()) >= p_.upperBound)
-                    record(s.clique);
+                    record(s);
                 else
                     expand(depth + 1, s);
                 s.clique.pop_back();
@@ -396,6 +450,7 @@ namespace AlignCalc
         bool Solver::run(std::vector<std::vector<int32_t>>& out)
         {
             const int32_t n = int32_t(g_.size());
+            if (fixed_ > 0) rootHit_.assign(n, {});
             coreOrder(g_, order_, core_);
             pos_.resize(n);
             for (int32_t i = 0; i < n; ++i) pos_[order_[i]] = i;
@@ -426,8 +481,10 @@ namespace AlignCalc
                             return;
                         }
                         const int32_t i = next.fetch_add(1);
-                        if (i >= n) return;
+                        if (i >= n || i > cutoff_.load()) return;
                         const int32_t v = order_[n - 1 - i];
+                        s.rootIdx = i;
+                        s.hit = false;
                         if (p_.constraint)
                             anchoredRoot(v, s);
                         else
@@ -447,7 +504,17 @@ namespace AlignCalc
                         }
                     }
                 });
-            if (stop_.load()) return false;
+            if (stop_.load() && !complete_.load()) return false;
+            if (fixed_ > 0)
+            {
+                out.clear();
+                for (int32_t r : hitRoots_)
+                {
+                    if (out.size() >= tieCap_) break;
+                    out.push_back(rootHit_[r]);
+                }
+                return true;
+            }
             out.swap(found_);
             return true;
         }
@@ -462,9 +529,34 @@ namespace AlignCalc
         if (rows.size() == 0 || rows.adj.empty() ||
             channel.should_cancel())
             return false;
-        Solver solver(rows, params, channel);
+        const size_t want = std::max<size_t>(1, params.numResults);
         std::vector<std::vector<int32_t>> cliques;
-        if (!solver.run(cliques) || cliques.empty()) return false;
+        if (!params.deterministic)
+        {
+            Solver solver(rows, params, channel);
+            if (!solver.run(cliques) || cliques.empty()) return false;
+        }
+        else
+        {
+            // The maximum size is always reproducible; which of many
+            // tied cliques the parallel search keeps is not. So first
+            // find the size (stop collecting ties at the second), then,
+            // if it is tied, take the first clique of that size in
+            // each root's (deterministic) search, for the lowest roots.
+            Solver solver(rows, params, channel, 1);
+            if (!solver.run(cliques) || cliques.empty()) return false;
+            if (solver.capped())
+            {
+                CliqueParams fixed = params;
+                fixed.lowerBound = fixed.upperBound =
+                    int32_t(cliques.front().size());
+                Solver again(rows, fixed, channel, want,
+                             fixed.lowerBound);
+                cliques.clear();
+                if (!again.run(cliques) || cliques.empty())
+                    return false;
+            }
+        }
 
         for (const auto& clq : cliques)
         {
@@ -476,8 +568,7 @@ namespace AlignCalc
         }
         std::sort(out.begin(), out.end());
         out.erase(std::unique(out.begin(), out.end()), out.end());
-        if (out.size() > std::max<size_t>(1, params.numResults))
-            out.resize(std::max<size_t>(1, params.numResults));
+        if (out.size() > want) out.resize(want);
         return true;
     }
 

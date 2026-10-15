@@ -131,6 +131,20 @@ namespace shoecomp
         if (settings.minLines < 2) settings.minLines = 2;
         ImGui::InputInt("Results", &settings.numResults);
         if (settings.numResults < 1) settings.numResults = 1;
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Distinct alignments, best first: each "
+                "later one is a different transform.");
+        ImGui::DragFloat("Later results: min fraction of best",
+                         &settings.distinctMinFrac, 0.01f, 0.0f, 1.0f,
+                         "%.2f");
+        ImGui::DragFloat("Max rotation (deg, 0 = off)",
+                         &settings.maxRotationDeg, 1.0f, 0.0f, 180.0f,
+                         "%.0f");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip(
+                "Reject alignments that rotate one land by more "
+                "than this,\ne.g. reversed end-for-end.");
         ImGui::SliderInt("Workers", &numWorkers, 1, 16);
         ImGui::PopItemWidth();
         ImGui::EndDisabled();

@@ -71,6 +71,10 @@ struct WorkerChannel
     std::atomic<bool> is_running{false};
     std::atomic<float> progress{0.0f};
     SPSCRing<64> messages;
+    // Worker-side switch: report() still updates |progress| but posts
+    // no message (for long runs whose final error must still fit the
+    // ring). Only the worker thread touches it.
+    bool muteProgress = false;
 
     void post(MsgKind kind, const char* text = "", float p = 0.0f)
     {
@@ -87,7 +91,7 @@ struct WorkerChannel
     void report(float p, const char* t)
     {
         progress.store(p);
-        post(MsgKind::Progress, t, p);
+        if (!muteProgress) post(MsgKind::Progress, t, p);
     }
     void done()
     {

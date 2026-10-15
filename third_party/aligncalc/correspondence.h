@@ -92,6 +92,10 @@ namespace AlignCalc
         int32_t lowerBound = 3;
         int32_t upperBound = 500;
         const CliqueConstraint* constraint = nullptr;
+        // Reproducible result regardless of thread timing, even when
+        // more maximum cliques tie than the solver keeps (costs a
+        // second search in that case).
+        bool deterministic = false;
     };
 
     bool searchCliques(const GraphRows&, const CliqueParams&,

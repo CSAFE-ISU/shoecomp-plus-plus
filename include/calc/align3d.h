@@ -19,8 +19,14 @@ namespace shoecomp
         double maxLengthRatio = 0.0;  // > 1: bound on longer/shorter
         double extentScale = 0.0;     // see AlignCalc::LineParams
         size_t numWorkers = 4;
-        size_t numResults = 2;
+        size_t numResults = 2;  // distinct alignments, best first
         int minLines = 10;
+        // Alignments after the best need at least this fraction of
+        // its matched lines (and minLines).
+        double distinctMinFrac = 0.7;
+        // Reject alignments rotating one land by more than this
+        // (degrees; e.g. 180 = reversed end-for-end); 0 = off.
+        double maxRotationDeg = 0.0;
     };
 
     struct StriationAlignment

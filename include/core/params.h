@@ -42,6 +42,8 @@ namespace shoecomp
         float extentScale = 0.0f;     // 0 = off
         int minLines = 10;
         int numResults = 2;
+        float distinctMinFrac = 0.7f;
+        float maxRotationDeg = 30.0f;  // 0 = off
 
         StriationAlignParams toParams(size_t numWorkers) const;
     };

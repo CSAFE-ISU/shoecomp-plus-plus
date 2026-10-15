@@ -116,6 +116,8 @@ namespace shoecomp
         p.maxLengthRatio = maxLengthRatio;
         p.extentScale = extentScale;
         p.minLines = minLines;
+        p.distinctMinFrac = distinctMinFrac;
+        p.maxRotationDeg = maxRotationDeg;
         p.numResults = (size_t)numResults;
         p.numWorkers = numWorkers;
         return p;
@@ -206,8 +208,18 @@ namespace shoecomp
              ParamKind::Float, SC_REF(align3d.extentScale)},
             {"align3d", "min_matched", "Minimum matched striations",
              ParamKind::Int, SC_REF(align3d.minLines)},
-            {"align3d", "results", "Alignments to return",
+            {"align3d", "results",
+             "Distinct alignments to return (each a different "
+             "transform), best first",
              ParamKind::Int, SC_REF(align3d.numResults)},
+            {"align3d", "distinct_min_frac",
+             "Alignments after the best need at least this fraction "
+             "of its matched striations",
+             ParamKind::Float, SC_REF(align3d.distinctMinFrac)},
+            {"align3d", "max_rotation_deg",
+             "Reject alignments that rotate one land by more than this "
+             "(deg; e.g. reversed end-for-end); 0 = off",
+             ParamKind::Float, SC_REF(align3d.maxRotationDeg)},
         };
         // clang-format on
         return table;
@@ -439,6 +451,11 @@ namespace shoecomp
             return bad("[align3d] min_matched must be >= 2");
         if (l.numResults < 1)
             return bad("[align3d] results must be >= 1");
+        if (!(l.distinctMinFrac >= 0.0f && l.distinctMinFrac <= 1.0f))
+            return bad("[align3d] distinct_min_frac must be in [0, 1]");
+        if (!(l.maxRotationDeg >= 0.0f && l.maxRotationDeg <= 180.0f))
+            return bad(
+                "[align3d] max_rotation_deg must be in [0, 180]");
         return true;
     }
 }  // namespace shoecomp

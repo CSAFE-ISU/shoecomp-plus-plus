@@ -87,6 +87,16 @@ scpp version                             # version + licenses
   their relative direction (`theta`) within
   `--align2d-minutia-angle-tol-deg` (default 20, 0 = off); the GUI
   Align dialog applies the same rules.
+- **x3p alignments:** `[align3d] results` are distinct alignments,
+  best first: after each one, every striation pair its transform
+  explains is set aside and the search runs again, so later results
+  are genuinely different placements rather than variants of the
+  best. Each later one needs `min_matched` striations and at least
+  `distinct_min_frac` (default 0.7) of the best's count. Alignments
+  that rotate a land by more than `max_rotation_deg` (default 30;
+  e.g. reversed end-for-end) are rejected. Results are reproducible:
+  the same inputs give the same alignments for any `-j`. Every extra
+  result costs another search, so keep `results` small for big runs.
 - **Parameters:** every value the Align / Detect dialogs expose is a
   flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`)
   and a key in the INI file given with `-p`; `scpp params` prints them
