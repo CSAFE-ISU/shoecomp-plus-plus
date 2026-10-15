@@ -36,14 +36,13 @@ namespace shoecomp
             return out;
         }
 
-        bool writeSide(const fs::path& base, const Item& it,
+        // |stem| = output path without the extension.
+        bool writeSide(const std::string& stem, const Item& it,
                        const std::vector<std::pair<int, int>>& m,
                        bool left, std::string& err)
         {
-            const std::string side = left ? ".left" : ".right";
             const jt::Json ann = matchedAnnotations(it, m, left);
-            const std::string json =
-                base.string() + side + ".matched.json";
+            const std::string json = stem + ".json";
             const int rc = is3DType(it.type)
                                ? saveX3PAnnotations(json, ann)
                                : saveAnnotationsToFile(json, ann);
@@ -71,8 +70,7 @@ namespace shoecomp
                                    defaultPointColor(t), (int)k + 1});
             }
             drawMarkers(rgba, w, h, markers);
-            const std::string png =
-                base.string() + side + ".matched.png";
+            const std::string png = stem + ".png";
             if (savePngToDisk(png, rgba.data(), w, h) != 0)
             {
                 err = "cannot write " + png;
@@ -95,7 +93,9 @@ namespace shoecomp
         return s;
     }
 
-    bool saveMatched(const std::string& dir, const Item& left,
+    bool saveMatched(const std::string& dir, const std::string& base,
+                     const std::string& leftTag,
+                     const std::string& rightTag, const Item& left,
                      const Item& right, const PairResult& r,
                      int maxResults, std::string& err)
     {
@@ -105,12 +105,13 @@ namespace shoecomp
         const size_t n = std::min(r.matched.size(), (size_t)maxResults);
         for (size_t i = 0; i < n; ++i)
         {
-            std::string name =
-                fileSafe(left.label) + "__" + fileSafe(right.label);
+            std::string name = base;
             if (maxResults > 1) name += "_r" + std::to_string(i + 1);
-            const fs::path base = fs::path(dir) / name;
-            if (!writeSide(base, left, r.matched[i], true, err) ||
-                !writeSide(base, right, r.matched[i], false, err))
+            const std::string stem = (fs::path(dir) / name).string();
+            if (!writeSide(stem + leftTag, left, r.matched[i], true,
+                           err) ||
+                !writeSide(stem + rightTag, right, r.matched[i], false,
+                           err))
                 return false;
         }
         return true;

@@ -259,9 +259,11 @@ namespace shoecomp
                     opts.saveAnnotationsDir;
                 return false;
             }
-            const std::string out = (fs::path(opts.saveAnnotationsDir) /
-                                     annotationFileName(it))
-                                        .string();
+            const std::string out =
+                (fs::path(opts.saveAnnotationsDir) /
+                 (it.saveName.empty() ? annotationFileName(it)
+                                      : it.saveName))
+                    .string();
             const int rc =
                 is3DType(it.type)
                     ? saveX3PAnnotations(out, it.annotations)

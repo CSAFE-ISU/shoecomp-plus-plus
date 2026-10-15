@@ -51,8 +51,8 @@ namespace shoecomp
             return kExitError;
         }
         if (!a.matchedDir.empty() &&
-            !saveMatched(a.matchedDir, left, right, r, c.matchedResults,
-                         err))
+            !saveMatched(a.matchedDir, "matched", "_left", "_right",
+                         left, right, r, c.matchedResults, err))
         {
             std::fprintf(stderr, "scpp: %s\n", err.c_str());
             return kExitError;

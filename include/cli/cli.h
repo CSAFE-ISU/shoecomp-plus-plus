@@ -58,8 +58,14 @@ namespace shoecomp
                           const Item& right, const PairResult& r);
     void printSummary(std::FILE* f, const Item& left, const Item& right,
                       const PairResult& r);
+    // RFC 4180 quoting when needed.
+    std::string csvField(const std::string& s);
+    // summary.csv; |id| is the pair's number in the batch, which also
+    // names its files (pairs/cmp_<id>.json, matched/cmp_<id>_*).
+    // Inputs are numbered the same way in inputs.csv (id,input), which
+    // names annotations/in_<id>.json.
     std::string csvHeader(ImageType type);
-    std::string csvRow(const Item& left, const Item& right,
+    std::string csvRow(size_t id, const Item& left, const Item& right,
                        const PairResult& r);
     bool writeTextFile(const std::string& path, const std::string& text,
                        std::string& err);
@@ -68,10 +74,12 @@ namespace shoecomp
     std::string fileSafe(const std::string& label);
 
     // Matched-only output for the first |maxResults| alignments:
-    // <A>__<B>[_rK].{left,right}.matched.json (points / peaks[] in
-    // pair order) and, for 2-D types, .matched.png with numbered
-    // markers. Kept apart from detection output.
-    bool saveMatched(const std::string& dir, const Item& left,
+    // <base>[_rK]<leftTag>.json / <base>[_rK]<rightTag>.json (points
+    // / peaks[] in pair order) and, for 2-D types, a .png of each with
+    // numbered markers. Kept apart from detection output.
+    bool saveMatched(const std::string& dir, const std::string& base,
+                     const std::string& leftTag,
+                     const std::string& rightTag, const Item& left,
                      const Item& right, const PairResult& r,
                      int maxResults, std::string& err);
 

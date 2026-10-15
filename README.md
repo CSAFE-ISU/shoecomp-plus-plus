@@ -90,15 +90,19 @@ scpp version                             # version + licenses
 - **Output:** a summary per alignment on stdout; `--json` prints, and
   `-o FILE` writes, the full result, whose alignments use the GUI's
   *Save Alignment* format. `--save-matched DIR` writes each input's
-  matched points/striations only (JSON, loadable in the GUI) and, for
-  2-D inputs, a PNG with the matched points numbered so left #k pairs
-  with right #k.
+  matched points/striations only (`matched_left.json` /
+  `matched_right.json`, loadable in the GUI) and, for 2-D inputs, a
+  PNG of each with the matched points numbered so left #k pairs with
+  right #k.
 - **Batch:** `--all-pairs` compares every pair in the folder (`-r` to
   recurse); `--pairs FILE` takes one `left,right` per line. The output
-  folder gets `summary.csv` (one row per pair, best alignment),
-  `pairs/<A>__<B>.json`, the `params.ini` used, and, with the
-  `--save-annotations` / `--save-matched` flags, `annotations/` and
-  `matched/`.
+  folder gets `summary.csv` (one row per pair, best alignment; its
+  `id` column names the pair's files), `inputs.csv` (`id,input`, which
+  names each input's files), `pairs/cmp_<id>.json`, the `params.ini`
+  used, and, with the `--save-annotations` / `--save-matched` flags,
+  `annotations/in_<id>.json` and `matched/cmp_<id>_left.json` /
+  `_right.json` (plus `.png` for 2-D). Input names only appear in the
+  CSVs and inside the JSON, so long names are fine.
 - **Failures:** an input or pair that fails (unreadable file, no
   annotations, an error or exception in a comparison) is recorded as
   `error` with its reason, and the batch moves on. `--timeout SEC`

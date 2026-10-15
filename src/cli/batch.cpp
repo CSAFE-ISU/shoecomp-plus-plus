@@ -196,20 +196,49 @@ namespace shoecomp
             return f;
         }
 
-        std::string pairFileName(const Item& left, const Item& right)
+        // Output base name of pair |id| (its summary.csv id): short
+        // and independent of the input names, which can be too long
+        // for a file name once two are joined.
+        std::string pairBase(size_t id)
         {
-            return fileSafe(left.label) + "__" + fileSafe(right.label) +
-                   ".json";
+            return "cmp_" + std::to_string(id);
         }
 
+        std::string inputName(size_t id)
+        {
+            return "in_" + std::to_string(id) + ".json";
+        }
+
+        const char* const kInputsHeader = "id,input";
+
+        struct FinishedRow
+        {
+            std::string id;
+            std::string line;
+        };
+
         // Rows of a previous run's summary.csv that need no rerun
-        // (status ok or none), keyed by "left\nright". False with
-        // |err| when the folder holds a run with other parameters or
-        // another input type.
+        // (status ok or none), keyed by "left\nright", and the input
+        // ids of its inputs.csv, keyed by label. False with |err| when
+        // the folder holds a run with other parameters or another
+        // input type.
         bool loadFinished(const CliRun& c, const fs::path& out,
-                          std::map<std::string, std::string>& rows,
+                          std::map<std::string, FinishedRow>& rows,
+                          std::map<std::string, std::string>& inputIds,
                           std::string& err)
         {
+            std::ifstream inputs(out / "inputs.csv");
+            std::string head;
+            if (inputs && std::getline(inputs, head) &&
+                head == kInputsHeader)
+            {
+                std::string line;
+                while (std::getline(inputs, line))
+                {
+                    const auto f = splitCsv(line);
+                    if (f.size() == 2) inputIds[f[1]] = f[0];
+                }
+            }
             std::ifstream prev(out / "params.ini", std::ios::binary);
             if (prev)
             {
@@ -229,15 +258,16 @@ namespace shoecomp
             if (line != csvHeader(c.type))
             {
                 err = "--resume: " + (out / "summary.csv").string() +
-                      " is from a different input type";
+                      " is from a different input type or an older "
+                      "scpp (use a new --out-dir)";
                 return false;
             }
             while (std::getline(csv, line))
             {
                 const auto f = splitCsv(line);
-                if (f.size() < 3 || (f[2] != "ok" && f[2] != "none"))
+                if (f.size() < 4 || (f[3] != "ok" && f[3] != "none"))
                     continue;
-                rows[f[0] + "\n" + f[1]] = line;
+                rows[f[1] + "\n" + f[2]] = {f[0], line};
             }
             return true;
         }
@@ -245,8 +275,8 @@ namespace shoecomp
         // Prepare (once) + compare + write one pair's files. File
         // write failures are counted in |errors| and reported; the
         // returned result is the comparison's.
-        PairResult runPair(CliRun& c, Item& left, Item& right,
-                           const fs::path& out,
+        PairResult runPair(CliRun& c, size_t id, Item& left,
+                           Item& right, const fs::path& out,
                            const std::string& matchedDir, int& errors)
         {
             std::string err;
@@ -262,15 +292,17 @@ namespace shoecomp
             bool written = false;
             try
             {
-                const std::string name = pairFileName(left, right);
+                const std::string base = pairBase(id);
                 const jt::Json doc =
                     pairDocument(c.type, left, right, r);
                 written =
-                    writeTextFile((out / "pairs" / name).string(),
-                                  doc.toStringPretty() + "\n", err) &&
+                    writeTextFile(
+                        (out / "pairs" / (base + ".json")).string(),
+                        doc.toStringPretty() + "\n", err) &&
                     (matchedDir.empty() ||
-                     saveMatched(matchedDir, left, right, r,
-                                 c.matchedResults, err));
+                     saveMatched(matchedDir, base, "_left", "_right",
+                                 left, right, r, c.matchedResults,
+                                 err));
             }
             catch (const std::exception& e)
             {
@@ -325,20 +357,40 @@ namespace shoecomp
                          ec.message().c_str());
             return kExitError;
         }
-        std::map<std::string, std::string> finished;
-        if (a.resume && !loadFinished(c, out, finished, err))
+        // Inputs are numbered like pairs, in first-use order.
+        for (size_t k = 0; k < items.size(); ++k)
+            items[k].saveName = inputName(k + 1);
+
+        std::map<std::string, FinishedRow> finished;
+        std::map<std::string, std::string> oldInputIds;
+        if (a.resume &&
+            !loadFinished(c, out, finished, oldInputIds, err))
         {
             std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
             return kExitUsage;
         }
         std::vector<char> done(pairs.size(), 0);
         size_t numDone = 0;
+        // A finished pair is kept only when it and both its inputs
+        // keep their ids, so the files still belong to them when the
+        // pair or input list has changed (a renumbered input is then
+        // prepared again and its annotations saved under the new id).
+        auto sameInputId = [&](size_t i)
+        {
+            auto f = oldInputIds.find(items[i].label);
+            return f != oldInputIds.end() &&
+                   f->second == std::to_string(i + 1);
+        };
         for (size_t k = 0; k < pairs.size(); ++k)
         {
             const Item& l = items[pairs[k].first];
             const Item& r = items[pairs[k].second];
-            if (finished.count(l.label + "\n" + r.label) &&
-                fs::exists(out / "pairs" / pairFileName(l, r)))
+            auto f = finished.find(l.label + "\n" + r.label);
+            if (f != finished.end() &&
+                f->second.id == std::to_string(k + 1) &&
+                sameInputId(pairs[k].first) &&
+                sameInputId(pairs[k].second) &&
+                fs::exists(out / "pairs" / (pairBase(k + 1) + ".json")))
             {
                 done[k] = 1;
                 ++numDone;
@@ -355,6 +407,18 @@ namespace shoecomp
             std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
             return kExitError;
         }
+        {
+            std::string inputs = std::string(kInputsHeader) + "\n";
+            for (size_t k = 0; k < items.size(); ++k)
+                inputs += std::to_string(k + 1) + "," +
+                          csvField(items[k].label) + "\n";
+            if (!writeTextFile((out / "inputs.csv").string(), inputs,
+                               err))
+            {
+                std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+                return kExitError;
+            }
+        }
         std::ofstream csv(out / "summary.csv", std::ios::trunc);
         if (!csv)
         {
@@ -368,7 +432,7 @@ namespace shoecomp
             if (!done[k]) continue;
             const Item& l = items[pairs[k].first];
             const Item& r = items[pairs[k].second];
-            csv << finished[l.label + "\n" + r.label] << "\n";
+            csv << finished[l.label + "\n" + r.label].line << "\n";
         }
         csv.flush();
 
@@ -395,7 +459,8 @@ namespace shoecomp
             PairResult r;
             try
             {
-                r = runPair(c, left, right, out, matchedDir, errors);
+                r = runPair(c, k + 1, left, right, out, matchedDir,
+                            errors);
             }
             catch (const std::exception& e)
             {
@@ -413,7 +478,7 @@ namespace shoecomp
             if (r.status == PairStatus::Error ||
                 r.status == PairStatus::Timeout)
                 ++failed;
-            csv << csvRow(left, right, r) << "\n";
+            csv << csvRow(k + 1, left, right, r) << "\n";
             csv.flush();
             if (!c.quiet)
             {

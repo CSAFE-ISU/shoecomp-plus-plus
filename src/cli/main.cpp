@@ -276,7 +276,8 @@ int main(int argc, char** argv)
     app.add_option(
            "--save-matched", cmp.matchedDir,
            "Write the matched points/striations only, per input, "
-           "to DIR (JSON; 2-D also a numbered PNG)")
+           "to DIR/matched_{left,right}.json (2-D also a numbered "
+           "PNG)")
         ->type_name("DIR")
         ->group("Input/Output");
     addRunOptions(&app, st);
@@ -312,7 +313,8 @@ int main(int argc, char** argv)
         ->group("Input/Output");
     batch
         ->add_flag("--save-annotations", bat.saveAnnotations,
-                   "Write detected annotations to OUT/annotations/")
+                   "Write detected annotations to "
+                   "OUT/annotations/in_<id>.json (ids: inputs.csv)")
         ->group("Input/Output");
     batch
         ->add_flag("--resume", bat.resume,

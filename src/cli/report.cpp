@@ -19,18 +19,6 @@ namespace shoecomp
             return buf;
         }
 
-        std::string csvField(const std::string& s)
-        {
-            if (s.find_first_of(",\"\n") == std::string::npos) return s;
-            std::string q = "\"";
-            for (char c : s)
-            {
-                if (c == '"') q += '"';
-                q += c;
-            }
-            return q + "\"";
-        }
-
         // pitch/yaw/roll degrees and translation micrometres.
         void decompose(const StriationAlignment& a, double ang[3],
                        double t[3])
@@ -104,24 +92,37 @@ namespace shoecomp
         }
     }
 
+    std::string csvField(const std::string& s)
+    {
+        if (s.find_first_of(",\"\n") == std::string::npos) return s;
+        std::string q = "\"";
+        for (char c : s)
+        {
+            if (c == '"') q += '"';
+            q += c;
+        }
+        return q + "\"";
+    }
+
     std::string csvHeader(ImageType type)
     {
         if (is3DType(type))
-            return "left,right,status,n_results,matched,left_lines,"
+            return "id,left,right,status,n_results,matched,left_lines,"
                    "right_lines,pitch_deg,yaw_deg,roll_deg,tx_um,ty_um,"
                    "tz_um,rms_um,axial_weak,time_ms,message";
-        return "left,right,status,n_results,matched,left_points,"
+        return "id,left,right,status,n_results,matched,left_points,"
                "right_points,rotation_deg,dx,dy,scale,time_ms,message";
     }
 
-    std::string csvRow(const Item& left, const Item& right,
+    std::string csvRow(size_t id, const Item& left, const Item& right,
                        const PairResult& r)
     {
         std::ostringstream os;
-        os << csvField(left.label) << ',' << csvField(right.label)
-           << ',' << pairStatusName(r.status) << ',' << r.matched.size()
-           << ',' << (r.matched.empty() ? 0 : r.matched[0].size())
-           << ',' << left.count << ',' << right.count << ',';
+        os << id << ',' << csvField(left.label) << ','
+           << csvField(right.label) << ',' << pairStatusName(r.status)
+           << ',' << r.matched.size() << ','
+           << (r.matched.empty() ? 0 : r.matched[0].size()) << ','
+           << left.count << ',' << right.count << ',';
         if (!r.align3d.empty())
         {
             double ang[3], t[3];

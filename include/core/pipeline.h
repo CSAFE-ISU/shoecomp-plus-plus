@@ -24,7 +24,7 @@ namespace shoecomp
         // expiry the step is cancelled. 0 = no limit.
         double timeoutSec = 0.0;
         // Detection output directory (full detected annotations per
-        // input, <stem>.json); empty = don't save.
+        // input, Item::saveName); empty = don't save.
         std::string saveAnnotationsDir;
         std::function<void(const std::string&)> log;  // may be empty
     };
@@ -37,6 +37,9 @@ namespace shoecomp
         int record = -1;  // EBTS image record index, -1 = whole file
         std::string label;
         std::string annPath;  // explicit annotations; empty = sidecar
+        // File name of saved detection output; empty =
+        // annotationFileName().
+        std::string saveName;
 
         // Filled by prepareItem.
         bool prepared = false;
