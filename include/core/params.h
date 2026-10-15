@@ -28,6 +28,8 @@ namespace shoecomp
         float maxSurfDevDeg = 20.0f;
         int maxCount = 200;
         bool includeValleys = true;
+        bool excludeShoulders = true;
+        float shoulderMarginUm = 20.0f;
 
         StriationParams toParams(int numThreads = 0) const;
     };

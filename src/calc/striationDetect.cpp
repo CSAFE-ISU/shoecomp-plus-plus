@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdio>
 #include <limits>
 #include <thread>
 #include <vector>
@@ -30,6 +31,12 @@ namespace shoecomp
         const double kBinCells = 3.0;          // Hough bin size (cells)
         const double kVoteFrac = 0.4;          // votes per unit length
         const int kMinVotesFloor = 5;
+
+        // Groove-shoulder search (see findShoulders).
+        const double kShoulderCover = 0.1;    // min valid fraction
+        const double kShoulderSmooth = 0.01;  // half-window / width
+        const double kShoulderBand = 0.25;    // searched width per side
+        const double kShoulderRise = 5e-6;    // metres
 
         // Ranking (see .claude/striation-hough-plan.md "Ranking"):
         // lines are ranked by inlier (crest vote) count, then
@@ -120,6 +127,81 @@ namespace shoecomp
                 }
             }
         }
+
+        // Groove shoulders of a bullet land. Averaged along the
+        // striations, a land's cross-section is a dome; at each side it
+        // falls to a low point and then rises again into the groove
+        // shoulder. Within the outer kShoulderBand of the width on each
+        // side, walk outward tracking the lowest point of the smoothed
+        // profile; it is the shoulder when the profile then rises
+        // kShoulderRise above it, and it lies kShoulderRise below
+        // where the walk started (so a tilted, monotonic side is not
+        // cut). A side without such a rise keeps its full extent.
+        // |lo|/|hi| are cross indices (columns when |acrossCols|).
+        void findShoulders(const Surface3D& surf, bool acrossCols,
+                           int& lo, int& hi, bool& foundLo,
+                           bool& foundHi)
+        {
+            const int K = acrossCols ? surf.sizeX : surf.sizeY;
+            const int M = acrossCols ? surf.sizeY : surf.sizeX;
+            lo = 0;
+            hi = K - 1;
+            foundLo = foundHi = false;
+            std::vector<double> sum((size_t)K, 0.0);
+            std::vector<int> cnt((size_t)K, 0);
+            for (int r = 0; r < surf.sizeY; ++r)
+                for (int c = 0; c < surf.sizeX; ++c)
+                {
+                    const float z = surf.z(r, c);
+                    if (!std::isfinite(z)) continue;
+                    const int k = acrossCols ? c : r;
+                    sum[k] += surf.pz(z);
+                    ++cnt[k];
+                }
+            std::vector<float> prof((size_t)K, (float)kNaN);
+            int k0 = -1, k1 = -1;
+            for (int k = 0; k < K; ++k)
+            {
+                if (cnt[k] < kShoulderCover * M) continue;
+                prof[k] = (float)(sum[k] / cnt[k]);
+                if (k0 < 0) k0 = k;
+                k1 = k;
+            }
+            if (k0 < 0 || k1 - k0 < 20) return;
+            const int width = k1 - k0;
+            std::vector<float> sm;
+            boxMeanSeparable(
+                prof, K, 1,
+                std::max(2, (int)std::lround(kShoulderSmooth * width)),
+                sm);
+            const int band = (int)(kShoulderBand * width);
+            auto walk = [&](int start, int step, int end, int& cut)
+            {
+                const double top = sm[start];
+                if (!std::isfinite(top)) return false;
+                double m = top;
+                int im = start;
+                for (int k = start; k != end + step; k += step)
+                {
+                    const double v = sm[k];
+                    if (!std::isfinite(v)) continue;
+                    if (v < m)
+                    {
+                        m = v;
+                        im = k;
+                    }
+                    else if (v > m + kShoulderRise)
+                    {
+                        if (top - m < kShoulderRise) return false;
+                        cut = im;
+                        return true;
+                    }
+                }
+                return false;
+            };
+            foundLo = walk(k0 + band, -1, k0, lo);
+            foundHi = walk(k1 - band, +1, k1, hi);
+        }
     }  // namespace
 
     bool detectStriations(
@@ -187,6 +269,39 @@ namespace shoecomp
             }
         // Larger cross-column gradient => striations run along rows.
         const bool axialAlongRows = sgx2 > sgy2;
+
+        // Crests are taken only between the groove shoulders (less the
+        // margin), so shoulder marks never form lines. Cross index =
+        // column when the striations run along the rows.
+        int crossLo = 0;
+        int crossHi = (axialAlongRows ? X : Y) - 1;
+        if (params.excludeShoulders)
+        {
+            int lo = 0, hi = 0;
+            bool foundLo = false, foundHi = false;
+            findShoulders(surf, axialAlongRows, lo, hi, foundLo,
+                          foundHi);
+            const double inc =
+                std::abs(axialAlongRows ? surf.incX : surf.incY);
+            const int margin =
+                inc > 0.0 ? (int)std::ceil(params.shoulderMargin / inc)
+                          : 0;
+            if (foundLo) crossLo = lo + margin;
+            if (foundHi) crossHi = hi - margin;
+            char msg[120];
+            auto at = [&](bool found, int k)
+            {
+                return found ? 1e3 * (axialAlongRows ? surf.px(k)
+                                                     : surf.py(k))
+                             : kNaN;
+            };
+            std::snprintf(msg, sizeof(msg),
+                          "Groove shoulders at %s = %.3f / %.3f mm "
+                          "(nan = none found)",
+                          axialAlongRows ? "x" : "y", at(foundLo, lo),
+                          at(foundHi, hi));
+            tick(0.25f, msg);
+        }
         const double minH = params.minHeight;
         const bool includeValleys = params.includeValleys;
 
@@ -238,7 +353,8 @@ namespace shoecomp
                     err = "cancelled";
                     return false;
                 }
-                for (int c = 1; c < X - 1; ++c)
+                for (int c = std::max(1, crossLo);
+                     c < std::min(X - 1, crossHi + 1); ++c)
                 {
                     double v = hLoc[(size_t)r * X + c];
                     double a = hLoc[(size_t)r * X + c - 1];
@@ -260,7 +376,8 @@ namespace shoecomp
                     err = "cancelled";
                     return false;
                 }
-                for (int r = 1; r < Y - 1; ++r)
+                for (int r = std::max(1, crossLo);
+                     r < std::min(Y - 1, crossHi + 1); ++r)
                 {
                     double v = hLoc[(size_t)r * X + c];
                     double a = hLoc[(size_t)(r - 1) * X + c];

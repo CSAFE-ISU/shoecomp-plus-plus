@@ -35,7 +35,12 @@ namespace shoecomp
         bool includeValleys = true;  // true: detect ridges (peaks) and
                                      // grooves (valleys); false: only
                                      // ridges (positive local height)
-        int numThreads = 0;          // 0 = hardware concurrency
+        bool excludeShoulders = true;  // skip the groove shoulders
+                                       // (found from the land's
+                                       // cross-section profile)
+        double shoulderMargin = 0.0;   // metres: also skip this much
+                                       // inside each found shoulder
+        int numThreads = 0;            // 0 = hardware concurrency
     };
 
     // Detect striations on |surf| and emit one StriationLine per

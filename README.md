@@ -75,6 +75,10 @@ scpp version                             # version + licenses
   image (`--left-ann/--right-ann` to override), else EBTS Type-9
   minutiae, else ONNX detection with `--detect2d-model model.onnx`.
   x3p inputs use the sidecar's striations, else detect them.
+  Detection skips the groove shoulders at the land edges, found from
+  the land's averaged cross-section (`-v` prints where;
+  `--striation-shoulder-margin-um` trims further inside,
+  `--striation-exclude-shoulders false` keeps them).
   `--redetect` ignores sidecars; `--save-annotations DIR` writes what
   was detected (never next to the inputs).
 - **Matching rules:** shoe and handwriting points only pair with the

@@ -101,6 +101,8 @@ namespace shoecomp
         p.maxSurfaceDev = maxSurfDevDeg * kPi / 180.0;
         p.maxCount = maxCount;
         p.includeValleys = includeValleys;
+        p.excludeShoulders = excludeShoulders;
+        p.shoulderMargin = shoulderMarginUm * 1e-6;
         p.numThreads = numThreads;
         return p;
     }
@@ -182,6 +184,13 @@ namespace shoecomp
             {"striation", "valleys",
              "Detect valleys (grooves) as well as peaks",
              ParamKind::Bool, SC_REF(striation.includeValleys)},
+            {"striation", "exclude_shoulders",
+             "Skip the groove shoulders at the land edges (found from "
+             "the land's cross-section profile)",
+             ParamKind::Bool, SC_REF(striation.excludeShoulders)},
+            {"striation", "shoulder_margin_um",
+             "Also skip this much inside each found shoulder (um)",
+             ParamKind::Float, SC_REF(striation.shoulderMarginUm)},
 
             {"align3d", "angle_tol_deg", "Angle tolerance (deg)",
              ParamKind::Float, SC_REF(align3d.angleTolDeg)},
@@ -414,6 +423,8 @@ namespace shoecomp
             return bad("[striation] max_dev_deg must be in [0, 90]");
         if (s.maxCount < 1)
             return bad("[striation] max_count must be >= 1");
+        if (s.shoulderMarginUm < 0.0f)
+            return bad("[striation] shoulder_margin_um must be >= 0");
 
         const auto& l = p.align3d;
         if (!(l.angleTolDeg > 0.0f))

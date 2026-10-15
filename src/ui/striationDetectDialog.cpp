@@ -149,6 +149,21 @@ namespace shoecomp
                     ImGui::SetTooltip(
                         "On: ridges (peaks) and grooves (valleys).\n"
                         "Off: peaks only (positive dr).");
+                ImGui::Checkbox("Skip groove shoulders",
+                                &settings.excludeShoulders);
+                if (ImGui::IsItemHovered())
+                    ImGui::SetTooltip(
+                        "Find the groove shoulders from the land's "
+                        "cross-section\nand detect striations only "
+                        "between them.");
+                ImGui::BeginDisabled(!settings.excludeShoulders);
+                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x *
+                                     0.4f);
+                ImGui::DragFloat("Shoulder margin (um)",
+                                 &settings.shoulderMarginUm, 1.0f, 0.0f,
+                                 1000.0f, "%.0f");
+                ImGui::PopItemWidth();
+                ImGui::EndDisabled();
                 ImGui::EndDisabled();
 
                 ImGui::Spacing();
