@@ -113,6 +113,34 @@ namespace AlignCalc
         int32_t nR_;
     };
 
+    // Clique constraint for similarity matching (see CliqueConstraint).
+    // The anchor pair (a, b) fixes a similarity T without reflection,
+    // T(L[a]) = R[a] and T(L[b]) = R[b]; a candidate c is kept when
+    // |T(L[c]) - R[c]| <= tol * (longest side of the right triangle
+    // R[a] R[b] R[c]). An anchor whose scale lies outside
+    // [1/scaleRange, scaleRange] (widened by tol) keeps nothing.
+    //
+    // Keeps references to |left| and |right|; they must outlive it.
+    class SimilarityAnchor2D : public CliqueConstraint
+    {
+       public:
+        SimilarityAnchor2D(const DoubleMatrixR& left,
+                           const DoubleMatrixR& right,
+                           const PointCols& cols, double scaleRange,
+                           double tol);
+        void filter(Correspondence a, Correspondence b,
+                    const Correspondence* cands, size_t n,
+                    uint8_t* keep) const override;
+
+       private:
+        const DoubleMatrixR& L_;
+        const DoubleMatrixR& R_;
+        int x_;
+        int y_;
+        double scaleRange_;
+        double tol_;
+    };
+
     extern template class SimilarityPoints2D<LabelRules>;
     extern template bool buildEdgesFirst(
         const SimilarityPoints2D<LabelRules>&, const BuildParams&,

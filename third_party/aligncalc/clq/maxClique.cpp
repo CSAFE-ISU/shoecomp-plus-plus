@@ -114,6 +114,9 @@ namespace AlignCalc
                 std::vector<Word> q, qc;
                 std::vector<std::vector<int32_t>> ord, col;
                 std::vector<int32_t> clique;
+                std::vector<int32_t> later;
+                std::vector<Correspondence> cands;
+                std::vector<uint8_t> keep;
                 size_t words = 0;
                 uint32_t ticks = 0;
             };
@@ -126,6 +129,8 @@ namespace AlignCalc
             }
             int32_t greedy() const;
             void root(int32_t v, Scratch& s);
+            void anchoredRoot(int32_t v, Scratch& s);
+            void branch(Scratch& s);
             void expand(size_t depth, Scratch& s);
             void record(const std::vector<int32_t>& clique);
 
@@ -210,6 +215,75 @@ namespace AlignCalc
                     s.members.push_back(w);
             }
             if (int32_t(s.members.size()) + 1 < thr) return;
+            s.clique.assign(1, v);
+            branch(s);
+        }
+
+        // Anchored search: every clique is anchored on its two lowest
+        // vertices in search order (v, v2), and the constraint picks
+        // v2's candidates among v's later neighbors before any bitset
+        // is built.
+        void Solver::anchoredRoot(int32_t v, Scratch& s)
+        {
+            int32_t thr = threshold();
+            if (core_[v] + 1 < thr) return;
+            auto& later = s.later;
+            later.clear();
+            const int32_t* row = g_.row(v);
+            for (size_t k = 0; k < g_.degree(v); ++k)
+            {
+                const int32_t w = row[k];
+                if (pos_[w] > pos_[v] && core_[w] + 1 >= thr)
+                    later.push_back(w);
+            }
+            if (later.empty() || p_.upperBound <= 1)
+            {
+                s.clique.assign(1, v);
+                record(s.clique);
+                return;
+            }
+            if (int32_t(later.size()) + 1 < thr) return;
+            std::sort(later.begin(), later.end(),
+                      [&](int32_t a, int32_t b)
+                      { return pos_[a] < pos_[b]; });
+            s.cands.resize(later.size());
+            for (size_t i = 0; i < later.size(); ++i)
+                s.cands[i] = g_.nodes[later[i]];
+            s.keep.resize(later.size());
+
+            for (size_t i = 0; i < later.size(); ++i)
+            {
+                if (((++s.ticks) & 0xff) == 0 &&
+                    channel_.should_cancel())
+                    stop_.store(true);
+                if (stop_.load(std::memory_order_relaxed)) return;
+                thr = threshold();
+                const size_t rest = later.size() - i - 1;
+                if (int32_t(rest) + 2 < thr) return;
+                const int32_t v2 = later[i];
+                if (core_[v2] + 1 < thr) continue;
+                p_.constraint->filter(g_.nodes[v], g_.nodes[v2],
+                                      s.cands.data() + i + 1, rest,
+                                      s.keep.data());
+                s.members.clear();
+                const int32_t* r2 = g_.row(v2);
+                const int32_t* e2 = r2 + g_.degree(v2);
+                for (size_t j = 0; j < rest; ++j)
+                {
+                    const int32_t w = later[i + 1 + j];
+                    if (s.keep[j] && core_[w] + 1 >= thr &&
+                        std::binary_search(r2, e2, w))
+                        s.members.push_back(w);
+                }
+                if (int32_t(s.members.size()) + 2 < thr) continue;
+                s.clique.assign({v, v2});
+                branch(s);
+            }
+        }
+
+        // Branch and bound over s.members, all adjacent to s.clique.
+        void Solver::branch(Scratch& s)
+        {
             // higher core first: a better greedy coloring
             std::sort(s.members.begin(), s.members.end(),
                       [&](int32_t a, int32_t b)
@@ -245,8 +319,7 @@ namespace AlignCalc
             }
             for (size_t a = 0; a < m; ++a)
                 s.stack[a / 64] |= Word(1) << (a % 64);
-            s.clique.assign(1, v);
-            if (m == 0 || p_.upperBound <= 1)
+            if (m == 0 || int32_t(s.clique.size()) >= p_.upperBound)
                 record(s.clique);
             else
                 expand(0, s);
@@ -326,9 +399,14 @@ namespace AlignCalc
             coreOrder(g_, order_, core_);
             pos_.resize(n);
             for (int32_t i = 0; i < n; ++i) pos_[order_[i]] = i;
+            // With a constraint, greedy's clique may be anchored on a
+            // pair the search never uses as anchor, so its size is not
+            // a safe starting bound.
             best_.store(std::max<int32_t>(
                 std::max<int32_t>(p_.lowerBound, 1),
-                std::min<int32_t>(greedy(), p_.upperBound)));
+                p_.constraint
+                    ? 0
+                    : std::min<int32_t>(greedy(), p_.upperBound)));
 
             // roots from the dense end: big cliques early
             std::atomic<int32_t> next{0};
@@ -349,7 +427,11 @@ namespace AlignCalc
                         }
                         const int32_t i = next.fetch_add(1);
                         if (i >= n) return;
-                        root(order_[n - 1 - i], s);
+                        const int32_t v = order_[n - 1 - i];
+                        if (p_.constraint)
+                            anchoredRoot(v, s);
+                        else
+                            root(v, s);
                         const int32_t d = done.fetch_add(1) + 1;
                         if (tid == 0)
                         {

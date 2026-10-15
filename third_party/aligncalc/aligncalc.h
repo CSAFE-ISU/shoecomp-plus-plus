@@ -27,6 +27,9 @@ namespace AlignCalc
         // SimilarityParams (angleCol < 0 = off).
         int32_t angleCol;
         double angleTolDeg;
+        // Similarity only: anchored clique search (SimilarityAnchor2D)
+        // with this relative tolerance; 0 = off.
+        double anchorTol;
 
         RTSParams()
         {
@@ -40,6 +43,7 @@ namespace AlignCalc
             minSupport = 1;
             angleCol = -1;
             angleTolDeg = 0.0;
+            anchorTol = 0.0;
         }
     };
 

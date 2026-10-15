@@ -68,12 +68,30 @@ namespace AlignCalc
         }
     };
 
+    // Optional geometric constraint for searchCliques. Every clique is
+    // anchored on its two lowest vertices in the solver's (core)
+    // order; the remaining members must pass the constraint against
+    // that anchor, so a result is a maximum clique among those. The
+    // solver filters an anchor's candidates before building any
+    // bitset. Called from several threads at once.
+    class CliqueConstraint
+    {
+       public:
+        virtual ~CliqueConstraint() = default;
+        // keep[k] = whether cands[k] may join a clique anchored on
+        // (a, b)
+        virtual void filter(Correspondence a, Correspondence b,
+                            const Correspondence* cands, size_t n,
+                            uint8_t* keep) const = 0;
+    };
+
     struct CliqueParams
     {
         size_t numWorkers = 2;
         size_t numResults = 2;
         int32_t lowerBound = 3;
         int32_t upperBound = 500;
+        const CliqueConstraint* constraint = nullptr;
     };
 
     bool searchCliques(const GraphRows&, const CliqueParams&,

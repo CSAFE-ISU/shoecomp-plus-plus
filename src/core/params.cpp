@@ -122,7 +122,7 @@ namespace shoecomp
     Params::Params()
     {
         align2d.upperBound = 0;
-        align2d.minSupport = 2;
+        align2d.anchorTol = 0.01;
     }
 
 #define SC_REF(member) \
@@ -157,6 +157,11 @@ namespace shoecomp
              "Scaled matching: matched triangles an edge needs (>= 1); "
              "matches need >= min_support + 2 points",
              ParamKind::Int, SC_REF(align2d.minSupport)},
+            {"align2d", "anchor_tol",
+             "Scaled matching: anchored clique search; every point must "
+             "fit the similarity of its match's first two points within "
+             "this fraction of the triangle size; 0 = off",
+             ParamKind::Double, SC_REF(align2d.anchorTol)},
             {"align2d", "results", "Alignments to return",
              ParamKind::Size, SC_REF(align2d.numResults)},
             {"align2d", "minutia_angle_tol_deg",
@@ -393,6 +398,8 @@ namespace shoecomp
             return bad("[align2d] results must be >= 1");
         if (a.minSupport < 1)
             return bad("[align2d] min_support must be >= 1");
+        if (!(a.anchorTol >= 0.0))
+            return bad("[align2d] anchor_tol must be >= 0");
         if (p.minutiaAngleTolDeg < 0.0f ||
             p.minutiaAngleTolDeg > 180.0f)
             return bad(

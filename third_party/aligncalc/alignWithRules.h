@@ -12,7 +12,8 @@ namespace AlignCalc
     bool alignWith(const Model& model, const DoubleMatrixR& left,
                    const DoubleMatrixR& right, const PointCols& cols,
                    const RTSParams& params, WorkerChannel& channel,
-                   std::vector<MatchedPoints>& results)
+                   std::vector<MatchedPoints>& results,
+                   const CliqueConstraint* constraint = nullptr)
     {
         if (!model.valid())
         {
@@ -36,6 +37,7 @@ namespace AlignCalc
         cp.numResults = params.numResults;
         cp.lowerBound = params.lowerBound;
         cp.upperBound = params.upperBound;
+        cp.constraint = constraint;
         std::vector<std::vector<Correspondence>> cliques;
         channel.report(0.5f, "searching cliques...");
         if (!searchCliques(graph, cp, channel, cliques))
@@ -91,8 +93,13 @@ namespace AlignCalc
         sp.angleTolDeg = params.angleTolDeg;
         SimilarityPoints2D<Rules> model(left_pts, right_pts, cols, sp,
                                         rules);
+        if (!(params.anchorTol > 0.0))
+            return alignWith(model, left_pts, right_pts, cols, params,
+                             channel, results);
+        SimilarityAnchor2D anchor(left_pts, right_pts, cols,
+                                  params.scaleRange, params.anchorTol);
         return alignWith(model, left_pts, right_pts, cols, params,
-                         channel, results);
+                         channel, results, &anchor);
     }
 }  // namespace AlignCalc
 

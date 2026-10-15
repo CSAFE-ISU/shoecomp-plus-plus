@@ -168,15 +168,18 @@ namespace shoecomp
 
             if (!rtsParams.sameScale)
             {
-                if (ImGui::InputInt("Min Edge Support",
-                                    &rtsParams.minSupport))
-                    rtsParams.minSupport =
-                        std::max(1, rtsParams.minSupport);
+                float anchorTol =
+                    static_cast<float>(rtsParams.anchorTol);
+                if (ImGui::SliderFloat("Anchor Tolerance", &anchorTol,
+                                       0.0f, 0.1f, "%.3f"))
+                    rtsParams.anchorTol = std::max(0.0f, anchorTol);
                 if (ImGui::IsItemHovered())
                     ImGui::SetTooltip(
-                        "Matched triangles needed to link two points; "
-                        "higher rejects coincidental matches.\n"
-                        "A match then needs at least this + 2 points.");
+                        "Every matched point must fit the similarity "
+                        "of the match's first two points, within this "
+                        "fraction of the triangle size.\n"
+                        "Rejects coincidental matches and speeds up "
+                        "dense searches; 0 = off.");
             }
 
             if (type == ImageType::EBTS)
