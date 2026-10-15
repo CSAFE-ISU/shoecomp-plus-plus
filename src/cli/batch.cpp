@@ -33,8 +33,14 @@ namespace shoecomp
         // Label = path relative to the batch folder, plus @N.
         void relabel(Item& it, const fs::path& dir)
         {
+            // Lexical first: fs::relative resolves symlinks, so a
+            // symlinked input would get a `../..` label.
+            fs::path rel =
+                fs::path(it.path).lexically_normal().lexically_relative(
+                    dir.lexically_normal());
             std::error_code ec;
-            fs::path rel = fs::relative(it.path, dir, ec);
+            if (rel.empty() || *rel.begin() == "..")
+                rel = fs::relative(it.path, dir, ec);
             it.label =
                 (ec || rel.empty() ? fs::path(it.path).filename() : rel)
                     .generic_string();
@@ -42,7 +48,8 @@ namespace shoecomp
                 it.label += "@" + std::to_string(it.record);
         }
 
-        bool scanItems(const CliRun& c, const BatchArgs& a,
+        bool scanItems(const CliRun& c, const std::string& dir,
+                       bool recursive, const char* tag,
                        std::vector<Item>& items, std::string& err)
         {
             std::vector<fs::path> files;
@@ -54,23 +61,23 @@ namespace shoecomp
             };
             try
             {
-                if (a.recursive)
+                if (recursive)
                 {
                     for (const auto& e :
                          fs::recursive_directory_iterator(
-                             a.dir, fs::directory_options::
-                                        skip_permission_denied))
+                             dir, fs::directory_options::
+                                      skip_permission_denied))
                         consider(e);
                 }
                 else
                 {
-                    for (const auto& e : fs::directory_iterator(a.dir))
+                    for (const auto& e : fs::directory_iterator(dir))
                         consider(e);
                 }
             }
             catch (const std::exception& e)
             {
-                err = "cannot scan " + a.dir + ": " + e.what();
+                err = "cannot scan " + dir + ": " + e.what();
                 return false;
             }
             std::sort(files.begin(), files.end());
@@ -88,15 +95,49 @@ namespace shoecomp
                 }
                 if (!ok)
                 {
-                    std::fprintf(stderr,
-                                 "scpp batch: skipping %s: %s\n",
+                    std::fprintf(stderr, "%s: skipping %s: %s\n", tag,
                                  f.string().c_str(), err.c_str());
                     continue;
                 }
                 for (auto& it : got)
                 {
-                    relabel(it, a.dir);
+                    relabel(it, dir);
                     items.push_back(std::move(it));
+                }
+            }
+            return true;
+        }
+
+        // Cross mode: the inputs of DIR (matrix rows) and DIR2
+        // (columns). Labels keep the folder as given (DIR/<relative
+        // path>) so both sides stay distinct; an input found in both
+        // folders under the same label is one item, prepared once.
+        bool scanCross(const CliRun& c, const BatchArgs& a,
+                       const char* tag, std::vector<Item>& items,
+                       std::vector<size_t>& rows,
+                       std::vector<size_t>& cols, std::string& err)
+        {
+            std::map<std::string, size_t> index;
+            for (int side = 0; side < 2; ++side)
+            {
+                const std::string& dir = side == 0 ? a.dir : a.dir2;
+                std::vector<Item> got;
+                if (!scanItems(c, dir, a.recursive, tag, got, err))
+                    return false;
+                for (auto& it : got)
+                {
+                    it.label =
+                        (fs::path(dir) / it.label).generic_string();
+                    auto found = index.find(it.label);
+                    size_t k = items.size();
+                    if (found != index.end())
+                        k = found->second;
+                    else
+                    {
+                        index[it.label] = k;
+                        items.push_back(std::move(it));
+                    }
+                    (side == 0 ? rows : cols).push_back(k);
                 }
             }
             return true;
@@ -275,8 +316,8 @@ namespace shoecomp
         // Prepare (once) + compare + write one pair's files. File
         // write failures are counted in |errors| and reported; the
         // returned result is the comparison's.
-        PairResult runPair(CliRun& c, size_t id, Item& left,
-                           Item& right, const fs::path& out,
+        PairResult runPair(CliRun& c, const char* tag, size_t id,
+                           Item& left, Item& right, const fs::path& out,
                            const std::string& matchedDir, int& errors)
         {
             std::string err;
@@ -311,25 +352,65 @@ namespace shoecomp
             if (!written)
             {
                 std::fprintf(
-                    stderr, "scpp batch: %s: %s\n",
+                    stderr, "%s: %s: %s\n", tag,
                     (left.label + " vs " + right.label).c_str(),
                     err.c_str());
                 ++errors;
             }
             return r;
         }
+
+        // matrix.csv: one row per DIR input, one column per DIR2
+        // input; a cell is the pair's matched count (the summary.csv
+        // `matched` column), empty for error/timeout pairs.
+        std::string crossMatrix(const std::vector<Item>& items,
+                                const std::vector<size_t>& rows,
+                                const std::vector<size_t>& cols,
+                                const std::vector<std::string>& lines)
+        {
+            std::string m = "left\\right";
+            for (size_t j : cols) m += "," + csvField(items[j].label);
+            m += "\n";
+            for (size_t i = 0; i < rows.size(); ++i)
+            {
+                m += csvField(items[rows[i]].label);
+                for (size_t j = 0; j < cols.size(); ++j)
+                {
+                    const auto f = splitCsv(lines[i * cols.size() + j]);
+                    const bool scored =
+                        f.size() > 5 &&
+                        (f[3] == "ok" || f[3] == "none");
+                    m += "," + (scored ? f[5] : std::string());
+                }
+                m += "\n";
+            }
+            return m;
+        }
     }  // namespace
 
     int runBatch(CliRun& c, const BatchArgs& a)
     {
+        const char* tag = a.cross ? "scpp cross" : "scpp batch";
         std::string err;
         std::vector<Item> items;
         std::vector<std::pair<size_t, size_t>> pairs;
-        if (a.allPairs)
+        // Cross mode: matrix rows (DIR inputs) and columns (DIR2).
+        std::vector<size_t> rows, cols;
+        if (a.cross)
         {
-            if (!scanItems(c, a, items, err))
+            if (!scanCross(c, a, tag, items, rows, cols, err))
             {
-                std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+                std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
+                return kExitError;
+            }
+            for (size_t i : rows)
+                for (size_t j : cols) pairs.push_back({i, j});
+        }
+        else if (a.allPairs)
+        {
+            if (!scanItems(c, a.dir, a.recursive, tag, items, err))
+            {
+                std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
                 return kExitError;
             }
             for (size_t i = 0; i < items.size(); ++i)
@@ -338,12 +419,12 @@ namespace shoecomp
         }
         else if (!readPairs(c, a, items, pairs, err))
         {
-            std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+            std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
             return kExitUsage;
         }
         if (pairs.empty())
         {
-            std::fprintf(stderr, "scpp batch: no pairs to compare\n");
+            std::fprintf(stderr, "%s: no pairs to compare\n", tag);
             return kExitError;
         }
 
@@ -352,7 +433,7 @@ namespace shoecomp
         fs::create_directories(out / "pairs", ec);
         if (ec)
         {
-            std::fprintf(stderr, "scpp batch: cannot create %s: %s\n",
+            std::fprintf(stderr, "%s: cannot create %s: %s\n", tag,
                          (out / "pairs").string().c_str(),
                          ec.message().c_str());
             return kExitError;
@@ -366,7 +447,7 @@ namespace shoecomp
         if (a.resume &&
             !loadFinished(c, out, finished, oldInputIds, err))
         {
-            std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+            std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
             return kExitUsage;
         }
         std::vector<char> done(pairs.size(), 0);
@@ -404,7 +485,7 @@ namespace shoecomp
         if (!writeTextFile((out / "params.ini").string(),
                            paramsToIni(c.params), err))
         {
-            std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+            std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
             return kExitError;
         }
         {
@@ -415,38 +496,38 @@ namespace shoecomp
             if (!writeTextFile((out / "inputs.csv").string(), inputs,
                                err))
             {
-                std::fprintf(stderr, "scpp batch: %s\n", err.c_str());
+                std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
                 return kExitError;
             }
         }
         std::ofstream csv(out / "summary.csv", std::ios::trunc);
         if (!csv)
         {
-            std::fprintf(stderr, "scpp batch: cannot write %s\n",
+            std::fprintf(stderr, "%s: cannot write %s\n", tag,
                          (out / "summary.csv").string().c_str());
             return kExitError;
         }
         csv << csvHeader(c.type) << "\n";
+        // Every pair's summary row, for matrix.csv in cross mode.
+        std::vector<std::string> rowLines(pairs.size());
         for (size_t k = 0; k < pairs.size(); ++k)
         {
             if (!done[k]) continue;
             const Item& l = items[pairs[k].first];
             const Item& r = items[pairs[k].second];
-            csv << finished[l.label + "\n" + r.label].line << "\n";
+            rowLines[k] = finished[l.label + "\n" + r.label].line;
+            csv << rowLines[k] << "\n";
         }
         csv.flush();
 
         if (!c.quiet)
         {
-            std::fprintf(stderr,
-                         "scpp batch: %zu input(s), %zu pair(s)\n",
+            std::fprintf(stderr, "%s: %zu input(s), %zu pair(s)\n", tag,
                          items.size(), pairs.size());
             if (a.resume)
-                std::fprintf(
-                    stderr,
-                    "scpp batch: resuming, %zu pair(s) already "
-                    "done\n",
-                    numDone);
+                std::fprintf(stderr,
+                             "%s: resuming, %zu pair(s) already done\n",
+                             tag, numDone);
         }
 
         int errors = 0;  // failed result writes
@@ -459,7 +540,7 @@ namespace shoecomp
             PairResult r;
             try
             {
-                r = runPair(c, k + 1, left, right, out, matchedDir,
+                r = runPair(c, tag, k + 1, left, right, out, matchedDir,
                             errors);
             }
             catch (const std::exception& e)
@@ -478,7 +559,8 @@ namespace shoecomp
             if (r.status == PairStatus::Error ||
                 r.status == PairStatus::Timeout)
                 ++failed;
-            csv << csvRow(k + 1, left, right, r) << "\n";
+            rowLines[k] = csvRow(k + 1, left, right, r);
+            csv << rowLines[k] << "\n";
             csv.flush();
             if (!c.quiet)
             {
@@ -486,12 +568,19 @@ namespace shoecomp
                 printSummary(stderr, left, right, r);
             }
         }
+        if (a.cross &&
+            !writeTextFile((out / "matrix.csv").string(),
+                           crossMatrix(items, rows, cols, rowLines),
+                           err))
+        {
+            std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
+            ++errors;
+        }
         if (!c.quiet)
-            std::fprintf(
-                stderr,
-                "scpp batch: done, %d failed pair(s), %d write "
-                "error(s); results in %s\n",
-                failed, errors, a.outDir.c_str());
+            std::fprintf(stderr,
+                         "%s: done, %d failed pair(s), %d write "
+                         "error(s); results in %s\n",
+                         tag, failed, errors, a.outDir.c_str());
         return failed || errors ? kExitError : kExitOk;
     }
 }  // namespace shoecomp

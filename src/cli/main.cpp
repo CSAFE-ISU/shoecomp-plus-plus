@@ -236,8 +236,9 @@ int main(int argc, char** argv)
     st.overrides.given.resize(paramTable().size(), false);
 
     CLI::App app{
-        "Compare two annotated images or x3p surfaces (default), or "
-        "every pair in a folder (batch).\n"
+        "Compare two annotated images or x3p surfaces (default), "
+        "every pair in a folder (batch), or every input of one folder "
+        "against every input of another (cross).\n"
         "2-D inputs use <stem>.json annotation sidecars, EBTS Type-9 "
         "points, or ONNX detection; x3p inputs use sidecar striations "
         "or detect them.",
@@ -304,30 +305,47 @@ int main(int argc, char** argv)
             ->check(CLI::ExistingFile)
             ->group("Input/Output");
     all->excludes(pairs);
-    batch->add_option("--out-dir", bat.outDir, "Output folder")
+    // Output/run flags shared by batch and cross.
+    auto addBatchOutputs = [&](CLI::App* sub, const char* scanHelp)
+    {
+        sub->add_option("--out-dir", bat.outDir, "Output folder")
+            ->required()
+            ->group("Input/Output");
+        sub->add_flag("-r,--recursive", bat.recursive, scanHelp)
+            ->group("Input/Output");
+        sub->add_flag("--save-annotations", bat.saveAnnotations,
+                      "Write detected annotations to "
+                      "OUT/annotations/in_<id>.json (ids: inputs.csv)")
+            ->group("Input/Output");
+        sub->add_flag("--resume", bat.resume,
+                      "Keep the ok/none pairs of a previous run in "
+                      "--out-dir (same parameters) and run the rest, "
+                      "including its error/timeout pairs")
+            ->group("Input/Output");
+        sub->add_flag("--save-matched", bat.saveMatched,
+                      "Write matched-only annotations (and 2-D PNGs) "
+                      "to OUT/matched/")
+            ->group("Input/Output");
+        addRunOptions(sub, st);
+    };
+    addBatchOutputs(batch, "Scan DIR recursively");
+
+    CLI::App* cross = app.add_subcommand(
+        "cross",
+        "Compare every input in DIR1 against every input in DIR2 "
+        "(e.g. the lands of two bullets); writes summary.csv, "
+        "matrix.csv (matched counts, DIR1 rows x DIR2 columns), "
+        "pairs/*.json and params.ini");
+    addTypeOption(cross, st);
+    cross->add_option("DIR1", bat.dir, "Folder of row inputs")
         ->required()
+        ->check(CLI::ExistingDirectory)
         ->group("Input/Output");
-    batch
-        ->add_flag("-r,--recursive", bat.recursive,
-                   "Scan DIR recursively")
+    cross->add_option("DIR2", bat.dir2, "Folder of column inputs")
+        ->required()
+        ->check(CLI::ExistingDirectory)
         ->group("Input/Output");
-    batch
-        ->add_flag("--save-annotations", bat.saveAnnotations,
-                   "Write detected annotations to "
-                   "OUT/annotations/in_<id>.json (ids: inputs.csv)")
-        ->group("Input/Output");
-    batch
-        ->add_flag("--resume", bat.resume,
-                   "Keep the ok/none pairs of a previous run in "
-                   "--out-dir (same parameters) and run the rest, "
-                   "including its error/timeout pairs")
-        ->group("Input/Output");
-    batch
-        ->add_flag("--save-matched", bat.saveMatched,
-                   "Write matched-only annotations (and 2-D PNGs) to "
-                   "OUT/matched/")
-        ->group("Input/Output");
-    addRunOptions(batch, st);
+    addBatchOutputs(cross, "Scan DIR1 and DIR2 recursively");
 
     CLI::App* params = app.add_subcommand(
         "params",
@@ -347,7 +365,8 @@ int main(int argc, char** argv)
     CLI::App* help = app.add_subcommand(
         "help", "Show help for scpp or one of its subcommands");
     help->add_option("SUBCOMMAND", helpTarget)
-        ->check(CLI::IsMember({"batch", "params", "version", "help"}));
+        ->check(CLI::IsMember(
+            {"batch", "cross", "params", "version", "help"}));
 
     try
     {
@@ -412,6 +431,20 @@ int main(int argc, char** argv)
                 "OUT/matched/)\n");
             return kExitUsage;
         }
+        return guarded([&] { return runBatch(run, bat); });
+    }
+    if (cross->parsed())
+    {
+        if (!st.saveAnnotationsDir.empty() || !cmp.matchedDir.empty())
+        {
+            std::fprintf(
+                stderr,
+                "scpp cross: --save-annotations/--save-matched "
+                "are flags here (OUT/annotations/, "
+                "OUT/matched/)\n");
+            return kExitUsage;
+        }
+        bat.cross = true;
         return guarded([&] { return runBatch(run, bat); });
     }
     if (cmp.left.empty() || cmp.right.empty())

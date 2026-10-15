@@ -37,9 +37,13 @@ namespace shoecomp
         std::string matchedDir;  // --save-matched
     };
 
+    // `scpp batch` (pairs within DIR) and `scpp cross` (every DIR
+    // input against every DIR2 input, plus matrix.csv).
     struct BatchArgs
     {
         std::string dir;
+        std::string dir2;  // cross: the column inputs
+        bool cross = false;
         bool allPairs = false;
         std::string pairsFile;
         std::string outDir;

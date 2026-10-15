@@ -61,6 +61,7 @@ scpp -t shoe left.png right.png          # compare one pair
 scpp -t x3p a.x3p b.x3p --json -o ab.json
 scpp batch -t x3p lands/ --all-pairs --out-dir results/
 scpp batch -t ebts prints/ --pairs pairs.txt --out-dir results/
+scpp cross -t x3p bullet1/ bullet2/ --out-dir results/
 scpp params > my.ini                     # current defaults, editable
 scpp -t x3p a.x3p b.x3p -p my.ini --align3d-sep-tol-um 6
 scpp help batch                          # or --help / --help-all
@@ -103,12 +104,19 @@ scpp version                             # version + licenses
   `annotations/in_<id>.json` and `matched/cmp_<id>_left.json` /
   `_right.json` (plus `.png` for 2-D). Input names only appear in the
   CSVs and inside the JSON, so long names are fine.
+- **Cross:** `scpp cross DIR1 DIR2 --out-dir OUT` compares every input
+  of `DIR1` with every input of `DIR2` (e.g. all lands of one bullet
+  against all lands of another), with the same options and output
+  folder as `batch`, plus `matrix.csv`: one row per `DIR1` input, one
+  column per `DIR2` input, each cell the pair's matched count (empty
+  for `error`/`timeout`). Inputs are labelled `DIR/<file>` as given,
+  and each is prepared once.
 - **Failures:** an input or pair that fails (unreadable file, no
   annotations, an error or exception in a comparison) is recorded as
   `error` with its reason, and the batch moves on. `--timeout SEC`
   cancels any one detection or comparison that runs longer and records
   it as `timeout`. `summary.csv` is written as pairs finish;
-  `scpp batch ... --resume` with the same `--out-dir` and parameters
+  `scpp batch ... --resume` (or `scpp cross ... --resume`) with the same `--out-dir` and parameters
   keeps the finished `ok`/`none` pairs and runs the rest (including
   earlier `error`/`timeout` pairs).
 - **Exit status:** 0 when every comparison ran (finding no match is
