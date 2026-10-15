@@ -360,13 +360,15 @@ namespace shoecomp
             return r;
         }
 
-        // matrix.csv: one row per DIR input, one column per DIR2
-        // input; a cell is the pair's matched count (the summary.csv
-        // `matched` column), empty for error/timeout pairs.
+        // A cross matrix: one row per DIR input, one column per DIR2
+        // input; a cell is the pair's summary.csv value in |column|
+        // (matrix.csv: `matched`; matrix_ratio.csv: `ratio`), empty
+        // for error/timeout pairs.
         std::string crossMatrix(const std::vector<Item>& items,
                                 const std::vector<size_t>& rows,
                                 const std::vector<size_t>& cols,
-                                const std::vector<std::string>& lines)
+                                const std::vector<std::string>& lines,
+                                size_t column)
         {
             std::string m = "left\\right";
             for (size_t j : cols) m += "," + csvField(items[j].label);
@@ -378,9 +380,9 @@ namespace shoecomp
                 {
                     const auto f = splitCsv(lines[i * cols.size() + j]);
                     const bool scored =
-                        f.size() > 5 &&
+                        f.size() > column &&
                         (f[3] == "ok" || f[3] == "none");
-                    m += "," + (scored ? f[5] : std::string());
+                    m += "," + (scored ? f[column] : std::string());
                 }
                 m += "\n";
             }
@@ -568,13 +570,28 @@ namespace shoecomp
                 printSummary(stderr, left, right, r);
             }
         }
-        if (a.cross &&
-            !writeTextFile((out / "matrix.csv").string(),
-                           crossMatrix(items, rows, cols, rowLines),
-                           err))
+        if (a.cross)
         {
-            std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
-            ++errors;
+            // matched counts, plus (x3p) the best/second-best ratio
+            const auto head = splitCsv(csvHeader(c.type));
+            for (const char* name : {"matched", "ratio"})
+            {
+                const auto at =
+                    std::find(head.begin(), head.end(), name);
+                if (at == head.end()) continue;
+                const std::string file = std::string(name) == "matched"
+                                             ? "matrix.csv"
+                                             : "matrix_ratio.csv";
+                if (!writeTextFile(
+                        (out / file).string(),
+                        crossMatrix(items, rows, cols, rowLines,
+                                    size_t(at - head.begin())),
+                        err))
+                {
+                    std::fprintf(stderr, "%s: %s\n", tag, err.c_str());
+                    ++errors;
+                }
+            }
         }
         if (!c.quiet)
             std::fprintf(stderr,

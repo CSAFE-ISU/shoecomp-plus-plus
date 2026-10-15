@@ -97,6 +97,11 @@ scpp version                             # version + licenses
   e.g. reversed end-for-end) are rejected. Results are reproducible:
   the same inputs give the same alignments for any `-j`. Every extra
   result costs another search, so keep `results` small for big runs.
+  x3p `summary.csv` rows also carry `matched_2` (the second-best
+  alignment's striations) and `ratio` = `matched / matched_2`: how far
+  the best stands above any other placement; `0` and `inf` when no
+  second one reached `distinct_min_frac`, empty for `none`/`error`.
+  `results 2` is enough for it.
 - **Parameters:** every value the Align / Detect dialogs expose is a
   flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`)
   and a key in the INI file given with `-p`; `scpp params` prints them
@@ -123,8 +128,9 @@ scpp version                             # version + licenses
   against all lands of another), with the same options and output
   folder as `batch`, plus `matrix.csv`: one row per `DIR1` input, one
   column per `DIR2` input, each cell the pair's matched count (empty
-  for `error`/`timeout`). Inputs are labelled `DIR/<file>` as given,
-  and each is prepared once.
+  for `error`/`timeout`). For x3p it also writes `matrix_ratio.csv`
+  with each pair's `ratio` (below). Inputs are labelled `DIR/<file>`
+  as given, and each is prepared once.
 - **Failures:** an input or pair that fails (unreadable file, no
   annotations, an error or exception in a comparison) is recorded as
   `error` with its reason, and the batch moves on. `--timeout SEC`

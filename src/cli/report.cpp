@@ -107,9 +107,10 @@ namespace shoecomp
     std::string csvHeader(ImageType type)
     {
         if (is3DType(type))
-            return "id,left,right,status,n_results,matched,left_lines,"
-                   "right_lines,pitch_deg,yaw_deg,roll_deg,tx_um,ty_um,"
-                   "tz_um,rms_um,axial_weak,time_ms,message";
+            return "id,left,right,status,n_results,matched,matched_2,"
+                   "ratio,left_lines,right_lines,pitch_deg,yaw_deg,"
+                   "roll_deg,tx_um,ty_um,tz_um,rms_um,axial_weak,"
+                   "time_ms,message";
         return "id,left,right,status,n_results,matched,left_points,"
                "right_points,rotation_deg,dx,dy,scale,time_ms,message";
     }
@@ -121,8 +122,26 @@ namespace shoecomp
         os << id << ',' << csvField(left.label) << ','
            << csvField(right.label) << ',' << pairStatusName(r.status)
            << ',' << r.matched.size() << ','
-           << (r.matched.empty() ? 0 : r.matched[0].size()) << ','
-           << left.count << ',' << right.count << ',';
+           << (r.matched.empty() ? 0 : r.matched[0].size()) << ',';
+        if (is3DType(left.type))
+        {
+            // x3p results are distinct alignments: how far the best
+            // stands above the second best (inf: no second one reached
+            // distinct_min_frac of the best).
+            if (r.align3d.empty())
+                os << ",,";
+            else
+            {
+                const size_t m1 = r.matched[0].size();
+                const size_t m2 =
+                    r.matched.size() > 1 ? r.matched[1].size() : 0;
+                os << m2 << ','
+                   << (m2 > 0 ? fmt("%.3f", double(m1) / double(m2))
+                              : std::string("inf"))
+                   << ',';
+            }
+        }
+        os << left.count << ',' << right.count << ',';
         if (!r.align3d.empty())
         {
             double ang[3], t[3];
