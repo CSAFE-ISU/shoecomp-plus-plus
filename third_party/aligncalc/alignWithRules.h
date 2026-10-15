@@ -83,8 +83,14 @@ namespace AlignCalc
         {
             RigidPoints<Rules> model(left_pts, right_pts, cols,
                                      params.epsilon, rules);
+            if (!(params.anchorTol > 0.0))
+                return alignWith(model, left_pts, right_pts, cols,
+                                 params, channel, results);
+            // scale range 1: a rigid anchor, no reflection
+            SimilarityAnchor2D anchor(left_pts, right_pts, cols, 1.0,
+                                      params.anchorTol);
             return alignWith(model, left_pts, right_pts, cols, params,
-                             channel, results);
+                             channel, results, &anchor);
         }
         SimilarityParams sp;
         sp.scaleRange = params.scaleRange;

@@ -166,21 +166,17 @@ namespace shoecomp
 
             ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
 
-            if (!rtsParams.sameScale)
-            {
-                float anchorTol =
-                    static_cast<float>(rtsParams.anchorTol);
-                if (ImGui::SliderFloat("Anchor Tolerance", &anchorTol,
-                                       0.0f, 0.1f, "%.3f"))
-                    rtsParams.anchorTol = std::max(0.0f, anchorTol);
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Every matched point must fit the similarity "
-                        "of the match's first two points, within this "
-                        "fraction of the triangle size.\n"
-                        "Rejects coincidental matches and speeds up "
-                        "dense searches; 0 = off.");
-            }
+            float anchorTol = static_cast<float>(rtsParams.anchorTol);
+            if (ImGui::SliderFloat("Anchor Tolerance", &anchorTol, 0.0f,
+                                   0.1f, "%.3f"))
+                rtsParams.anchorTol = std::max(0.0f, anchorTol);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(
+                    "Every matched point must fit the transform of the "
+                    "match's first two points (no mirroring), within "
+                    "this fraction of the triangle size.\n"
+                    "Rejects coincidental and mirror-image matches and "
+                    "speeds up dense searches; 0 = off.");
 
             if (type == ImageType::EBTS)
             {

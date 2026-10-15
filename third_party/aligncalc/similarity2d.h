@@ -118,7 +118,9 @@ namespace AlignCalc
     // T(L[a]) = R[a] and T(L[b]) = R[b]; a candidate c is kept when
     // |T(L[c]) - R[c]| <= tol * (longest side of the right triangle
     // R[a] R[b] R[c]). An anchor whose scale lies outside
-    // [1/scaleRange, scaleRange] (widened by tol) keeps nothing.
+    // [1/scaleRange, scaleRange] (widened by tol) keeps nothing, so
+    // scaleRange 1 gives a rigid anchor. Without reflection, a
+    // mirror-image match keeps only points near its anchor line.
     //
     // Keeps references to |left| and |right|; they must outlive it.
     class SimilarityAnchor2D : public CliqueConstraint

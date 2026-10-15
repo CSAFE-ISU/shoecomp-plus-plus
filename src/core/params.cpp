@@ -158,9 +158,9 @@ namespace shoecomp
              "matches need >= min_support + 2 points",
              ParamKind::Int, SC_REF(align2d.minSupport)},
             {"align2d", "anchor_tol",
-             "Scaled matching: anchored clique search; every point must "
-             "fit the similarity of its match's first two points within "
-             "this fraction of the triangle size; 0 = off",
+             "Anchored clique search: every point must fit the "
+             "transform (no mirroring) of its match's first two points "
+             "within this fraction of the triangle size; 0 = off",
              ParamKind::Double, SC_REF(align2d.anchorTol)},
             {"align2d", "results", "Alignments to return",
              ParamKind::Size, SC_REF(align2d.numResults)},
