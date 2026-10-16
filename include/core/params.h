@@ -34,17 +34,28 @@ namespace shoecomp
         StriationParams toParams(int numThreads = 0) const;
     };
 
+    // Clique search bounds and results, for 2-D and 3-D alike.
+    struct CliqueSettings
+    {
+        int minMatched = 5;
+        int maxMatched = 0;  // 0 = fewer of the two counts
+        int numResults = 2;  // distinct alignments, best first
+        // "explained" or "disjoint" (AlignCalc::DistinctMode)
+        std::string distinct = "explained";
+
+        AlignCalc::DistinctMode distinctMode() const;
+    };
+
     struct Align3DSettings
     {
         float angleTolDeg = 0.5f;
         float sepTolUm = 4.0f;
-        float maxLengthRatio = 0.0f;  // 0 = off
-        float extentScale = 0.0f;     // 0 = off
-        int minLines = 10;
-        int numResults = 2;
+        float maxLengthRatio = 0.0f;   // 0 = off
+        float extentScale = 0.0f;      // 0 = off
         float maxRotationDeg = 30.0f;  // 0 = off
 
-        StriationAlignParams toParams(size_t numWorkers) const;
+        StriationAlignParams toParams(size_t numWorkers,
+                                      const CliqueSettings& c) const;
     };
 
     // EBTS: allowed mismatch of relative minutia directions.
@@ -53,18 +64,16 @@ namespace shoecomp
     struct Params
     {
         Detect2DSettings detect2d;
-        // upperBound 0 = min of the two point counts (the dialog's
-        // default). numWorkers is a run option, not a parameter.
+        // Bounds, results and distinct come from |clique| (see
+        // rtsParams()); numWorkers is a run option, not a parameter.
         AlignCalc::RTSParams align2d;
         float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;
         StriationSettings striation;
         Align3DSettings align3d;
-        // "explained" or "disjoint" (AlignCalc::DistinctMode), for 2-D
-        // and 3-D alike
-        std::string distinct = "explained";
+        CliqueSettings clique;
 
-        Params();
-        AlignCalc::DistinctMode distinctMode() const;
+        // align2d with |clique| applied
+        AlignCalc::RTSParams rtsParams() const;
     };
 
     enum class ParamKind

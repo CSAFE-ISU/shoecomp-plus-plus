@@ -105,6 +105,8 @@ namespace shoecomp
             int rp = countPts(rightImage);
             maxPts = std::max(3, std::min(lp, rp));
             rtsParams.upperBound = maxPts;
+            rtsParams.lowerBound =
+                std::min(rtsParams.lowerBound, maxPts);
         }
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;

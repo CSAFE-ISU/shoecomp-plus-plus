@@ -221,6 +221,8 @@ namespace shoecomp
         dp.numResults = params.numResults;
         dp.lowerBound = minLines;
         dp.upperBound = (int32_t)std::min(left.rows(), right.rows());
+        if (params.maxLines > 0)
+            dp.upperBound = std::min(dp.upperBound, params.maxLines);
         dp.mode = params.distinct;
         dp.minFrac = params.distinctMinFrac;
         LineFitter fitter{

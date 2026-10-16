@@ -1,5 +1,6 @@
 #include "ui/align3dDialog.h"
 
+#include <algorithm>
 #include <cstdio>
 #include <cstring>
 
@@ -25,18 +26,20 @@ namespace shoecomp
             surfaceStriations(*left.surface, &leftPeakIdx);
         std::vector<StriationLine> r =
             surfaceStriations(*right.surface, &rightPeakIdx);
-        if ((int)l.size() < settings.minLines ||
-            (int)r.size() < settings.minLines)
+        if ((int)l.size() < clique.minMatched ||
+            (int)r.size() < clique.minMatched)
         {
             std::snprintf(statusText, sizeof(statusText),
                           "Need at least %d striations on each land "
                           "(found %zu and %zu). Run Detect first.",
-                          settings.minLines, l.size(), r.size());
+                          clique.minMatched, l.size(), r.size());
             statusIsError = true;
             return false;
         }
         leftRows = striationRows(l);
         rightRows = striationRows(r);
+        maxLines = (int)std::min(l.size(), r.size());
+        clique.maxMatched = maxLines;
         leftName = left.name();
         rightName = right.name();
         results.clear();
@@ -113,10 +116,21 @@ namespace shoecomp
         ImGui::DragFloat("Separation tolerance (um)",
                          &settings.sepTolUm, 0.1f, 0.1f, 100.0f,
                          "%.1f");
-        ImGui::InputInt("Min matched lines", &settings.minLines);
-        if (settings.minLines < 2) settings.minLines = 2;
-        ImGui::InputInt("Results", &settings.numResults);
-        if (settings.numResults < 1) settings.numResults = 1;
+        const ImGuiStyle& st = ImGui::GetStyle();
+        const float halfW =
+            (ImGui::CalcItemWidth() - st.ItemSpacing.x) * 0.5f;
+        ImGui::SetNextItemWidth(halfW);
+        ImGui::SliderInt("##lines_lo", &clique.minMatched, 3, maxLines,
+                         "Min: %d");
+        if (clique.minMatched < 3) clique.minMatched = 3;
+        if (clique.maxMatched < clique.minMatched)
+            clique.maxMatched = clique.minMatched;
+        ImGui::SameLine(0.0f, st.ItemSpacing.x);
+        ImGui::SetNextItemWidth(halfW);
+        ImGui::SliderInt("Matched lines", &clique.maxMatched,
+                         clique.minMatched, maxLines, "Max: %d");
+        ImGui::InputInt("Results", &clique.numResults);
+        if (clique.numResults < 1) clique.numResults = 1;
         if (ImGui::IsItemHovered())
             ImGui::SetTooltip(
                 "Distinct alignments, best first: each "
@@ -171,7 +185,8 @@ namespace shoecomp
         statusText[0] = '\0';
         statusIsError = false;
 
-        StriationAlignParams p = settings.toParams((size_t)numWorkers);
+        StriationAlignParams p =
+            settings.toParams((size_t)numWorkers, clique);
         workerThread = std::thread(
             [this, p]()
             {

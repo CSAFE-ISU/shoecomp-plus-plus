@@ -23,6 +23,8 @@ namespace shoecomp
         std::string leftName, rightName;
 
         Align3DSettings settings;
+        CliqueSettings clique;
+        int maxLines = 0;  // fewer of the two lands' line counts
         int numWorkers = 4;
 
         AlignCalc::DoubleMatrixR leftRows, rightRows;

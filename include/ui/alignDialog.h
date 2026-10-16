@@ -31,7 +31,7 @@ namespace shoecomp
         WorkerChannel channel;
         std::thread workerThread;
         bool workerFinished = false;
-        AlignCalc::RTSParams rtsParams = Params().align2d;
+        AlignCalc::RTSParams rtsParams = Params().rtsParams();
         // Input type of the two images (EBTS adds the minutia rules).
         ImageType type = ImageType::Shoe;
         float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;

@@ -87,7 +87,7 @@ scpp version                             # version + licenses
   their relative direction (`theta`) within
   `--align2d-minutia-angle-tol-deg` (default 20, 0 = off); the GUI
   Align dialog applies the same rules.
-- **Distinct alignments:** `results` (2-D and x3p) are distinct
+- **Distinct alignments:** `[clique] results` (2-D and x3p) are distinct
   alignments, best first: after each one, its matched pairs are set
   aside and the search runs again, so later results are different
   placements rather than variants of the best. `[clique] distinct`
@@ -98,9 +98,8 @@ scpp version                             # version + licenses
   twice `epsilon` of its distance to at least half the matched
   points); `disjoint` drops every pair that uses one of the
   alignment's points (left or right), so later alignments share no
-  point with it. Each later
-  alignment needs `min_points` / `min_matched` and at least 70% of
-  the best's count. x3p alignments that rotate a land by more than
+  point with it. Each later alignment needs `[clique] min_matched`
+  (default 5) and at least 70% of the best's count. x3p alignments that rotate a land by more than
   `max_rotation_deg` (default 30; e.g. reversed end-for-end) are
   rejected. Results are reproducible: the same inputs give the same
   alignments for any `-j`. Every extra result costs another search,
@@ -110,8 +109,10 @@ scpp version                             # version + licenses
   placement; `0` and `inf` when no second one reached 70% of the
   best, empty for `none`/`error`. `results 2` is enough for it.
 - **Parameters:** every value the Align / Detect dialogs expose is a
-  flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`)
-  and a key in the INI file given with `-p`; `scpp params` prints them
+  flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`,
+  `--clique-*`) and a key in the INI file given with `-p`; `[clique]`
+  (`min_matched`, `max_matched`, `results`, `distinct`) applies to
+  2-D and x3p alike; `scpp params` prints them
   with their defaults. Some are CLI-only (the GUI uses their
   defaults): `detect2d iou`, `align2d anchor_tol` and
   `minutia_angle_tol_deg`, `striation max_dev_deg`,

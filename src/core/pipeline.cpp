@@ -609,9 +609,8 @@ namespace shoecomp
 
         if (!is3DType(left.type))
         {
-            AlignCalc::RTSParams p = params.align2d;
+            AlignCalc::RTSParams p = params.rtsParams();
             p.numWorkers = (size_t)resolveThreads(opts.threads);
-            p.distinct = params.distinctMode();
             std::vector<MatchedRows> rows;
             bool timedOut = false;
             const std::string err = runDraining(
@@ -654,20 +653,18 @@ namespace shoecomp
         }
 
         const Align3DSettings& s = params.align3d;
-        if ((int)left.count < s.minLines ||
-            (int)right.count < s.minLines)
+        const int minLines = params.clique.minMatched;
+        if ((int)left.count < minLines || (int)right.count < minLines)
         {
             res.status = PairStatus::NoMatch;
-            res.message = "need at least " +
-                          std::to_string(s.minLines) +
+            res.message = "need at least " + std::to_string(minLines) +
                           " striations on each land (found " +
                           std::to_string(left.count) + " and " +
                           std::to_string(right.count) + ")";
             return finish();
         }
-        StriationAlignParams p =
-            s.toParams((size_t)resolveThreads(opts.threads));
-        p.distinct = params.distinctMode();
+        const StriationAlignParams p = s.toParams(
+            (size_t)resolveThreads(opts.threads), params.clique);
         bool ok = false, timedOut = false;
         const std::string err = runDraining(
             ch, label, opts, timedOut,

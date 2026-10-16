@@ -108,27 +108,37 @@ namespace shoecomp
     }
 
     StriationAlignParams Align3DSettings::toParams(
-        size_t numWorkers) const
+        size_t numWorkers, const CliqueSettings& c) const
     {
         StriationAlignParams p;
         p.angleTolDeg = angleTolDeg;
         p.sepTolUm = sepTolUm;
         p.maxLengthRatio = maxLengthRatio;
         p.extentScale = extentScale;
-        p.minLines = minLines;
+        p.minLines = c.minMatched;
+        p.maxLines = c.maxMatched;
+        p.distinct = c.distinctMode();
         p.maxRotationDeg = maxRotationDeg;
-        p.numResults = (size_t)numResults;
+        p.numResults = (size_t)c.numResults;
         p.numWorkers = numWorkers;
         return p;
     }
 
-    Params::Params() { align2d.upperBound = 0; }
-
-    AlignCalc::DistinctMode Params::distinctMode() const
+    AlignCalc::DistinctMode CliqueSettings::distinctMode() const
     {
         return distinct == "disjoint"
                    ? AlignCalc::DistinctMode::Disjoint
                    : AlignCalc::DistinctMode::Explained;
+    }
+
+    AlignCalc::RTSParams Params::rtsParams() const
+    {
+        AlignCalc::RTSParams p = align2d;
+        p.lowerBound = clique.minMatched;
+        p.upperBound = clique.maxMatched;
+        p.numResults = (size_t)clique.numResults;
+        p.distinct = clique.distinctMode();
+        return p;
     }
 
 #define SC_REF(member) \
@@ -151,12 +161,6 @@ namespace shoecomp
              ParamKind::Double, SC_REF(align2d.scaleRange)},
             {"align2d", "epsilon", "Allowed error",
              ParamKind::Double, SC_REF(align2d.epsilon)},
-            {"align2d", "min_points",
-             "Minimum matched points (>= 3)",
-             ParamKind::Int, SC_REF(align2d.lowerBound)},
-            {"align2d", "max_points",
-             "Maximum matched points; 0 = fewer of the two point counts",
-             ParamKind::Int, SC_REF(align2d.upperBound)},
             {"align2d", "same_scale", "Force scale 1 (rigid)",
              ParamKind::Bool, SC_REF(align2d.sameScale)},
             {"align2d", "anchor_tol",
@@ -164,8 +168,6 @@ namespace shoecomp
              "transform (no mirroring) of its match's first two points "
              "within this fraction of the triangle size; 0 = off",
              ParamKind::Double, SC_REF(align2d.anchorTol)},
-            {"align2d", "results", "Alignments to return",
-             ParamKind::Size, SC_REF(align2d.numResults)},
             {"align2d", "minutia_angle_tol_deg",
              "EBTS only: max mismatch of relative minutia directions "
              "(deg); 0 = off",
@@ -204,22 +206,25 @@ namespace shoecomp
              "over different lengths (x sin(angle/2) x length "
              "difference); 0 = off",
              ParamKind::Float, SC_REF(align3d.extentScale)},
-            {"align3d", "min_matched", "Minimum matched striations",
-             ParamKind::Int, SC_REF(align3d.minLines)},
-            {"align3d", "results",
-             "Distinct alignments to return (each a different "
-             "transform), best first",
-             ParamKind::Int, SC_REF(align3d.numResults)},
             {"align3d", "max_rotation_deg",
              "Reject alignments that rotate one land by more than this "
              "(deg; e.g. reversed end-for-end); 0 = off",
              ParamKind::Float, SC_REF(align3d.maxRotationDeg)},
 
+            {"clique", "min_matched",
+             "Minimum matched points (2-D) or striations (x3p), >= 3",
+             ParamKind::Int, SC_REF(clique.minMatched)},
+            {"clique", "max_matched",
+             "Maximum matched; 0 = fewer of the two counts",
+             ParamKind::Int, SC_REF(clique.maxMatched)},
+            {"clique", "results",
+             "Distinct alignments to return, best first",
+             ParamKind::Int, SC_REF(clique.numResults)},
             {"clique", "distinct",
              "How results after the best are kept apart: explained = "
              "no pair an earlier result's transform explains; "
              "disjoint = no point shared with an earlier result",
-             ParamKind::String, SC_REF(distinct)},
+             ParamKind::String, SC_REF(clique.distinct)},
         };
         // clang-format on
         return table;
@@ -410,13 +415,6 @@ namespace shoecomp
             return bad("[align2d] scale_range must be >= 1");
         if (!(a.epsilon > 0.0))
             return bad("[align2d] epsilon must be > 0");
-        if (a.lowerBound < 3)
-            return bad("[align2d] min_points must be >= 3");
-        if (a.upperBound != 0 && a.upperBound < a.lowerBound)
-            return bad(
-                "[align2d] max_points must be 0 or >= min_points");
-        if (a.numResults < 1)
-            return bad("[align2d] results must be >= 1");
         if (!(a.anchorTol >= 0.0))
             return bad("[align2d] anchor_tol must be >= 0");
         if (p.minutiaAngleTolDeg < 0.0f ||
@@ -445,14 +443,18 @@ namespace shoecomp
             return bad("[align3d] max_length_ratio must be >= 0");
         if (l.extentScale < 0.0f)
             return bad("[align3d] extent_scale must be >= 0");
-        if (l.minLines < 2)
-            return bad("[align3d] min_matched must be >= 2");
-        if (l.numResults < 1)
-            return bad("[align3d] results must be >= 1");
         if (!(l.maxRotationDeg >= 0.0f && l.maxRotationDeg <= 180.0f))
             return bad(
                 "[align3d] max_rotation_deg must be in [0, 180]");
-        if (p.distinct != "explained" && p.distinct != "disjoint")
+        const auto& c = p.clique;
+        if (c.minMatched < 3)
+            return bad("[clique] min_matched must be >= 3");
+        if (c.maxMatched != 0 && c.maxMatched < c.minMatched)
+            return bad(
+                "[clique] max_matched must be 0 or >= min_matched");
+        if (c.numResults < 1)
+            return bad("[clique] results must be >= 1");
+        if (c.distinct != "explained" && c.distinct != "disjoint")
             return bad(
                 "[clique] distinct must be explained or disjoint");
         return true;

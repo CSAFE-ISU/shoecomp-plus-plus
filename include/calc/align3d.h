@@ -22,6 +22,7 @@ namespace shoecomp
         size_t numWorkers = 4;
         size_t numResults = 2;  // distinct alignments, best first
         int minLines = 10;
+        int maxLines = 0;  // 0 = fewer of the two line counts
         // Alignments after the best need at least this fraction of
         // its matched lines (and minLines).
         double distinctMinFrac = 0.7;
