@@ -107,12 +107,14 @@ namespace shoecomp
     std::string csvHeader(ImageType type)
     {
         if (is3DType(type))
-            return "id,left,right,status,n_results,matched,matched_2,"
-                   "ratio,left_lines,right_lines,pitch_deg,yaw_deg,"
+            return "id,left,right,status,n_results,matched,explained,"
+                   "matched_2,ratio,left_lines,right_lines,pitch_deg,"
+                   "yaw_deg,"
                    "roll_deg,tx_um,ty_um,tz_um,rms_um,axial_weak,"
                    "time_ms,message";
-        return "id,left,right,status,n_results,matched,matched_2,ratio,"
-               "left_points,right_points,rotation_deg,dx,dy,scale,"
+        return "id,left,right,status,n_results,matched,explained,"
+               "matched_2,ratio,left_points,right_points,rotation_deg,"
+               "dx,dy,scale,"
                "time_ms,message";
     }
 
@@ -123,7 +125,8 @@ namespace shoecomp
         os << id << ',' << csvField(left.label) << ','
            << csvField(right.label) << ',' << pairStatusName(r.status)
            << ',' << r.matched.size() << ','
-           << (r.matched.empty() ? 0 : r.matched[0].size()) << ',';
+           << (r.matched.empty() ? 0 : r.matched[0].size()) << ','
+           << (r.explained.empty() ? 0 : r.explained[0]) << ',';
         // Results are distinct alignments: how far the best stands
         // above the second best (inf: no second one reached 70% of the
         // best).

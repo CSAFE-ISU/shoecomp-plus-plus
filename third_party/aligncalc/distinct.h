@@ -41,6 +41,58 @@ namespace AlignCalc
         Cancelled,
     };
 
+    // Largest set of |pairs| using each left and each right point at
+    // most once (bipartite matching, augmenting paths).
+    inline int32_t maxMatching(const std::vector<Correspondence>& pairs)
+    {
+        int32_t nl = 0, nr = 0;
+        for (const Correspondence& c : pairs)
+        {
+            nl = std::max(nl, c.left + 1);
+            nr = std::max(nr, c.right + 1);
+        }
+        std::vector<std::vector<int32_t>> adj(nl);
+        for (const Correspondence& c : pairs)
+            adj[c.left].push_back(c.right);
+        std::vector<int32_t> matchR(nr, -1);
+        std::vector<int32_t> seen(nr, -1);
+        // iterative DFS: (left vertex, next adjacency index)
+        std::vector<std::pair<int32_t, size_t>> st;
+        std::vector<int32_t> via;
+        int32_t count = 0;
+        for (int32_t s = 0; s < nl; ++s)
+        {
+            if (adj[s].empty()) continue;
+            st.assign(1, {s, 0});
+            via.clear();
+            bool found = false;
+            while (!st.empty() && !found)
+            {
+                auto& [u, k] = st.back();
+                if (k == adj[u].size())
+                {
+                    st.pop_back();
+                    if (!via.empty()) via.pop_back();
+                    continue;
+                }
+                const int32_t r = adj[u][k++];
+                if (seen[r] == s) continue;
+                seen[r] = s;
+                via.push_back(r);
+                if (matchR[r] < 0)
+                    found = true;
+                else
+                    st.push_back({matchR[r], 0});
+            }
+            if (!found) continue;
+            // flip the path: st[i] took via[i]
+            for (size_t i = 0; i < via.size(); ++i)
+                matchR[via[i]] = st[i].first;
+            ++count;
+        }
+        return count;
+    }
+
     // |g| restricted to the nodes with keep[i] set (ids renumbered in
     // order; nodes left without neighbours are dropped).
     GraphRows keepNodes(const GraphRows& g,
@@ -55,7 +107,10 @@ namespace AlignCalc
     //   tie bool explains(Correspondence) const;  // under the last fit
     //   bool accept() const;  // false: set aside (explained pairs
     //                         // only, in either mode), not reported
-    //   void keep();          // report the last fit
+    //   void keep(int32_t explained);  // report the last fit
+    // |explained| is how many pairs of the whole graph the fit accounts
+    // for one-to-one: the clique's pairs plus those its transform
+    // explains (Explained mode), or the clique's size (Disjoint).
     // Rounds after the first mute progress posts, so a final error
     // still fits the channel's ring.
     template <class Fitter>
@@ -131,13 +186,21 @@ namespace AlignCalc
             if (byPoint)
                 for (const Correspondence& c : *used)
                     usedL[c.left] = usedR[c.right] = 1;
+            const bool count =
+                accepted && params.mode == DistinctMode::Explained;
+            std::vector<Correspondence> explainedPairs;
             for (size_t i = 0; i < graph.size(); ++i)
             {
-                if (!keep[i]) continue;
+                if (!keep[i] && !count) continue;
                 const Correspondence c = graph.nodes[i];
-                if (std::binary_search(used->begin(), used->end(), c) ||
-                    (byPoint ? usedL[c.left] || usedR[c.right]
-                             : fitter.explains(c)))
+                const bool inClique =
+                    std::binary_search(used->begin(), used->end(), c);
+                const bool ex =
+                    !byPoint && (inClique || fitter.explains(c));
+                if (count && ex) explainedPairs.push_back(c);
+                if (keep[i] &&
+                    (inClique ||
+                     (byPoint ? usedL[c.left] || usedR[c.right] : ex)))
                     keep[i] = 0;
             }
             if (!accepted && ++rejected > kMaxRejected) break;
@@ -149,7 +212,8 @@ namespace AlignCalc
                         (int32_t)std::ceil(params.minFrac *
                                                (double)used->size() -
                                            1e-9));
-                fitter.keep();
+                fitter.keep(count ? maxMatching(explainedPairs)
+                                  : (int32_t)used->size());
                 ++found;
             }
             if (found >= want || channel.should_cancel()) break;

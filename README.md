@@ -103,8 +103,13 @@ scpp version                             # version + licenses
   `max_rotation_deg` (default 30; e.g. reversed end-for-end) are
   rejected. Results are reproducible: the same inputs give the same
   alignments for any `-j`. Every extra result costs another search,
-  so keep `results` small for big runs. `summary.csv` rows also carry
-  `matched_2` (the second-best alignment's count) and `ratio` =
+  so keep `results` small for big runs. Each alignment also reports
+  `explained` (`summary.csv` column for the best, `info.explained` in
+  the JSON): how many pairs it accounts for one-to-one, its matched
+  pairs plus every pair its transform explains (with `disjoint`: the
+  matched count). It matters most with a `max_matched` cap, where
+  `matched` is capped but `explained` is not. `summary.csv` rows also
+  carry `matched_2` (the second-best alignment's count) and `ratio` =
   `matched / matched_2`: how far the best stands above any other
   placement; `0` and `inf` when no second one reached 70% of the
   best, empty for `none`/`error`. `results 2` is enough for it.

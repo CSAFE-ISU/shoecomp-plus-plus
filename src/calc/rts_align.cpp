@@ -199,6 +199,7 @@ namespace shoecomp
 
             // Store matched points in info
             aligns.back().info.setObject();
+            aligns.back().info["explained"] = jt::Json(match.explained);
             aligns.back().info["leftPoints"].setArray();
             aligns.back().info["rightPoints"].setArray();
             for (int32_t i = 0; i < match.N; ++i)

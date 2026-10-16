@@ -69,6 +69,9 @@ namespace shoecomp
         // Matched rows per alignment: 2-D points[] indices, 3-D
         // peaks[] indices (left, right).
         std::vector<std::vector<std::pair<int, int>>> matched;
+        // Pairs each alignment accounts for: matched plus explained
+        // ([clique] distinct = explained), or matched (disjoint).
+        std::vector<int> explained;
         std::vector<AlignState> align2d;
         std::vector<StriationAlignment> align3d;
     };

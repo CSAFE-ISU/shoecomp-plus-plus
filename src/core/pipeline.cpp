@@ -632,6 +632,11 @@ namespace shoecomp
                 for (const auto& c : rows[i])
                     m.push_back({c.left, c.right});
                 res.matched.push_back(std::move(m));
+                const jt::Json& info = res.align2d[i].info;
+                res.explained.push_back(
+                    info.contains("explained")
+                        ? (int)info["explained"].getNumber()
+                        : (int)rows[i].size());
             }
             if (timedOut)
             {
@@ -697,6 +702,7 @@ namespace shoecomp
                 m.push_back(
                     {left.peakIdx[pr.first], right.peakIdx[pr.second]});
             res.matched.push_back(std::move(m));
+            res.explained.push_back(a.explained);
         }
         res.status = PairStatus::Ok;
         return finish();

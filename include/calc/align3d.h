@@ -40,6 +40,7 @@ namespace shoecomp
         Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
         double rmsPerp = 0.0;  // metres
         bool axialWeak = false;
+        int explained = 0;  // pairs it accounts for (searchDistinct)
     };
 
     // Error text runStriationAlign posts when no consistent set of

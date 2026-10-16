@@ -129,7 +129,11 @@ namespace shoecomp
                          Eigen::AngleAxisd(cur.leftToRight.rotation())
                                  .angle() > maxRot);
             }
-            void keep() { out.push_back(std::move(cur)); }
+            void keep(int32_t explained)
+            {
+                cur.explained = explained;
+                out.push_back(std::move(cur));
+            }
         };
     }  // namespace
 

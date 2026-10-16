@@ -59,6 +59,8 @@ namespace AlignCalc
         DoubleMatrixR left_pts;
         DoubleMatrixR right_pts;
         std::vector<Correspondence> pairs;
+        // pairs the alignment accounts for (see searchDistinct)
+        int32_t explained = 0;
     };
 
     struct RTSTransform

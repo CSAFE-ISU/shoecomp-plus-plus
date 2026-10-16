@@ -71,6 +71,7 @@ namespace shoecomp
             info["matchedStriations"].getArray().push_back(
                 std::move(m));
         }
+        info["explained"] = jt::Json(r.explained);
         info["rmsPerpUm"] = jt::Json(r.rmsPerp * 1e6);
         info["axialWeak"] = jt::Json(r.axialWeak);
         info["angleTolDeg"] = jt::Json((double)s.angleTolDeg);
