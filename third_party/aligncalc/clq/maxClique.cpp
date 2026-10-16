@@ -543,9 +543,13 @@ namespace AlignCalc
             // find the size (stop collecting ties at the second), then,
             // if it is tied, take the first clique of that size in
             // each root's (deterministic) search, for the lowest roots.
+            // A clique at upperBound ends the first phase at once, so
+            // it is whichever one a thread reached first: settle it
+            // too.
             Solver solver(rows, params, channel, 1);
             if (!solver.run(cliques) || cliques.empty()) return false;
-            if (solver.capped())
+            if (solver.capped() ||
+                int32_t(cliques.front().size()) >= params.upperBound)
             {
                 CliqueParams fixed = params;
                 fixed.lowerBound = fixed.upperBound =
