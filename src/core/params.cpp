@@ -123,11 +123,7 @@ namespace shoecomp
         return p;
     }
 
-    Params::Params()
-    {
-        align2d.upperBound = 0;
-        align2d.anchorTol = 0.01;
-    }
+    Params::Params() { align2d.upperBound = 0; }
 
 #define SC_REF(member) \
     [](Params& p) -> void* { return &p.member; }

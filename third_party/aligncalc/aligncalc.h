@@ -43,7 +43,7 @@ namespace AlignCalc
             minSupport = 1;
             angleCol = -1;
             angleTolDeg = 0.0;
-            anchorTol = 0.0;
+            anchorTol = 0.05;
         }
     };
 

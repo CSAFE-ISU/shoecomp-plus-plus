@@ -39,6 +39,7 @@ namespace AlignCalc
         cp.lowerBound = params.lowerBound;
         cp.upperBound = params.upperBound;
         cp.constraint = constraint;
+        cp.deterministic = true;
         std::vector<std::vector<Correspondence>> cliques;
         channel.report(0.5f, "searching cliques...");
         if (!searchCliques(graph, cp, channel, cliques))
