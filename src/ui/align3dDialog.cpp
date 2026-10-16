@@ -113,20 +113,6 @@ namespace shoecomp
         ImGui::DragFloat("Separation tolerance (um)",
                          &settings.sepTolUm, 0.1f, 0.1f, 100.0f,
                          "%.1f");
-        ImGui::DragFloat("Max length ratio (0 = off)",
-                         &settings.maxLengthRatio, 0.05f, 0.0f, 10.0f,
-                         "%.2f");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Only match striations whose lengths "
-                "differ by at most this factor.");
-        ImGui::DragFloat("Extent allowance (0 = off)",
-                         &settings.extentScale, 0.05f, 0.0f, 5.0f,
-                         "%.2f");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Widen the separation tolerance for striations "
-                "detected over different lengths.");
         ImGui::InputInt("Min matched lines", &settings.minLines);
         if (settings.minLines < 2) settings.minLines = 2;
         ImGui::InputInt("Results", &settings.numResults);
@@ -135,16 +121,6 @@ namespace shoecomp
             ImGui::SetTooltip(
                 "Distinct alignments, best first: each "
                 "later one is a different transform.");
-        ImGui::DragFloat("Later results: min fraction of best",
-                         &settings.distinctMinFrac, 0.01f, 0.0f, 1.0f,
-                         "%.2f");
-        ImGui::DragFloat("Max rotation (deg, 0 = off)",
-                         &settings.maxRotationDeg, 1.0f, 0.0f, 180.0f,
-                         "%.0f");
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "Reject alignments that rotate one land by more "
-                "than this,\ne.g. reversed end-for-end.");
         ImGui::SliderInt("Workers", &numWorkers, 1, 16);
         ImGui::PopItemWidth();
         ImGui::EndDisabled();

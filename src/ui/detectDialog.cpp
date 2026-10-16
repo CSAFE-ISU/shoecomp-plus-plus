@@ -184,8 +184,6 @@ namespace shoecomp
                 ImGui::SliderFloat("Confidence",
                                    &settings.confThreshold, 0.0f, 1.0f,
                                    "%.2f");
-                ImGui::SliderFloat("IoU (NMS)", &settings.iouThreshold,
-                                   0.0f, 1.0f, "%.2f");
                 ImGui::EndDisabled();
 
                 ImGui::Spacing();

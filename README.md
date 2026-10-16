@@ -92,7 +92,7 @@ scpp version                             # version + licenses
   explains is set aside and the search runs again, so later results
   are genuinely different placements rather than variants of the
   best. Each later one needs `min_matched` striations and at least
-  `distinct_min_frac` (default 0.7) of the best's count. Alignments
+  70% of the best's count. Alignments
   that rotate a land by more than `max_rotation_deg` (default 30;
   e.g. reversed end-for-end) are rejected. Results are reproducible:
   the same inputs give the same alignments for any `-j`. Every extra
@@ -100,12 +100,16 @@ scpp version                             # version + licenses
   x3p `summary.csv` rows also carry `matched_2` (the second-best
   alignment's striations) and `ratio` = `matched / matched_2`: how far
   the best stands above any other placement; `0` and `inf` when no
-  second one reached `distinct_min_frac`, empty for `none`/`error`.
+  second one reached 70% of the best, empty for `none`/`error`.
   `results 2` is enough for it.
 - **Parameters:** every value the Align / Detect dialogs expose is a
   flag (`--align2d-*`, `--detect2d-*`, `--striation-*`, `--align3d-*`)
   and a key in the INI file given with `-p`; `scpp params` prints them
-  with their defaults. `-j N` sets the threads for every stage
+  with their defaults. Some are CLI-only (the GUI uses their
+  defaults): `detect2d iou`, `align2d anchor_tol` and
+  `minutia_angle_tol_deg`, `striation max_dev_deg`,
+  `exclude_shoulders` and `shoulder_margin_um`, `align3d max_length_ratio`, `extent_scale` and
+  `max_rotation_deg`. `-j N` sets the threads for every stage
   (default: all cores); results do not depend on it.
 - **Output:** a summary per alignment on stdout; `--json` prints, and
   `-o FILE` writes, the full result, whose alignments use the GUI's

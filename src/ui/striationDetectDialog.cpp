@@ -137,9 +137,6 @@ namespace shoecomp
                 ImGui::DragFloat("Min height |dr| (um)",
                                  &settings.minHeightUm, 0.1f, 0.0f,
                                  1000.0f, "%.2f");
-                ImGui::DragFloat("Max deviation from surface (deg)",
-                                 &settings.maxSurfDevDeg, 0.5f, 0.0f,
-                                 90.0f, "%.1f");
                 ImGui::InputInt("Max count", &settings.maxCount);
                 if (settings.maxCount < 1) settings.maxCount = 1;
                 ImGui::PopItemWidth();
@@ -149,21 +146,6 @@ namespace shoecomp
                     ImGui::SetTooltip(
                         "On: ridges (peaks) and grooves (valleys).\n"
                         "Off: peaks only (positive dr).");
-                ImGui::Checkbox("Skip groove shoulders",
-                                &settings.excludeShoulders);
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Find the groove shoulders from the land's "
-                        "cross-section\nand detect striations only "
-                        "between them.");
-                ImGui::BeginDisabled(!settings.excludeShoulders);
-                ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x *
-                                     0.4f);
-                ImGui::DragFloat("Shoulder margin (um)",
-                                 &settings.shoulderMarginUm, 1.0f, 0.0f,
-                                 1000.0f, "%.0f");
-                ImGui::PopItemWidth();
-                ImGui::EndDisabled();
                 ImGui::EndDisabled();
 
                 ImGui::Spacing();

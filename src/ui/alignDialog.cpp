@@ -166,29 +166,6 @@ namespace shoecomp
 
             ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
 
-            float anchorTol = static_cast<float>(rtsParams.anchorTol);
-            if (ImGui::SliderFloat("Anchor Tolerance", &anchorTol, 0.0f,
-                                   0.1f, "%.3f"))
-                rtsParams.anchorTol = std::max(0.0f, anchorTol);
-            if (ImGui::IsItemHovered())
-                ImGui::SetTooltip(
-                    "Every matched point must fit the transform of the "
-                    "match's first two points (no mirroring), within "
-                    "this fraction of the triangle size.\n"
-                    "Rejects coincidental and mirror-image matches and "
-                    "speeds up dense searches; 0 = off.");
-
-            if (type == ImageType::EBTS)
-            {
-                ImGui::SliderFloat("Minutia Direction Tol. (deg)",
-                                   &minutiaAngleTolDeg, 0.0f, 90.0f,
-                                   "%.0f");
-                if (ImGui::IsItemHovered())
-                    ImGui::SetTooltip(
-                        "Max mismatch between the relative directions "
-                        "of two matched minutiae; 0 = off.");
-            }
-
             ImGui::Spacing();
             ImGui::Spacing();
 

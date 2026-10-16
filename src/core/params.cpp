@@ -116,7 +116,6 @@ namespace shoecomp
         p.maxLengthRatio = maxLengthRatio;
         p.extentScale = extentScale;
         p.minLines = minLines;
-        p.distinctMinFrac = distinctMinFrac;
         p.maxRotationDeg = maxRotationDeg;
         p.numResults = (size_t)numResults;
         p.numWorkers = numWorkers;
@@ -153,10 +152,6 @@ namespace shoecomp
              ParamKind::Int, SC_REF(align2d.upperBound)},
             {"align2d", "same_scale", "Force scale 1 (rigid)",
              ParamKind::Bool, SC_REF(align2d.sameScale)},
-            {"align2d", "min_support",
-             "Scaled matching: matched triangles an edge needs (>= 1); "
-             "matches need >= min_support + 2 points",
-             ParamKind::Int, SC_REF(align2d.minSupport)},
             {"align2d", "anchor_tol",
              "Anchored clique search: every point must fit the "
              "transform (no mirroring) of its match's first two points "
@@ -208,10 +203,6 @@ namespace shoecomp
              "Distinct alignments to return (each a different "
              "transform), best first",
              ParamKind::Int, SC_REF(align3d.numResults)},
-            {"align3d", "distinct_min_frac",
-             "Alignments after the best need at least this fraction "
-             "of its matched striations",
-             ParamKind::Float, SC_REF(align3d.distinctMinFrac)},
             {"align3d", "max_rotation_deg",
              "Reject alignments that rotate one land by more than this "
              "(deg; e.g. reversed end-for-end); 0 = off",
@@ -413,8 +404,6 @@ namespace shoecomp
                 "[align2d] max_points must be 0 or >= min_points");
         if (a.numResults < 1)
             return bad("[align2d] results must be >= 1");
-        if (a.minSupport < 1)
-            return bad("[align2d] min_support must be >= 1");
         if (!(a.anchorTol >= 0.0))
             return bad("[align2d] anchor_tol must be >= 0");
         if (p.minutiaAngleTolDeg < 0.0f ||
@@ -447,8 +436,6 @@ namespace shoecomp
             return bad("[align3d] min_matched must be >= 2");
         if (l.numResults < 1)
             return bad("[align3d] results must be >= 1");
-        if (!(l.distinctMinFrac >= 0.0f && l.distinctMinFrac <= 1.0f))
-            return bad("[align3d] distinct_min_frac must be in [0, 1]");
         if (!(l.maxRotationDeg >= 0.0f && l.maxRotationDeg <= 180.0f))
             return bad(
                 "[align3d] max_rotation_deg must be in [0, 180]");
