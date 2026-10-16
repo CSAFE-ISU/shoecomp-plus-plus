@@ -1,3 +1,4 @@
+#include "distinct.h"
 #include "graphBuild.h"
 #include <algorithm>
 #include <atomic>
@@ -170,6 +171,36 @@ namespace AlignCalc
             }
         }
         return true;
+    }
+
+    GraphRows keepNodes(const GraphRows& g,
+                        const std::vector<char>& keep)
+    {
+        const size_t n = g.size();
+        std::vector<int32_t> remap(n, -1);
+        GraphRows out;
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (!keep[i]) continue;
+            bool linked = false;
+            for (size_t k = 0; k < g.degree(i) && !linked; ++k)
+                linked = keep[g.row(i)[k]] != 0;
+            if (!linked) continue;
+            remap[i] = (int32_t)out.nodes.size();
+            out.nodes.push_back(g.nodes[i]);
+        }
+        out.offsets.push_back(0);
+        for (size_t i = 0; i < n; ++i)
+        {
+            if (remap[i] < 0) continue;
+            for (size_t k = 0; k < g.degree(i); ++k)
+            {
+                const int32_t j = remap[g.row(i)[k]];
+                if (j >= 0) out.adj.push_back(j);
+            }
+            out.offsets.push_back(out.adj.size());
+        }
+        return out;
     }
 
 }  // namespace AlignCalc

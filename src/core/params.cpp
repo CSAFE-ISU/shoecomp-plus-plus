@@ -124,6 +124,13 @@ namespace shoecomp
 
     Params::Params() { align2d.upperBound = 0; }
 
+    AlignCalc::DistinctMode Params::distinctMode() const
+    {
+        return distinct == "disjoint"
+                   ? AlignCalc::DistinctMode::Disjoint
+                   : AlignCalc::DistinctMode::Explained;
+    }
+
 #define SC_REF(member) \
     [](Params& p) -> void* { return &p.member; }
 
@@ -207,6 +214,12 @@ namespace shoecomp
              "Reject alignments that rotate one land by more than this "
              "(deg; e.g. reversed end-for-end); 0 = off",
              ParamKind::Float, SC_REF(align3d.maxRotationDeg)},
+
+            {"clique", "distinct",
+             "How results after the best are kept apart: explained = "
+             "no pair an earlier result's transform explains; "
+             "disjoint = no point shared with an earlier result",
+             ParamKind::String, SC_REF(distinct)},
         };
         // clang-format on
         return table;
@@ -439,6 +452,9 @@ namespace shoecomp
         if (!(l.maxRotationDeg >= 0.0f && l.maxRotationDeg <= 180.0f))
             return bad(
                 "[align3d] max_rotation_deg must be in [0, 180]");
+        if (p.distinct != "explained" && p.distinct != "disjoint")
+            return bad(
+                "[clique] distinct must be explained or disjoint");
         return true;
     }
 }  // namespace shoecomp

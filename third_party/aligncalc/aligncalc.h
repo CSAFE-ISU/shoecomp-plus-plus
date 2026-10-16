@@ -4,6 +4,7 @@
 #include "Eigen/Dense"
 #include "alignTypes.h"
 #include "correspondence.h"
+#include "distinct.h"
 #include "rules.h"
 #include "workerChannel.h"
 #include <cstdint>
@@ -30,6 +31,8 @@ namespace AlignCalc
         // Anchored clique search (PointAnchor2D; scale range 1
         // when sameScale) with this relative tolerance; 0 = off.
         double anchorTol;
+        // How later results are kept apart (see searchDistinct).
+        DistinctMode distinct;
 
         RTSParams()
         {
@@ -44,6 +47,7 @@ namespace AlignCalc
             angleCol = -1;
             angleTolDeg = 0.0;
             anchorTol = 0.05;
+            distinct = DistinctMode::Explained;
         }
     };
 

@@ -59,8 +59,12 @@ namespace shoecomp
         float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;
         StriationSettings striation;
         Align3DSettings align3d;
+        // "explained" or "disjoint" (AlignCalc::DistinctMode), for 2-D
+        // and 3-D alike
+        std::string distinct = "explained";
 
         Params();
+        AlignCalc::DistinctMode distinctMode() const;
     };
 
     enum class ParamKind

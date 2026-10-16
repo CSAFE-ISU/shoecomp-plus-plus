@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdio>
 
+#include "aligncalc/distinct.h"
 #include "aligncalc/estimate.h"
 #include "aligncalc/rigidLines3d.h"
 #include "formats/x3pAnnotationIo.h"
@@ -90,38 +91,46 @@ namespace shoecomp
             return (q - q.dot(dr) * dr).norm() <= sepTol;
         }
 
-        // |g| restricted to the nodes with keep[i] set (ids renumbered
-        // in order; nodes left without neighbours are dropped, as in
-        // any GraphRows).
-        AlignCalc::GraphRows keepNodes(const AlignCalc::GraphRows& g,
-                                       const std::vector<char>& keep)
+        struct LineFitter
         {
-            const size_t n = g.size();
-            std::vector<int32_t> remap(n, -1);
-            AlignCalc::GraphRows out;
-            for (size_t i = 0; i < n; ++i)
+            const AlignCalc::DoubleMatrixR& left;
+            const AlignCalc::DoubleMatrixR& right;
+            const AlignCalc::LineCols& cols;
+            double angleTol, sepTol, maxRot;
+            std::vector<StriationAlignment>& out;
+            StriationAlignment cur;
+
+            bool fit(const std::vector<AlignCalc::Correspondence>& clq)
             {
-                if (!keep[i]) continue;
-                bool linked = false;
-                for (size_t k = 0; k < g.degree(i) && !linked; ++k)
-                    linked = keep[g.row(i)[k]] != 0;
-                if (!linked) continue;
-                remap[i] = (int32_t)out.nodes.size();
-                out.nodes.push_back(g.nodes[i]);
+                AlignCalc::LineFit fit;
+                if (!AlignCalc::estimateRigidLines3D(left, right, cols,
+                                                     clq, fit))
+                    return false;
+                cur = StriationAlignment{};
+                cur.leftToRight = fit.transform;
+                cur.axis = fit.axis;
+                cur.rmsPerp = fit.rmsPerp;
+                cur.axialWeak = fit.axialWeak;
+                for (const auto& c : clq)
+                    cur.pairs.push_back({c.left, c.right});
+                return true;
             }
-            out.offsets.push_back(0);
-            for (size_t i = 0; i < n; ++i)
+            bool explains(AlignCalc::Correspondence c) const
             {
-                if (remap[i] < 0) continue;
-                for (size_t k = 0; k < g.degree(i); ++k)
-                {
-                    const int32_t j = remap[g.row(i)[k]];
-                    if (j >= 0) out.adj.push_back(j);
-                }
-                out.offsets.push_back(out.adj.size());
+                return shoecomp::explains(cur.leftToRight, left, c.left,
+                                          right, c.right, angleTol,
+                                          sepTol);
             }
-            return out;
-        }
+            // a transform rotating past maxRot (e.g. one land reversed
+            // end-for-end) is set aside but not reported
+            bool accept() const
+            {
+                return !(maxRot > 0.0 &&
+                         Eigen::AngleAxisd(cur.leftToRight.rotation())
+                                 .angle() > maxRot);
+            }
+            void keep() { out.push_back(std::move(cur)); }
+        };
     }  // namespace
 
     std::vector<StriationLine> surfaceStriations(
@@ -207,119 +216,30 @@ namespace shoecomp
             return false;
         }
 
-        // Distinct alignments by peeling: each round takes the
-        // largest clique left, fits its transform, then removes every
-        // line pair that transform explains, so the next round finds
-        // a different alignment rather than a variant of this one
-        // (the solver only returns maximum cliques, which for one
-        // alignment differ by a few lines at the tolerance edge).
-        // A transform rotating more than maxRotationDeg (e.g. one land
-        // reversed end-for-end) is peeled but not reported. Alignments
-        // after the first reported one need at least min_matched lines
-        // and distinctMinFrac of its size. Only the first round reports
-        // failures; later ones just stop, with their progress text
-        // muted so a final error still fits the channel's ring.
-        struct MuteGuard
+        AlignCalc::DistinctParams dp;
+        dp.numWorkers = params.numWorkers;
+        dp.numResults = params.numResults;
+        dp.lowerBound = minLines;
+        dp.upperBound = (int32_t)std::min(left.rows(), right.rows());
+        dp.mode = params.distinct;
+        dp.minFrac = params.distinctMinFrac;
+        LineFitter fitter{
+            left,        right,     cols,
+            lp.angleTol, lp.sepTol, params.maxRotationDeg * kPi / 180.0,
+            out,         {}};
+        channel.report(0.5f, "searching consistent matches...");
+        switch (AlignCalc::searchDistinct(graph, dp, fitter, channel))
         {
-            WorkerChannel& ch;
-            ~MuteGuard() { ch.muteProgress = false; }
-        } mute{channel};
-        AlignCalc::CliqueParams cp;
-        cp.numWorkers = params.numWorkers;
-        cp.numResults = 4;  // a few ties, in case a fit fails
-        cp.deterministic = true;
-        cp.lowerBound = minLines;
-        cp.upperBound = (int32_t)std::min(left.rows(), right.rows());
-        const double maxRot = params.maxRotationDeg * kPi / 180.0;
-        std::vector<char> keep(graph.size(), 1);
-        AlignCalc::GraphRows rest;
-        const AlignCalc::GraphRows* g = &graph;
-        const size_t want = std::max<size_t>(1, params.numResults);
-        // Rotated candidates also cost a round; cap them with a
-        // constant (not one scaled by |want|) so the first k results
-        // are the same whatever |want| is.
-        const int kMaxRejected = 16;
-        int rejected = 0;
-        for (size_t round = 0; out.size() < want; ++round)
-        {
-            std::vector<std::vector<AlignCalc::Correspondence>> cliques;
-            if (round == 0)
-                channel.report(0.5f, "searching consistent matches...");
-            else
-                channel.muteProgress = true;
-            if (g->size() == 0 ||
-                !AlignCalc::searchCliques(*g, cp, channel, cliques))
-            {
-                if (channel.should_cancel()) return false;
-                if (round > 0) break;
-                channel.error(kNoStriationMatch);
-                return false;
-            }
-            if (round == 0)
-                channel.report(0.9f, "fitting transforms...");
-
-            StriationAlignment a;
-            const std::vector<AlignCalc::Correspondence>* used =
-                nullptr;
-            for (const auto& clq : cliques)
-            {
-                AlignCalc::LineFit fit;
-                if (!AlignCalc::estimateRigidLines3D(left, right, cols,
-                                                     clq, fit))
-                    continue;
-                a.leftToRight = fit.transform;
-                a.axis = fit.axis;
-                a.rmsPerp = fit.rmsPerp;
-                a.axialWeak = fit.axialWeak;
-                for (const auto& c : clq)
-                    a.pairs.push_back({c.left, c.right});
-                used = &clq;
-                break;
-            }
-            if (!used)
-            {
-                if (round > 0) break;
+            case AlignCalc::DistinctStatus::Ok:
+                return true;
+            case AlignCalc::DistinctStatus::FitFailed:
                 channel.error("transform fit failed");
                 return false;
-            }
-
-            // Peel: the clique's pairs and every pair the fitted
-            // transform explains.
-            for (size_t i = 0; i < graph.size(); ++i)
-            {
-                if (!keep[i]) continue;
-                const AlignCalc::Correspondence c = graph.nodes[i];
-                if (std::binary_search(used->begin(), used->end(), c) ||
-                    explains(a.leftToRight, left, c.left, right,
-                             c.right, lp.angleTol, lp.sepTol))
-                    keep[i] = 0;
-            }
-            const bool rotated =
-                maxRot > 0.0 &&
-                Eigen::AngleAxisd(a.leftToRight.rotation()).angle() >
-                    maxRot;
-            if (rotated && ++rejected > kMaxRejected) break;
-            if (!rotated)
-            {
-                if (out.empty())
-                    cp.lowerBound = std::max(
-                        minLines,
-                        (int32_t)std::ceil(params.distinctMinFrac *
-                                               (double)used->size() -
-                                           1e-9));
-                out.push_back(std::move(a));
-            }
-            if (out.size() >= want || channel.should_cancel()) break;
-            rest = keepNodes(graph, keep);
-            g = &rest;
+            case AlignCalc::DistinctStatus::Cancelled:
+                return false;
+            default:
+                channel.error(kNoStriationMatch);
+                return false;
         }
-        if (channel.should_cancel()) return false;
-        if (out.empty())
-        {
-            // every candidate rotated past maxRotationDeg
-            channel.error(kNoStriationMatch);
-            return false;
-        }
-        return true;
     }
 }  // namespace shoecomp

@@ -572,7 +572,7 @@ namespace shoecomp
         }
         if (a.cross)
         {
-            // matched counts, plus (x3p) the best/second-best ratio
+            // matched counts and the best/second-best ratio
             const auto head = splitCsv(csvHeader(c.type));
             for (const char* name : {"matched", "ratio"})
             {

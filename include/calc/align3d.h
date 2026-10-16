@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "aligncalc/alignTypes.h"
+#include "aligncalc/distinct.h"
 #include "aligncalc/eigen/Eigen/Geometry"
 #include "aligncalc/workerChannel.h"
 #include "calc/cylinderFit.h"
@@ -24,6 +25,8 @@ namespace shoecomp
         // Alignments after the best need at least this fraction of
         // its matched lines (and minLines).
         double distinctMinFrac = 0.7;
+        AlignCalc::DistinctMode distinct =
+            AlignCalc::DistinctMode::Explained;
         // Reject alignments rotating one land by more than this
         // (degrees; e.g. 180 = reversed end-for-end); 0 = off.
         double maxRotationDeg = 0.0;

@@ -611,6 +611,7 @@ namespace shoecomp
         {
             AlignCalc::RTSParams p = params.align2d;
             p.numWorkers = (size_t)resolveThreads(opts.threads);
+            p.distinct = params.distinctMode();
             std::vector<MatchedRows> rows;
             bool timedOut = false;
             const std::string err = runDraining(
@@ -664,8 +665,9 @@ namespace shoecomp
                           std::to_string(right.count) + ")";
             return finish();
         }
-        const StriationAlignParams p =
+        StriationAlignParams p =
             s.toParams((size_t)resolveThreads(opts.threads));
+        p.distinct = params.distinctMode();
         bool ok = false, timedOut = false;
         const std::string err = runDraining(
             ch, label, opts, timedOut,
