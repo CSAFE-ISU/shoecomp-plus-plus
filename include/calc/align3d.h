@@ -1,13 +1,15 @@
 #ifndef SHOECOMP_CALC_ALIGN3D
 #define SHOECOMP_CALC_ALIGN3D
 
+#include <string>
 #include <utility>
 #include <vector>
 
 #include "aligncalc/alignTypes.h"
 #include "aligncalc/distinct.h"
+#include "aligncalc/progress.h"
 #include <Eigen/Geometry>
-#include "aligncalc/workerChannel.h"
+#include "calc/workerChannel.h"
 #include "calc/cylinderFit.h"
 #include "formats/x3p.h"
 
@@ -43,10 +45,6 @@ namespace shoecomp
         int explained = 0;  // pairs it accounts for (searchDistinct)
     };
 
-    // Error text runStriationAlign posts when no consistent set of
-    // striations exists (a non-match rather than a failure).
-    extern const char* const kNoStriationMatch;
-
     // The striation lines in |surf|'s peaks[]. Malformed entries are
     // skipped; |peakIndex| (optional) gets each line's peaks[] index.
     std::vector<StriationLine> surfaceStriations(
@@ -59,11 +57,15 @@ namespace shoecomp
     // Rigid registration of two lands from their striation lines:
     // correspondence graph (RigidLines3D, ridges only match ridges),
     // maximum cliques, and a line fit per clique, best first.
-    bool runStriationAlign(const AlignCalc::DoubleMatrixR& left,
-                           const AlignCalc::DoubleMatrixR& right,
-                           const StriationAlignParams& params,
-                           WorkerChannel& channel,
-                           std::vector<StriationAlignment>& out);
+    // NoMatch when no consistent set of striations exists; NoMatch
+    // and Error also post |message| (optional) to |channel| as an
+    // error.
+    AlignCalc::Status runStriationAlign(
+        const AlignCalc::DoubleMatrixR& left,
+        const AlignCalc::DoubleMatrixR& right,
+        const StriationAlignParams& params, WorkerChannel& channel,
+        std::vector<StriationAlignment>& out,
+        std::string* message = nullptr);
 }  // namespace shoecomp
 
 #endif

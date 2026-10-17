@@ -96,21 +96,19 @@ namespace AlignCalc
                            std::vector<EdgeAccumulator>& accs,
                            int32_t minSupport, GraphRows& out);
 
-        // Progress posts in 5% steps: with the clique search's, a run
-        // stays well under the channel's 64-message ring, so a later
-        // error message is never dropped however slowly the reader
-        // drains it.
-        inline void reportProgress(WorkerChannel& channel, size_t done,
+        // Progress reports in 5% steps (as the clique search's), so a
+        // caller relaying them through a bounded queue gets few.
+        inline void reportProgress(Progress& progress, size_t done,
                                    size_t total, int& lastPct)
         {
             int pct = total ? int((100 * done) / total) / 5 * 5 : 100;
             if (pct == lastPct) return;
             lastPct = pct;
-            channel.report(0.25f + 0.0025f * pct, "building graph...");
+            progress.report(0.25f + 0.0025f * pct, "building graph...");
         }
 
         // fn(tid) runs on numWorkers threads; tid 0 is the calling
-        // thread, the only one allowed to post to the channel.
+        // thread, the only one allowed to call Progress::report.
         template <class Fn>
         void runWorkers(size_t numWorkers, Fn&& fn)
         {
@@ -145,7 +143,7 @@ namespace AlignCalc
 
     template <class Model>
     bool buildNodesFirst(const Model& model, const BuildParams& params,
-                         WorkerChannel& channel, GraphRows& out)
+                         Progress& progress, GraphRows& out)
     {
         static_assert(detail::HasBasics<Model>::value,
                       "model lacks leftCount/rightCount/admissible");
@@ -171,7 +169,7 @@ namespace AlignCalc
                 std::vector<Correspondence> partners;
                 while (!stop.load(std::memory_order_relaxed))
                 {
-                    if (channel.should_cancel())
+                    if (progress.cancelled())
                     {
                         stop.store(true);
                         return;
@@ -200,7 +198,7 @@ namespace AlignCalc
                                   row.end());
                     }
                     if (tid == 0)
-                        detail::reportProgress(channel, e, total,
+                        detail::reportProgress(progress, e, total,
                                                lastPct);
                 }
             });
@@ -212,7 +210,7 @@ namespace AlignCalc
 
     template <class Model>
     bool buildEdgesFirst(const Model& model, const BuildParams& params,
-                         WorkerChannel& channel, GraphRows& out)
+                         Progress& progress, GraphRows& out)
     {
         static_assert(detail::HasBasics<Model>::value,
                       "model lacks leftCount/rightCount/admissible");
@@ -272,7 +270,7 @@ namespace AlignCalc
                 };
                 while (!stop.load(std::memory_order_relaxed))
                 {
-                    if (channel.should_cancel())
+                    if (progress.cancelled())
                     {
                         stop.store(true);
                         return;
@@ -297,7 +295,7 @@ namespace AlignCalc
                                 if (stop.load(
                                         std::memory_order_relaxed))
                                     return;
-                                if (channel.should_cancel())
+                                if (progress.cancelled())
                                 {
                                     stop.store(true);
                                     return;
@@ -308,7 +306,7 @@ namespace AlignCalc
                         }
                     }
                     if (tid == 0)
-                        detail::reportProgress(channel, e, total,
+                        detail::reportProgress(progress, e, total,
                                                lastPct);
                 }
             });
@@ -321,7 +319,7 @@ namespace AlignCalc
     // Auto prefers nodes-first when the model provides it.
     template <class Model>
     bool buildGraph(const Model& model, const BuildParams& params,
-                    WorkerChannel& channel, GraphRows& out)
+                    Progress& progress, GraphRows& out)
     {
         constexpr bool hasNodes = detail::HasNodeGen<Model>::value;
         constexpr bool hasTuples = detail::HasTupleGen<Model>::value;
@@ -334,15 +332,14 @@ namespace AlignCalc
         if (order == BuildOrder::NodesFirst)
         {
             if constexpr (hasNodes)
-                return buildNodesFirst(model, params, channel, out);
+                return buildNodesFirst(model, params, progress, out);
         }
         else
         {
             if constexpr (hasTuples)
-                return buildEdgesFirst(model, params, channel, out);
+                return buildEdgesFirst(model, params, progress, out);
         }
-        channel.error("model does not support the requested order");
-        return false;
+        return false;  // the model does not support the requested order
     }
 
 }  // namespace AlignCalc

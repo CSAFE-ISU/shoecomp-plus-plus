@@ -154,10 +154,10 @@ namespace AlignCalc
 
     extern template class RigidPoints<LabelRules>;
     extern template bool buildNodesFirst(const RigidPoints<LabelRules>&,
-                                         const BuildParams&,
-                                         WorkerChannel&, GraphRows&);
+                                         const BuildParams&, Progress&,
+                                         GraphRows&);
     extern template bool buildGraph(const RigidPoints<LabelRules>&,
-                                    const BuildParams&, WorkerChannel&,
+                                    const BuildParams&, Progress&,
                                     GraphRows&);
 
 }  // namespace AlignCalc

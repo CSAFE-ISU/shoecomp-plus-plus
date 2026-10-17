@@ -4,10 +4,10 @@
 #include <string>
 #include <vector>
 
-struct WorkerChannel;
-
 namespace shoecomp
 {
+    struct WorkerChannel;
+
     // Which binaries contain a component.
     enum LicenseBinaries : unsigned
     {

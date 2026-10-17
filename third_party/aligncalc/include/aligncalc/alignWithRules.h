@@ -86,29 +86,35 @@ namespace AlignCalc
 
     // Correspondence graph + distinct alignments (searchDistinct) for
     // any 2-D point model; the matched rows go to |results| (best
-    // first).
+    // first). Anything but Status::Ok sets |message|.
     template <class Model>
-    bool alignWith(const Model& model, const DoubleMatrixR& left,
-                   const DoubleMatrixR& right, const PointCols& cols,
-                   const RTSParams& params, WorkerChannel& channel,
-                   std::vector<MatchedPoints>& results,
-                   const CliqueConstraint* constraint = nullptr)
+    Status alignWith(const Model& model, const DoubleMatrixR& left,
+                     const DoubleMatrixR& right, const PointCols& cols,
+                     const RTSParams& params, Progress& progress,
+                     std::vector<MatchedPoints>& results,
+                     std::string& message,
+                     const CliqueConstraint* constraint = nullptr)
     {
+        message.clear();
         if (!model.valid())
         {
-            channel.error("invalid point columns or parameters");
-            return false;
+            message = "invalid point columns or parameters";
+            return Status::Error;
         }
         BuildParams bp;
         bp.numWorkers = params.numWorkers;
         bp.minSupport = params.minSupport;
         GraphRows graph;
-        channel.report(0.25f, "finding matchable points...");
-        if (!buildGraph(model, bp, channel, graph))
+        progress.report(0.25f, "finding matchable points...");
+        if (!buildGraph(model, bp, progress, graph))
         {
-            if (!channel.should_cancel())
-                channel.error("could not fill graph");
-            return false;
+            if (progress.cancelled())
+            {
+                message = "cancelled";
+                return Status::Cancelled;
+            }
+            message = "could not fill graph";
+            return Status::Error;
         }
 
         DistinctParams dp;
@@ -125,19 +131,20 @@ namespace AlignCalc
             detail::kExplainTolFactor * params.epsilon,
             params.sameScale,
             results};
-        channel.report(0.5f, "searching cliques...");
-        switch (searchDistinct(graph, dp, fitter, channel))
+        progress.report(0.5f, "searching cliques...");
+        switch (searchDistinct(graph, dp, fitter, progress))
         {
             case DistinctStatus::Ok:
-                return true;
+                return Status::Ok;
             case DistinctStatus::FitFailed:
-                channel.error("transform fit failed");
-                return false;
+                message = "transform fit failed";
+                return Status::Error;
             case DistinctStatus::Cancelled:
-                return false;
+                message = "cancelled";
+                return Status::Cancelled;
             default:
-                channel.error(kNoPointMatch);
-                return false;
+                message = "no consistent set of points found";
+                return Status::NoMatch;
         }
     }
 
@@ -145,13 +152,11 @@ namespace AlignCalc
     // nodes; edgeOk() (rigid, params.sameScale) or tripleOk()
     // (similarity) vet edges.
     template <class Rules>
-    bool getAlignmentWithRules(const DoubleMatrixR& left_pts,
-                               const DoubleMatrixR& right_pts,
-                               const PointCols& cols,
-                               const Rules& rules,
-                               const RTSParams& params,
-                               WorkerChannel& channel,
-                               std::vector<MatchedPoints>& results)
+    Status getAlignmentWithRules(
+        const DoubleMatrixR& left_pts, const DoubleMatrixR& right_pts,
+        const PointCols& cols, const Rules& rules,
+        const RTSParams& params, Progress& progress,
+        std::vector<MatchedPoints>& results, std::string& message)
     {
         if (params.sameScale)
         {
@@ -159,12 +164,12 @@ namespace AlignCalc
                                      params.epsilon, rules);
             if (!(params.anchorTol > 0.0))
                 return alignWith(model, left_pts, right_pts, cols,
-                                 params, channel, results);
+                                 params, progress, results, message);
             // scale range 1: a rigid anchor, no reflection
             PointAnchor2D anchor(left_pts, right_pts, cols, 1.0,
                                  params.anchorTol);
             return alignWith(model, left_pts, right_pts, cols, params,
-                             channel, results, &anchor);
+                             progress, results, message, &anchor);
         }
         SimilarityParams sp;
         sp.scaleRange = params.scaleRange;
@@ -175,11 +180,11 @@ namespace AlignCalc
                                         rules);
         if (!(params.anchorTol > 0.0))
             return alignWith(model, left_pts, right_pts, cols, params,
-                             channel, results);
+                             progress, results, message);
         PointAnchor2D anchor(left_pts, right_pts, cols,
                              params.scaleRange, params.anchorTol);
         return alignWith(model, left_pts, right_pts, cols, params,
-                         channel, results, &anchor);
+                         progress, results, message, &anchor);
     }
 }  // namespace AlignCalc
 

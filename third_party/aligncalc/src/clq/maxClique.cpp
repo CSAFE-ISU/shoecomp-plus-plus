@@ -105,9 +105,9 @@ namespace AlignCalc
             // clique its search finds, and run() returns those of the
             // |tieCap| lowest roots that have one, in root order.
             Solver(const GraphRows& g, const CliqueParams& p,
-                   WorkerChannel& channel, size_t tieCap = kTieCap,
+                   Progress& progress, size_t tieCap = kTieCap,
                    int32_t fixedSize = 0)
-                : g_(g), p_(p), channel_(channel), tieCap_(tieCap),
+                : g_(g), p_(p), progress_(progress), tieCap_(tieCap),
                   fixed_(fixedSize)
             {
             }
@@ -159,7 +159,7 @@ namespace AlignCalc
 
             const GraphRows& g_;
             const CliqueParams& p_;
-            WorkerChannel& channel_;
+            Progress& progress_;
             const size_t tieCap_;
             const int32_t fixed_;
             std::vector<int32_t> order_, pos_, core_;
@@ -307,8 +307,7 @@ namespace AlignCalc
 
             for (size_t i = 0; i < later.size(); ++i)
             {
-                if (((++s.ticks) & 0xff) == 0 &&
-                    channel_.should_cancel())
+                if (((++s.ticks) & 0xff) == 0 && progress_.cancelled())
                     stop_.store(true);
                 if (quit(s)) return;
                 thr = threshold();
@@ -424,8 +423,7 @@ namespace AlignCalc
             Word* next = P + W;
             for (size_t i = ord.size(); i-- > 0;)
             {
-                if (((++s.ticks) & 0xfff) == 0 &&
-                    channel_.should_cancel())
+                if (((++s.ticks) & 0xfff) == 0 && progress_.cancelled())
                     stop_.store(true);
                 if (quit(s)) return;
                 if (csize + col[i] < threshold()) return;
@@ -475,7 +473,7 @@ namespace AlignCalc
                     s.local.assign(n, -1);
                     for (;;)
                     {
-                        if (stop_.load() || channel_.should_cancel())
+                        if (stop_.load() || progress_.cancelled())
                         {
                             stop_.store(true);
                             return;
@@ -498,8 +496,9 @@ namespace AlignCalc
                             if (pct != lastPct)
                             {
                                 lastPct = pct;
-                                channel_.report(0.5f + 0.0025f * pct,
-                                                "searching cliques...");
+                                progress_.report(
+                                    0.5f + 0.0025f * pct,
+                                    "searching cliques...");
                             }
                         }
                     }
@@ -521,19 +520,18 @@ namespace AlignCalc
     }  // namespace
 
     bool searchCliques(const GraphRows& rows,
-                       const CliqueParams& params,
-                       WorkerChannel& channel,
+                       const CliqueParams& params, Progress& progress,
                        std::vector<std::vector<Correspondence>>& out)
     {
         out.clear();
         if (rows.size() == 0 || rows.adj.empty() ||
-            channel.should_cancel())
+            progress.cancelled())
             return false;
         const size_t want = std::max<size_t>(1, params.numResults);
         std::vector<std::vector<int32_t>> cliques;
         if (!params.deterministic)
         {
-            Solver solver(rows, params, channel);
+            Solver solver(rows, params, progress);
             if (!solver.run(cliques) || cliques.empty()) return false;
         }
         else
@@ -546,7 +544,7 @@ namespace AlignCalc
             // A clique at upperBound ends the first phase at once, so
             // it is whichever one a thread reached first: settle it
             // too.
-            Solver solver(rows, params, channel, 1);
+            Solver solver(rows, params, progress, 1);
             if (!solver.run(cliques) || cliques.empty()) return false;
             if (solver.capped() ||
                 int32_t(cliques.front().size()) >= params.upperBound)
@@ -554,7 +552,7 @@ namespace AlignCalc
                 CliqueParams fixed = params;
                 fixed.lowerBound = fixed.upperBound =
                     int32_t(cliques.front().size());
-                Solver again(rows, fixed, channel, want,
+                Solver again(rows, fixed, progress, want,
                              fixed.lowerBound);
                 cliques.clear();
                 if (!again.run(cliques) || cliques.empty())

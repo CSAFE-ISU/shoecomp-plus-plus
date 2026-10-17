@@ -6,7 +6,7 @@
 #include "hello_imgui/imgui_theme.h"
 #include "formats/png.h"
 #include "ui/embeddedAssets.h"
-#include "aligncalc/workerChannel.h"
+#include "calc/workerChannel.h"
 #include "imgui.h"
 #include "stb_image.h"
 #include <thread>

@@ -86,9 +86,8 @@ namespace AlignCalc
 
     template class RigidLines3D<LabelRules>;
     template bool buildNodesFirst(const RigidLines3D<LabelRules>&,
-                                  const BuildParams&, WorkerChannel&,
+                                  const BuildParams&, Progress&,
                                   GraphRows&);
     template bool buildGraph(const RigidLines3D<LabelRules>&,
-                             const BuildParams&, WorkerChannel&,
-                             GraphRows&);
+                             const BuildParams&, Progress&, GraphRows&);
 }  // namespace AlignCalc

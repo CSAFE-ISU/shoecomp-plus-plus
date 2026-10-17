@@ -116,10 +116,10 @@ namespace AlignCalc
     extern template class SimilarityPoints2D<LabelRules>;
     extern template bool buildEdgesFirst(
         const SimilarityPoints2D<LabelRules>&, const BuildParams&,
-        WorkerChannel&, GraphRows&);
+        Progress&, GraphRows&);
     extern template bool buildGraph(
         const SimilarityPoints2D<LabelRules>&, const BuildParams&,
-        WorkerChannel&, GraphRows&);
+        Progress&, GraphRows&);
 
 }  // namespace AlignCalc
 

@@ -1,7 +1,7 @@
 #include "core/licenseData.h"
 #include "core/embeddedLicenses.h"
 #include "shoecompVersion.h"
-#include "aligncalc/workerChannel.h"
+#include "calc/workerChannel.h"
 #include <cstdio>
 
 namespace shoecomp

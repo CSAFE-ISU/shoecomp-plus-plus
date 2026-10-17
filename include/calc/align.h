@@ -1,8 +1,9 @@
 #ifndef SHOECOMP_CALC_ALIGN
 #define SHOECOMP_CALC_ALIGN
 
+#include <string>
 #include <vector>
-#include "aligncalc/workerChannel.h"
+#include "calc/workerChannel.h"
 #include "aligncalc/aligncalc.h"
 #include "core/alignment.h"
 #include "core/imageType.h"
@@ -29,18 +30,23 @@ namespace shoecomp
     // estimated transforms into |results| (best first). A
     // params.upperBound <= 0 means the smaller of the two point
     // counts. |matched| (optional) gets each result's matched rows.
-    void runAutoAlign(const jt::Json& leftAnn, const jt::Json& rightAnn,
-                      WorkerChannel& channel,
-                      std::vector<AlignState>& results,
-                      const AlignCalc::RTSParams& params,
-                      const PointMatchRules& rules = {},
-                      std::vector<MatchedRows>* matched = nullptr);
-    void runRTSAlign(const jt::Json& leftAnn, const jt::Json& rightAnn,
-                     WorkerChannel& channel,
-                     std::vector<AlignState>& results,
-                     const AlignCalc::RTSParams& params,
-                     const PointMatchRules& rules = {},
-                     std::vector<MatchedRows>* matched = nullptr);
+    // Returns how the run ended; NoMatch and Error also post
+    // |message| (optional) to |channel| as an error. Ok may still
+    // leave |results| empty (every fit outside the scale range).
+    AlignCalc::Status runAutoAlign(
+        const jt::Json& leftAnn, const jt::Json& rightAnn,
+        WorkerChannel& channel, std::vector<AlignState>& results,
+        const AlignCalc::RTSParams& params,
+        const PointMatchRules& rules = {},
+        std::vector<MatchedRows>* matched = nullptr,
+        std::string* message = nullptr);
+    AlignCalc::Status runRTSAlign(
+        const jt::Json& leftAnn, const jt::Json& rightAnn,
+        WorkerChannel& channel, std::vector<AlignState>& results,
+        const AlignCalc::RTSParams& params,
+        const PointMatchRules& rules = {},
+        std::vector<MatchedRows>* matched = nullptr,
+        std::string* message = nullptr);
 }  // namespace shoecomp
 
 #endif

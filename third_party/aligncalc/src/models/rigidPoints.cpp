@@ -4,9 +4,8 @@ namespace AlignCalc
 {
     template class RigidPoints<LabelRules>;
     template bool buildNodesFirst(const RigidPoints<LabelRules>&,
-                                  const BuildParams&, WorkerChannel&,
+                                  const BuildParams&, Progress&,
                                   GraphRows&);
     template bool buildGraph(const RigidPoints<LabelRules>&,
-                             const BuildParams&, WorkerChannel&,
-                             GraphRows&);
+                             const BuildParams&, Progress&, GraphRows&);
 }  // namespace AlignCalc

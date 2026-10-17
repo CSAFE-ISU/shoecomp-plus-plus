@@ -1,6 +1,6 @@
 #ifndef ALIGNCALC_CORRESPONDENCE_H
 #define ALIGNCALC_CORRESPONDENCE_H
-#include "workerChannel.h"
+#include "progress.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -98,8 +98,7 @@ namespace AlignCalc
         bool deterministic = false;
     };
 
-    bool searchCliques(const GraphRows&, const CliqueParams&,
-                       WorkerChannel&,
+    bool searchCliques(const GraphRows&, const CliqueParams&, Progress&,
                        std::vector<std::vector<Correspondence>>&);
 
     bool isSymmetric(const GraphRows&);

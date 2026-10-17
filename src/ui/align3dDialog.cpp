@@ -190,8 +190,9 @@ namespace shoecomp
         workerThread = std::thread(
             [this, p]()
             {
-                bool ok = runStriationAlign(leftRows, rightRows, p,
-                                            channel, results);
+                const bool ok =
+                    runStriationAlign(leftRows, rightRows, p, channel,
+                                      results) == AlignCalc::Status::Ok;
                 if (channel.should_cancel() || !ok)
                 {
                     results.clear();

@@ -1,5 +1,6 @@
 #include "calc/align.h"
 #include "aligncalc/alignWithRules.h"
+#include "calc/channelProgress.h"
 #include "core/pointType.h"
 #include <algorithm>
 #include <cmath>
@@ -113,32 +114,39 @@ namespace shoecomp
         return true;
     }
 
-    void runRTSAlign(const jt::Json& leftAnn, const jt::Json& rightAnn,
-                     WorkerChannel& channel,
-                     std::vector<AlignState>& aligns,
-                     const AlignCalc::RTSParams& params,
-                     const PointMatchRules& rules,
-                     std::vector<MatchedRows>* matched)
+    AlignCalc::Status runRTSAlign(const jt::Json& leftAnn,
+                                  const jt::Json& rightAnn,
+                                  WorkerChannel& channel,
+                                  std::vector<AlignState>& aligns,
+                                  const AlignCalc::RTSParams& params,
+                                  const PointMatchRules& rules,
+                                  std::vector<MatchedRows>* matched,
+                                  std::string* message)
     {
         const bool ebts = rules.type == ImageType::EBTS;
         AlignCalc::DoubleMatrixR left_pts;
         AlignCalc::DoubleMatrixR right_pts;
         std::vector<AlignCalc::MatchedPoints> results;
+        std::string msg;
+        auto fail = [&](AlignCalc::Status status)
+        {
+            if (status != AlignCalc::Status::Cancelled)
+                channel.error(msg.c_str());
+            if (message) *message = msg;
+            channel.cancelled();
+            return status;
+        };
 
         channel.report(0.0f, "loading points...");
         if (!extractAnnotatedPoints(leftAnn, ebts, left_pts))
         {
-            channel.error(
-                "left image does not have 1 to 256 valid points");
-            channel.cancelled();
-            return;
+            msg = "left image does not have 1 to 256 valid points";
+            return fail(AlignCalc::Status::Error);
         }
         if (!extractAnnotatedPoints(rightAnn, ebts, right_pts))
         {
-            channel.error(
-                "right image does not have 1 to 256 valid points");
-            channel.cancelled();
-            return;
+            msg = "right image does not have 1 to 256 valid points";
+            return fail(AlignCalc::Status::Error);
         }
 
         AlignCalc::RTSParams run = params;
@@ -151,7 +159,8 @@ namespace shoecomp
         AlignCalc::PointCols cols;
         cols.dim = 2;
         cols.pos = {ColX, ColY, 0};
-        bool found = false;
+        ChannelProgress progress(channel);
+        AlignCalc::Status status;
         if (ebts)
         {
             EBTSRules er;
@@ -161,20 +170,17 @@ namespace shoecomp
                 run.angleCol = ColTheta;
                 run.angleTolDeg = er.angleTolDeg;
             }
-            found = AlignCalc::getAlignmentWithRules(
-                left_pts, right_pts, cols, er, run, channel, results);
+            status = AlignCalc::getAlignmentWithRules(
+                left_pts, right_pts, cols, er, run, progress, results,
+                msg);
         }
         else
         {
-            found =
-                AlignCalc::getAlignment(left_pts, right_pts, cols,
-                                        ColType, run, channel, results);
+            status = AlignCalc::getAlignment(left_pts, right_pts, cols,
+                                             ColType, run, progress,
+                                             results, msg);
         }
-        if (!found)
-        {
-            channel.cancelled();
-            return;
-        }
+        if (status != AlignCalc::Status::Ok) return fail(status);
 
         AlignCalc::RTSTransform tform;
         for (const auto& match : results)
@@ -224,5 +230,6 @@ namespace shoecomp
                  aligns.size());
         channel.report(1.0f, buf);
         channel.done();
+        return AlignCalc::Status::Ok;
     }
 }  // namespace shoecomp

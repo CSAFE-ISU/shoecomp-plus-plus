@@ -5,7 +5,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include "aligncalc/workerChannel.h"
+#include "calc/workerChannel.h"
 #include "calc/onnxRuntime.h"
 #include "core/params.h"
 #include "ui/imageCanvas.h"

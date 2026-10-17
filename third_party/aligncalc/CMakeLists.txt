@@ -51,11 +51,11 @@ target_sources(aligncalc PUBLIC
         include/aligncalc/estimate.h
         include/aligncalc/graphBuild.h
         include/aligncalc/pointAnchor2d.h
+        include/aligncalc/progress.h
         include/aligncalc/rigidLines3d.h
         include/aligncalc/rigidPoints.h
         include/aligncalc/rules.h
         include/aligncalc/similarity2d.h
-        include/aligncalc/workerChannel.h
 )
 target_include_directories(aligncalc PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src")

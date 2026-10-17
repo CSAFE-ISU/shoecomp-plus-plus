@@ -6,7 +6,7 @@
 #include <thread>
 #include <vector>
 
-#include "aligncalc/workerChannel.h"
+#include "calc/workerChannel.h"
 #include "calc/striationDetect.h"
 #include "core/params.h"
 #include "ui/imageCanvas3d.h"

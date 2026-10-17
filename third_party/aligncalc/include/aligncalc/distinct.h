@@ -1,7 +1,7 @@
 #ifndef ALIGNCALC_DISTINCT_H
 #define ALIGNCALC_DISTINCT_H
 #include "correspondence.h"
-#include "workerChannel.h"
+#include "progress.h"
 #include <algorithm>
 #include <cmath>
 #include <vector>
@@ -111,19 +111,14 @@ namespace AlignCalc
     // |explained| is how many pairs of the whole graph the fit accounts
     // for one-to-one: the clique's pairs plus those its transform
     // explains (Explained mode), or the clique's size (Disjoint).
-    // Rounds after the first mute progress posts, so a final error
-    // still fits the channel's ring.
+    // Only the first round reports progress; later rounds just poll
+    // for cancellation.
     template <class Fitter>
     DistinctStatus searchDistinct(const GraphRows& graph,
                                   const DistinctParams& params,
-                                  Fitter& fitter,
-                                  WorkerChannel& channel)
+                                  Fitter& fitter, Progress& progress)
     {
-        struct MuteGuard
-        {
-            WorkerChannel& ch;
-            ~MuteGuard() { ch.muteProgress = false; }
-        } mute{channel};
+        detail::CancelOnly quiet(progress);
         CliqueParams cp;
         cp.numWorkers = params.numWorkers;
         cp.numResults = 4;  // a few ties, in case a fit fails
@@ -152,17 +147,18 @@ namespace AlignCalc
         for (size_t round = 0; found < want; ++round)
         {
             std::vector<std::vector<Correspondence>> cliques;
-            if (round > 0) channel.muteProgress = true;
+            Progress& roundProgress =
+                round == 0 ? progress : static_cast<Progress&>(quiet);
             if (g->size() == 0 ||
-                !searchCliques(*g, cp, channel, cliques))
+                !searchCliques(*g, cp, roundProgress, cliques))
             {
-                if (channel.should_cancel())
+                if (progress.cancelled())
                     return DistinctStatus::Cancelled;
                 if (round > 0) break;
                 return DistinctStatus::NoMatch;
             }
             if (round == 0)
-                channel.report(0.9f, "fitting transforms...");
+                progress.report(0.9f, "fitting transforms...");
 
             const std::vector<Correspondence>* used = nullptr;
             for (const auto& clq : cliques)
@@ -216,11 +212,11 @@ namespace AlignCalc
                                   : (int32_t)used->size());
                 ++found;
             }
-            if (found >= want || channel.should_cancel()) break;
+            if (found >= want || progress.cancelled()) break;
             rest = keepNodes(graph, keep);
             g = &rest;
         }
-        if (channel.should_cancel()) return DistinctStatus::Cancelled;
+        if (progress.cancelled()) return DistinctStatus::Cancelled;
         return found ? DistinctStatus::Ok : DistinctStatus::AllRejected;
     }
 }  // namespace AlignCalc

@@ -203,10 +203,10 @@ namespace AlignCalc
 
     extern template class RigidLines3D<LabelRules>;
     extern template bool buildNodesFirst(
-        const RigidLines3D<LabelRules>&, const BuildParams&,
-        WorkerChannel&, GraphRows&);
+        const RigidLines3D<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&);
     extern template bool buildGraph(const RigidLines3D<LabelRules>&,
-                                    const BuildParams&, WorkerChannel&,
+                                    const BuildParams&, Progress&,
                                     GraphRows&);
 
 }  // namespace AlignCalc

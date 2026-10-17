@@ -8,13 +8,11 @@
 #include <Eigen/Eigenvalues>
 #include "aligncalc/estimate.h"
 #include "aligncalc/rigidLines3d.h"
+#include "calc/channelProgress.h"
 #include "formats/x3pAnnotationIo.h"
 
 namespace shoecomp
 {
-    const char* const kNoStriationMatch =
-        "no consistent set of striations found";
-
     namespace
     {
         constexpr double kPi = 3.14159265358979323846;
@@ -243,19 +241,24 @@ namespace shoecomp
         return m;
     }
 
-    bool runStriationAlign(const AlignCalc::DoubleMatrixR& left,
-                           const AlignCalc::DoubleMatrixR& right,
-                           const StriationAlignParams& params,
-                           WorkerChannel& channel,
-                           std::vector<StriationAlignment>& out)
+    AlignCalc::Status runStriationAlign(
+        const AlignCalc::DoubleMatrixR& left,
+        const AlignCalc::DoubleMatrixR& right,
+        const StriationAlignParams& params, WorkerChannel& channel,
+        std::vector<StriationAlignment>& out, std::string* message)
     {
         out.clear();
+        auto fail = [&](AlignCalc::Status status, const char* text)
+        {
+            if (status != AlignCalc::Status::Cancelled)
+                channel.error(text);
+            if (message) *message = text;
+            return status;
+        };
         const int minLines = std::max(params.minLines, 2);
         if (left.rows() < minLines || right.rows() < minLines)
-        {
-            channel.error("both lands need detected striations");
-            return false;
-        }
+            return fail(AlignCalc::Status::Error,
+                        "both lands need detected striations");
 
         AlignCalc::LineParams lp;
         lp.angleTol = params.angleTolDeg * kPi / 180.0;
@@ -270,20 +273,20 @@ namespace shoecomp
         AlignCalc::RigidLines3D<StriationRules> model(left, right, cols,
                                                       lp, rules);
         if (!model.valid())
-        {
-            channel.error("invalid striation lines or tolerances");
-            return false;
-        }
+            return fail(AlignCalc::Status::Error,
+                        "invalid striation lines or tolerances");
 
         AlignCalc::BuildParams bp;
         bp.numWorkers = params.numWorkers;
         AlignCalc::GraphRows graph;
+        ChannelProgress progress(channel);
         channel.report(0.25f, "matching striation pairs...");
-        if (!AlignCalc::buildGraph(model, bp, channel, graph))
+        if (!AlignCalc::buildGraph(model, bp, progress, graph))
         {
-            if (!channel.should_cancel())
-                channel.error("could not build the match graph");
-            return false;
+            if (progress.cancelled())
+                return fail(AlignCalc::Status::Cancelled, "cancelled");
+            return fail(AlignCalc::Status::Error,
+                        "could not build the match graph");
         }
 
         AlignCalc::DistinctParams dp;
@@ -300,18 +303,18 @@ namespace shoecomp
             lp.angleTol, lp.sepTol, params.maxRotationDeg * kPi / 180.0,
             out,         {}};
         channel.report(0.5f, "searching consistent matches...");
-        switch (AlignCalc::searchDistinct(graph, dp, fitter, channel))
+        switch (AlignCalc::searchDistinct(graph, dp, fitter, progress))
         {
             case AlignCalc::DistinctStatus::Ok:
-                return true;
+                return AlignCalc::Status::Ok;
             case AlignCalc::DistinctStatus::FitFailed:
-                channel.error("transform fit failed");
-                return false;
+                return fail(AlignCalc::Status::Error,
+                            "transform fit failed");
             case AlignCalc::DistinctStatus::Cancelled:
-                return false;
+                return fail(AlignCalc::Status::Cancelled, "cancelled");
             default:
-                channel.error(kNoStriationMatch);
-                return false;
+                return fail(AlignCalc::Status::NoMatch,
+                            "no consistent set of striations found");
         }
     }
 }  // namespace shoecomp

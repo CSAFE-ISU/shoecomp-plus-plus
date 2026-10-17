@@ -6,8 +6,9 @@
 #include "correspondence.h"
 #include "distinct.h"
 #include "rules.h"
-#include "workerChannel.h"
+#include "progress.h"
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace AlignCalc
@@ -75,17 +76,16 @@ namespace AlignCalc
         void estimate(const MatchedPoints &, bool);
     };
 
-    // Error text the 2-D alignment posts when no clique reaches
-    // params.lowerBound (a non-match rather than a failure).
-    extern const char *const kNoPointMatch;
-
     // 2-D alignment: rigid (RigidPoints) when params.sameScale, else
     // similarity (SimilarityPoints2D). Positions come from |cols|;
-    // labelCol >= 0 restricts matches to equal labels.
-    bool getAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
-                      const PointCols &, int labelCol,
-                      const RTSParams &, WorkerChannel &,
-                      std::vector<MatchedPoints> &);
+    // labelCol >= 0 restricts matches to equal labels. Status::NoMatch
+    // when no clique reaches params.lowerBound; anything but
+    // Status::Ok sets the message.
+    Status getAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
+                        const PointCols &, int labelCol,
+                        const RTSParams &, Progress &,
+                        std::vector<MatchedPoints> &,
+                        std::string &message);
 
 }  // namespace AlignCalc
 

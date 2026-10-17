@@ -240,9 +240,8 @@ namespace AlignCalc
 
     template class SimilarityPoints2D<LabelRules>;
     template bool buildEdgesFirst(const SimilarityPoints2D<LabelRules>&,
-                                  const BuildParams&, WorkerChannel&,
+                                  const BuildParams&, Progress&,
                                   GraphRows&);
     template bool buildGraph(const SimilarityPoints2D<LabelRules>&,
-                             const BuildParams&, WorkerChannel&,
-                             GraphRows&);
+                             const BuildParams&, Progress&, GraphRows&);
 }  // namespace AlignCalc

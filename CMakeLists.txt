@@ -251,8 +251,6 @@ sc_embed_assets(SC_LICENSE_SRCS
 )
 add_library(shoecomp_licenses STATIC src/core/licenseData.cpp
             ${SC_LICENSE_SRCS})
-# licenseData.cpp reports through aligncalc's WorkerChannel.
-target_link_libraries(shoecomp_licenses PRIVATE aligncalc::aligncalc)
 
 # =====================================================================
 # 6b. scpp command-line tool

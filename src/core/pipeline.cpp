@@ -111,26 +111,23 @@ namespace shoecomp
         // no message is dropped from the fixed-size ring and progress
         // can be logged live. Past opts.timeoutSec it sets the
         // channel's cancel flag (which the calculations poll) and
-        // |timedOut|, then waits for |work| to return. Returns the last
-        // error text, if any.
+        // |timedOut|, then waits for |work| to return. Errors come
+        // back through |work|'s own results, not the channel.
         template <typename F>
-        std::string runDraining(WorkerChannel& ch,
-                                const std::string& label,
-                                const RunOptions& opts, bool& timedOut,
-                                F&& work)
+        void runDraining(WorkerChannel& ch, const std::string& label,
+                         const RunOptions& opts, bool& timedOut,
+                         F&& work)
         {
             timedOut = false;
             const auto start = std::chrono::steady_clock::now();
-            std::string lastError, lastText;
+            std::string lastText;
             auto drain = [&]
             {
                 while (auto m = ch.messages.pop())
                 {
-                    if (m->kind == MsgKind::Error)
-                        lastError = m->text;
-                    else if ((m->kind == MsgKind::Progress ||
-                              m->kind == MsgKind::Log) &&
-                             m->text[0] != '\0' && lastText != m->text)
+                    if ((m->kind == MsgKind::Progress ||
+                         m->kind == MsgKind::Log) &&
+                        m->text[0] != '\0' && lastText != m->text)
                     {
                         lastText = m->text;
                         say(opts, label + ": " + lastText);
@@ -173,7 +170,6 @@ namespace shoecomp
             t.join();
             drain();
             if (thrown) std::rethrow_exception(thrown);
-            return lastError;
         }
 
         bool detect2D(const Item& it, const Params& params,
@@ -613,17 +609,19 @@ namespace shoecomp
             p.numWorkers = (size_t)resolveThreads(opts.threads);
             std::vector<MatchedRows> rows;
             bool timedOut = false;
-            const std::string err = runDraining(
-                ch, label, opts, timedOut,
-                [&]
-                {
-                    PointMatchRules rules;
-                    rules.type = left.type;
-                    rules.minutiaAngleTolDeg =
-                        params.minutiaAngleTolDeg;
-                    runAutoAlign(left.annotations, right.annotations,
-                                 ch, res.align2d, p, rules, &rows);
-                });
+            AlignCalc::Status status = AlignCalc::Status::Error;
+            std::string err;
+            runDraining(ch, label, opts, timedOut,
+                        [&]
+                        {
+                            PointMatchRules rules;
+                            rules.type = left.type;
+                            rules.minutiaAngleTolDeg =
+                                params.minutiaAngleTolDeg;
+                            status = runAutoAlign(
+                                left.annotations, right.annotations, ch,
+                                res.align2d, p, rules, &rows, &err);
+                        });
             for (size_t i = 0; i < res.align2d.size(); ++i)
             {
                 res.alignments.getArray().push_back(
@@ -647,13 +645,15 @@ namespace shoecomp
             }
             else if (!res.align2d.empty())
                 res.status = PairStatus::Ok;
-            else if (!err.empty() && err != AlignCalc::kNoPointMatch)
-                res.message = err;
-            else
+            else if (status == AlignCalc::Status::Ok ||
+                     status == AlignCalc::Status::NoMatch)
             {
+                // Ok with no result: every fit outside the scale range
                 res.status = PairStatus::NoMatch;
                 res.message = err.empty() ? "no alignment found" : err;
             }
+            else
+                res.message = err;
             return finish();
         }
 
@@ -670,13 +670,16 @@ namespace shoecomp
         }
         const StriationAlignParams p = s.toParams(
             (size_t)resolveThreads(opts.threads), params.clique);
-        bool ok = false, timedOut = false;
-        const std::string err = runDraining(
-            ch, label, opts, timedOut,
-            [&] {
-                ok = runStriationAlign(left.rows, right.rows, p, ch,
-                                       res.align3d);
-            });
+        bool timedOut = false;
+        AlignCalc::Status status = AlignCalc::Status::Error;
+        std::string err;
+        runDraining(ch, label, opts, timedOut,
+                    [&]
+                    {
+                        status =
+                            runStriationAlign(left.rows, right.rows, p,
+                                              ch, res.align3d, &err);
+                    });
         if (timedOut)
         {
             res.align3d.clear();
@@ -684,12 +687,13 @@ namespace shoecomp
             res.message = timeoutText(opts);
             return finish();
         }
-        if (!ok)
+        if (status != AlignCalc::Status::Ok)
         {
             res.align3d.clear();
             res.message = err.empty() ? "alignment failed" : err;
-            res.status = err == kNoStriationMatch ? PairStatus::NoMatch
-                                                  : PairStatus::Error;
+            res.status = status == AlignCalc::Status::NoMatch
+                             ? PairStatus::NoMatch
+                             : PairStatus::Error;
             return finish();
         }
         for (const auto& a : res.align3d)
