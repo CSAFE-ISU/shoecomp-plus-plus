@@ -4,7 +4,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "aligncalc/eigen/Eigen/Geometry"
+#include <Eigen/Geometry>
 
 namespace shoecomp
 {

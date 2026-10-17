@@ -6,7 +6,7 @@
 
 #include "aligncalc/alignTypes.h"
 #include "aligncalc/distinct.h"
-#include "aligncalc/eigen/Eigen/Geometry"
+#include <Eigen/Geometry>
 #include "aligncalc/workerChannel.h"
 #include "calc/cylinderFit.h"
 #include "formats/x3p.h"

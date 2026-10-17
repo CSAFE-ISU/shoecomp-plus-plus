@@ -5,8 +5,8 @@
 #include <utility>
 #include <vector>
 
-#include "aligncalc/eigen/Eigen/Core"
-#include "aligncalc/eigen/Eigen/Geometry"
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include "formats/x3p.h"
 
 // Fit a cylinder to an x3p surface (bullet lands are half-slices of a

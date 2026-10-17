@@ -5,7 +5,7 @@
 #include <cmath>
 #include <vector>
 
-#include "aligncalc/eigen/Eigen/Eigenvalues"
+#include <Eigen/Eigenvalues>
 
 namespace shoecomp
 {

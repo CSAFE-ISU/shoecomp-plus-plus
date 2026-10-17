@@ -5,8 +5,8 @@
 #include <memory>
 #include <vector>
 
-#include "aligncalc/eigen/Eigen/Core"
-#include "aligncalc/eigen/Eigen/Geometry"
+#include <Eigen/Core>
+#include <Eigen/Geometry>
 #include "formats/x3p.h"
 
 // Offscreen OpenGL renderer for an x3p Surface3D: builds a lit,

@@ -1,4 +1,4 @@
-#include "aligncalc.internal.h"
+#include "aligncalc.h"
 #include "Eigen/SVD"
 #include <cmath>
 
@@ -44,7 +44,6 @@ namespace AlignCalc
         //
         DoubleMatrixR dst;
         Eigen::Vector2d dstMean;
-        double dstVariance;
         if (right2left)
         {
             /* we want to estimate the transformation T, such that
@@ -60,7 +59,6 @@ namespace AlignCalc
             dst = match.right_pts.leftCols<2>();
         }
         centerify(dst, dstMean);
-        dstVariance = src.rowwise().norm().array().square().mean();
         centerify(src, srcMean);
         srcVariance = src.rowwise().norm().array().square().mean();
         //

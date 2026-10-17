@@ -5,7 +5,7 @@
 #include <cstdio>
 
 #include "aligncalc/distinct.h"
-#include "aligncalc/eigen/Eigen/Eigenvalues"
+#include <Eigen/Eigenvalues>
 #include "aligncalc/estimate.h"
 #include "aligncalc/rigidLines3d.h"
 #include "formats/x3pAnnotationIo.h"

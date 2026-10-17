@@ -19,9 +19,5 @@ add_library(aligncalc
     rts/triangle2d.cpp
 )
 
-target_include_directories(aligncalc PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/eigen")
 target_include_directories(aligncalc PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-target_link_libraries(aligncalc PRIVATE Eigen3::Eigen)
-set_target_properties(aligncalc PROPERTIES PUBLIC_HEADER "aligncalc.h")
-set_target_properties(aligncalc PROPERTIES PUBLIC_HEADER "workerChannel.h")
-set_target_properties(aligncalc PROPERTIES PUBLIC_HEADER "multiQueue.h")
+target_link_libraries(aligncalc PUBLIC Eigen3::Eigen)

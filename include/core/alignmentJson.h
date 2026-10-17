@@ -3,7 +3,7 @@
 
 #include <vector>
 
-#include "aligncalc/eigen/Eigen/Geometry"
+#include <Eigen/Geometry>
 #include "calc/align3d.h"
 #include "core/alignment.h"
 #include "core/params.h"

@@ -1,4 +1,4 @@
-#include "aligncalc.internal.h"
+#include "aligncalc.h"
 #include "alignWithRules.h"
 
 namespace AlignCalc

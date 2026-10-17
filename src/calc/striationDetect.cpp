@@ -7,7 +7,7 @@
 #include <thread>
 #include <vector>
 
-#include "aligncalc/eigen/Eigen/Eigenvalues"
+#include <Eigen/Eigenvalues>
 
 // See .claude/striation-hough-plan.md for the design. The pipeline is:
 // (1) local high-pass of the height grid -> ridge/groove crest points

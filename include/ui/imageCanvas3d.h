@@ -8,7 +8,7 @@
 #include <utility>
 #include <vector>
 
-#include "aligncalc/eigen/Eigen/Geometry"
+#include <Eigen/Geometry>
 #include "calc/cylinderFit.h"
 #include "formats/x3p.h"
 #include "ui/imageCanvas.h"

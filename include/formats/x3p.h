@@ -3,7 +3,7 @@
 
 #include <string>
 #include "jtjson/json.h"
-#include "aligncalc/eigen/Eigen/Core"
+#include <Eigen/Core>
 
 // x3p (ISO 25178-72 / ISO5436_2) surface-topography loader.
 //
