@@ -1,91 +1,115 @@
 #ifndef ALIGNCALC_H
 #define ALIGNCALC_H
 
-#include "Eigen/Dense"
+#include "Eigen/Geometry"
 #include "alignTypes.h"
 #include "correspondence.h"
 #include "distinct.h"
-#include "rules.h"
+#include "estimate.h"
 #include "progress.h"
+#include "rigidLines3d.h"
+#include "rules.h"
 #include <cstdint>
 #include <string>
 #include <vector>
 
+// General rigid (RT) and similarity (RTS) matching. Inputs are
+// row-major matrices, one row per point or line, with the columns
+// named by PointCols / LineCols. Matching is by correspondence graph
+// and maximum cliques, so it needs no initial guess; every result is
+// a distinct alignment (see searchDistinct), best first.
 namespace AlignCalc
 {
-
-    struct RTSParams
+    // Clique-search options shared by every entry point.
+    struct CliqueOptions
     {
-        double scaleRange;
-        double epsilon;
-        size_t numWorkers;
-        size_t numResults;
-        int32_t lowerBound;
-        int32_t upperBound;
-        bool sameScale;
-        // Similarity only: an edge needs this many matched triangles.
-        int32_t minSupport;
-        // Similarity only: oriented-point prefilter, see
-        // SimilarityParams (angleCol < 0 = off).
-        int32_t angleCol;
-        double angleTolDeg;
-        // Anchored clique search (PointAnchor2D; scale range 1
-        // when sameScale) with this relative tolerance; 0 = off.
-        double anchorTol;
-        // How later results are kept apart (see searchDistinct).
-        DistinctMode distinct;
-
-        RTSParams()
-        {
-            scaleRange = 5.0;
-            epsilon = 0.005;
-            numWorkers = 2;
-            numResults = 2;
-            lowerBound = 3;
-            upperBound = 500;
-            sameScale = false;
-            minSupport = 1;
-            angleCol = -1;
-            angleTolDeg = 0.0;
-            anchorTol = 0.05;
-            distinct = DistinctMode::Explained;
-        }
+        int32_t minMatched = 3;  // fewer matched pairs is no match
+        int32_t maxMatched = 0;  // 0 = fewer of the two counts
+        size_t results = 2;      // distinct alignments, best first
+        DistinctMode distinct = DistinctMode::Explained;
+        // Alignments after the first need this fraction of its size
+        // (and minMatched).
+        double distinctMinFrac = 0.7;
+        size_t numWorkers = 0;  // 0 = std::thread::hardware_concurrency
     };
 
-    // left_pts / right_pts hold the matched positions (the
-    // PointCols columns, in order); pairs are the row indices.
-    struct MatchedPoints
+    enum class PointMode
     {
-        int32_t N;
-        DoubleMatrixR left_pts;
-        DoubleMatrixR right_pts;
+        Rigid,       // RT, points in 1-3 dimensions
+        Similarity,  // RTS, 2-D points
+    };
+
+    struct PointOptions
+    {
+        PointMode mode = PointMode::Rigid;
+        // Distances may differ by this fraction (relative error).
+        double epsilon = 0.005;
+        // Similarity: scales within [1/scaleRange, scaleRange].
+        double scaleRange = 5.0;
+        // 2-D anchored clique search (PointAnchor2D) with this
+        // relative tolerance; 0 = off.
+        double anchorTol = 0.05;
+        // Similarity: an edge needs this many matched triangles.
+        int32_t minSupport = 1;
+        // Similarity with PointCols::angle: skip triangle pairs whose
+        // orientations disagree by more than this (degrees); 0 = off.
+        double orientationTolDeg = 0.0;
+    };
+
+    struct PointAlignment
+    {
+        // matched rows, left -> right
         std::vector<Correspondence> pairs;
+        // T(left) ~= right; scale 1 for PointMode::Rigid
+        PointTransform transform;
         // pairs the alignment accounts for (see searchDistinct)
         int32_t explained = 0;
     };
 
-    struct RTSTransform
+    struct PointResult
     {
-        double scale;
-        double rotation;
-        double dx;
-        double dy;
-
-        void fromMatrix(const DoubleMatrixR &);
-        void toMatrix(DoubleMatrixR &) const;
-        void estimate(const MatchedPoints &, bool);
+        Status status = Status::Error;
+        std::string message;  // set unless status is Ok
+        std::vector<PointAlignment> alignments;
     };
 
-    // 2-D alignment: rigid (RigidPoints) when params.sameScale, else
-    // similarity (SimilarityPoints2D). Positions come from |cols|;
-    // labelCol >= 0 restricts matches to equal labels. Status::NoMatch
-    // when no clique reaches params.lowerBound; anything but
-    // Status::Ok sets the message.
-    Status getAlignment(const DoubleMatrixR &, const DoubleMatrixR &,
-                        const PointCols &, int labelCol,
-                        const RTSParams &, Progress &,
-                        std::vector<MatchedPoints> &,
-                        std::string &message);
+    // Point matching; only equal labels match when cols.label >= 0.
+    // A similarity fit outside options.scaleRange is set aside.
+    PointResult alignPoints(const DoubleMatrixR& left,
+                            const DoubleMatrixR& right,
+                            const PointCols& cols,
+                            const PointOptions& options,
+                            const CliqueOptions& clique,
+                            Progress* progress = nullptr);
+
+    struct LineAlignment
+    {
+        // matched rows, left -> right
+        std::vector<Correspondence> pairs;
+        Eigen::Isometry3d transform = Eigen::Isometry3d::Identity();
+        // see LineFit
+        Eigen::Vector3d axis = Eigen::Vector3d::UnitZ();
+        double rmsPerp = 0.0;
+        bool axialWeak = false;
+        // pairs the alignment accounts for (see searchDistinct)
+        int32_t explained = 0;
+    };
+
+    struct LineResult
+    {
+        Status status = Status::Error;
+        std::string message;  // set unless status is Ok
+        std::vector<LineAlignment> alignments;
+    };
+
+    // Rigid matching of 3-D line segments (RigidLines3D); only equal
+    // labels match when cols.label >= 0.
+    LineResult alignLines3D(const DoubleMatrixR& left,
+                            const DoubleMatrixR& right,
+                            const LineCols& cols,
+                            const LineParams& params,
+                            const CliqueOptions& clique,
+                            Progress* progress = nullptr);
 
 }  // namespace AlignCalc
 

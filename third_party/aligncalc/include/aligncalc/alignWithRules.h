@@ -2,10 +2,18 @@
 #define ALIGNCALC_ALIGN_WITH_RULES_H
 #include "aligncalc.h"
 #include "distinct.h"
+#include "estimate.h"
 #include "pointAnchor2d.h"
+#include "rigidLines3d.h"
 #include "rigidPoints.h"
 #include "similarity2d.h"
+#include <algorithm>
+#include <cmath>
+#include <thread>
 
+// alignPoints / alignLines3D with caller-defined Rules (see rules.h):
+// admissible() filters nodes, edgeOk() / tripleOk() / tolScale() vet
+// edges, acceptTransform() vets fitted alignments.
 namespace AlignCalc
 {
     namespace detail
@@ -15,176 +23,349 @@ namespace AlignCalc
         // R_k|, and is explained when half the members agree.
         constexpr double kExplainTolFactor = 2.0;
 
+        inline size_t resolveWorkers(size_t n)
+        {
+            if (n > 0) return n;
+            const unsigned h = std::thread::hardware_concurrency();
+            return h > 0 ? h : 1;
+        }
+
+        // Clique bounds: at least max(minMatched, 2) pairs, at most
+        // the fewer of the two counts (and maxMatched).
+        inline DistinctParams distinctParams(const CliqueOptions& c,
+                                             Eigen::Index nL,
+                                             Eigen::Index nR)
+        {
+            DistinctParams dp;
+            dp.numWorkers = resolveWorkers(c.numWorkers);
+            dp.numResults = c.results;
+            dp.lowerBound = std::max<int32_t>(c.minMatched, 2);
+            dp.upperBound = (int32_t)std::min(nL, nR);
+            if (c.maxMatched > 0)
+                dp.upperBound = std::min(dp.upperBound, c.maxMatched);
+            dp.mode = c.distinct;
+            dp.minFrac = c.distinctMinFrac;
+            return dp;
+        }
+
+        template <class Rules>
         struct PointFitter
         {
             const DoubleMatrixR& left;
             const DoubleMatrixR& right;
             const PointCols& cols;
+            const Rules& rules;
             double tol;
-            bool sameScale;
-            std::vector<MatchedPoints>& out;
-            MatchedPoints cur{};
-            double a = 1.0, b = 0.0;  // s cos(rot), s sin(rot)
+            bool withScale;
+            double scaleRange;  // withScale: accepted scales
+            std::vector<PointAlignment>& out;
+            PointAlignment cur{};
+            Eigen::MatrixXd sr{};  // scale * rotation
 
             bool fit(const std::vector<Correspondence>& clq)
             {
-                cur = MatchedPoints{};
-                cur.N = static_cast<int32_t>(clq.size());
+                cur = PointAlignment{};
                 cur.pairs = clq;
-                cur.left_pts.resize(cur.N, cols.dim);
-                cur.right_pts.resize(cur.N, cols.dim);
-                for (int32_t i = 0; i < cur.N; ++i)
-                    for (int d = 0; d < cols.dim; ++d)
-                    {
-                        cur.left_pts(i, d) =
-                            left(clq[i].left, cols.pos[d]);
-                        cur.right_pts(i, d) =
-                            right(clq[i].right, cols.pos[d]);
-                    }
-                RTSTransform t;
-                t.estimate(cur, false);
-                const double s = sameScale ? 1.0 : t.scale;
-                if (!std::isfinite(s) || !std::isfinite(t.rotation))
+                if (!estimatePointTransform(left, right, cols, clq,
+                                            withScale, cur.transform))
                     return false;
-                a = s * std::cos(t.rotation);
-                b = s * std::sin(t.rotation);
+                sr = cur.transform.scale * cur.transform.rotation;
                 return true;
             }
             bool explains(Correspondence c) const
             {
-                const double lx = left(c.left, cols.pos[0]);
-                const double ly = left(c.left, cols.pos[1]);
-                const double rx = right(c.right, cols.pos[0]);
-                const double ry = right(c.right, cols.pos[1]);
-                const double tol2 = tol * tol;
-                const int32_t need = (cur.N + 1) / 2;
-                int32_t agree = 0;
-                for (int32_t k = 0; k < cur.N; ++k)
+                const int dim = cols.dim;
+                double lc[3], rc[3], dl[3], dr[3];
+                for (int d = 0; d < dim; ++d)
                 {
-                    const double dlx = lx - cur.left_pts(k, 0);
-                    const double dly = ly - cur.left_pts(k, 1);
-                    const double drx = rx - cur.right_pts(k, 0);
-                    const double dry = ry - cur.right_pts(k, 1);
-                    const double ex = a * dlx - b * dly - drx;
-                    const double ey = b * dlx + a * dly - dry;
-                    if (ex * ex + ey * ey <=
-                        tol2 * (drx * drx + dry * dry))
-                        ++agree;
+                    lc[d] = left(c.left, cols.pos[d]);
+                    rc[d] = right(c.right, cols.pos[d]);
+                }
+                const double tol2 = tol * tol;
+                const int32_t n = (int32_t)cur.pairs.size();
+                const int32_t need = (n + 1) / 2;
+                int32_t agree = 0;
+                for (int32_t k = 0; k < n; ++k)
+                {
+                    const Correspondence m = cur.pairs[k];
+                    for (int d = 0; d < dim; ++d)
+                    {
+                        dl[d] = lc[d] - left(m.left, cols.pos[d]);
+                        dr[d] = rc[d] - right(m.right, cols.pos[d]);
+                    }
+                    double e2 = 0.0, r2 = 0.0;
+                    for (int i = 0; i < dim; ++i)
+                    {
+                        double e = sr(i, 0) * dl[0];
+                        for (int j = 1; j < dim; ++j)
+                            e += sr(i, j) * dl[j];
+                        e -= dr[i];
+                        e2 += e * e;
+                        r2 += dr[i] * dr[i];
+                    }
+                    if (e2 <= tol2 * r2) ++agree;
                     if (agree >= need) return true;
-                    if (agree + (cur.N - k - 1) < need) return false;
+                    if (agree + (n - k - 1) < need) return false;
                 }
                 return false;
             }
-            bool accept() const { return true; }
+            bool accept() const
+            {
+                const double s = cur.transform.scale;
+                if (withScale && scaleRange > 0.0 &&
+                    (s < 1.0 / scaleRange || s > scaleRange))
+                    return false;
+                return rules.acceptTransform(cur.transform);
+            }
             void keep(int32_t explained)
             {
                 cur.explained = explained;
                 out.push_back(std::move(cur));
             }
         };
+
+        template <class Rules>
+        struct LineFitter
+        {
+            const DoubleMatrixR& left;
+            const DoubleMatrixR& right;
+            const LineCols& cols;
+            const Rules& rules;
+            double angleTol, sepTol;
+            std::vector<LineAlignment>& out;
+            LineAlignment cur{};
+
+            static Eigen::Vector3d mid(const DoubleMatrixR& m,
+                                       const LineCols& c, int32_t i)
+            {
+                return {m(i, c.mid[0]), m(i, c.mid[1]), m(i, c.mid[2])};
+            }
+            static Eigen::Vector3d dir(const DoubleMatrixR& m,
+                                       const LineCols& c, int32_t i)
+            {
+                return Eigen::Vector3d(m(i, c.dir[0]), m(i, c.dir[1]),
+                                       m(i, c.dir[2]))
+                    .normalized();
+            }
+
+            bool fit(const std::vector<Correspondence>& clq)
+            {
+                LineFit fit;
+                if (!estimateRigidLines3D(left, right, cols, clq, fit))
+                    return false;
+                cur = LineAlignment{};
+                cur.pairs = clq;
+                cur.transform = fit.transform;
+                cur.axis = fit.axis;
+                cur.rmsPerp = fit.rmsPerp;
+                cur.axialWeak = fit.axialWeak;
+                return true;
+            }
+            // The transform maps left line l onto right line r: their
+            // directions agree within angleTol and the mapped left
+            // midpoint lies within sepTol of the right line (the offset
+            // along the line is not checked; it is often weakly
+            // fixed).
+            bool explains(Correspondence c) const
+            {
+                const Eigen::Isometry3d& T = cur.transform;
+                const Eigen::Vector3d dl =
+                    T.linear() * dir(left, cols, c.left);
+                const Eigen::Vector3d dr = dir(right, cols, c.right);
+                const double cs = std::min(1.0, std::abs(dl.dot(dr)));
+                if (std::acos(cs) > angleTol) return false;
+                const Eigen::Vector3d q = T * mid(left, cols, c.left) -
+                                          mid(right, cols, c.right);
+                return (q - q.dot(dr) * dr).norm() <= sepTol;
+            }
+            bool accept() const
+            {
+                return rules.acceptTransform(cur.transform);
+            }
+            void keep(int32_t explained)
+            {
+                cur.explained = explained;
+                out.push_back(std::move(cur));
+            }
+        };
+
+        struct StageText
+        {
+            const char* invalid;
+            const char* finding;
+            const char* buildFailed;
+            const char* noMatch;
+        };
+
+        // Graph + distinct alignments for a valid |model|; fills
+        // |result|'s status and message.
+        template <class Model, class Fitter, class Result>
+        void graphAndDistinct(const Model& model, const BuildParams& bp,
+                              const DistinctParams& dp, Fitter& fitter,
+                              Progress& progress, const StageText& text,
+                              Result& result)
+        {
+            result.message.clear();
+            if (dp.upperBound < dp.lowerBound)
+            {
+                result.status = Status::NoMatch;
+                result.message = text.noMatch;
+                return;
+            }
+            GraphRows graph;
+            progress.report(0.25f, text.finding);
+            if (!buildGraph(model, bp, progress, graph))
+            {
+                if (progress.cancelled())
+                {
+                    result.status = Status::Cancelled;
+                    result.message = "cancelled";
+                    return;
+                }
+                result.status = Status::Error;
+                result.message = text.buildFailed;
+                return;
+            }
+            progress.report(0.5f, "searching cliques...");
+            switch (searchDistinct(graph, dp, fitter, progress))
+            {
+                case DistinctStatus::Ok:
+                    result.status = Status::Ok;
+                    return;
+                case DistinctStatus::FitFailed:
+                    result.status = Status::Error;
+                    result.message = "transform fit failed";
+                    return;
+                case DistinctStatus::Cancelled:
+                    result.status = Status::Cancelled;
+                    result.message = "cancelled";
+                    return;
+                default:
+                    result.status = Status::NoMatch;
+                    result.message = text.noMatch;
+                    return;
+            }
+        }
+
+        constexpr StageText kPointText{
+            "invalid point columns or parameters",
+            "finding matchable points...", "could not fill graph",
+            "no consistent set of points found"};
+        constexpr StageText kLineText{
+            "invalid line columns or tolerances",
+            "finding matchable lines...",
+            "could not build the match graph",
+            "no consistent set of lines found"};
+
+        template <class Model, class Rules>
+        PointResult alignPointModel(
+            const Model& model, const DoubleMatrixR& left,
+            const DoubleMatrixR& right, const PointCols& cols,
+            const Rules& rules, const PointOptions& options,
+            const CliqueOptions& clique, Progress& progress)
+        {
+            PointResult result;
+            if (!model.valid())
+            {
+                result.message = kPointText.invalid;
+                return result;
+            }
+            const bool similarity =
+                options.mode == PointMode::Similarity;
+            DistinctParams dp =
+                distinctParams(clique, left.rows(), right.rows());
+            // scale range 1: a rigid anchor, no reflection
+            PointAnchor2D anchor(left, right, cols,
+                                 similarity ? options.scaleRange : 1.0,
+                                 options.anchorTol);
+            if (options.anchorTol > 0.0 && cols.dim == 2)
+                dp.constraint = &anchor;
+            BuildParams bp;
+            bp.numWorkers = dp.numWorkers;
+            bp.minSupport = options.minSupport;
+            PointFitter<Rules> fitter{
+                left,
+                right,
+                cols,
+                rules,
+                kExplainTolFactor * options.epsilon,
+                similarity,
+                options.scaleRange,
+                result.alignments};
+            graphAndDistinct(model, bp, dp, fitter, progress,
+                             kPointText, result);
+            return result;
+        }
     }  // namespace detail
 
-    // Correspondence graph + distinct alignments (searchDistinct) for
-    // any 2-D point model; the matched rows go to |results| (best
-    // first). Anything but Status::Ok sets |message|.
-    template <class Model>
-    Status alignWith(const Model& model, const DoubleMatrixR& left,
-                     const DoubleMatrixR& right, const PointCols& cols,
-                     const RTSParams& params, Progress& progress,
-                     std::vector<MatchedPoints>& results,
-                     std::string& message,
-                     const CliqueConstraint* constraint = nullptr)
-    {
-        message.clear();
-        if (!model.valid())
-        {
-            message = "invalid point columns or parameters";
-            return Status::Error;
-        }
-        BuildParams bp;
-        bp.numWorkers = params.numWorkers;
-        bp.minSupport = params.minSupport;
-        GraphRows graph;
-        progress.report(0.25f, "finding matchable points...");
-        if (!buildGraph(model, bp, progress, graph))
-        {
-            if (progress.cancelled())
-            {
-                message = "cancelled";
-                return Status::Cancelled;
-            }
-            message = "could not fill graph";
-            return Status::Error;
-        }
-
-        DistinctParams dp;
-        dp.numWorkers = params.numWorkers;
-        dp.numResults = params.numResults;
-        dp.lowerBound = params.lowerBound;
-        dp.upperBound = params.upperBound;
-        dp.constraint = constraint;
-        dp.mode = params.distinct;
-        detail::PointFitter fitter{
-            left,
-            right,
-            cols,
-            detail::kExplainTolFactor * params.epsilon,
-            params.sameScale,
-            results};
-        progress.report(0.5f, "searching cliques...");
-        switch (searchDistinct(graph, dp, fitter, progress))
-        {
-            case DistinctStatus::Ok:
-                return Status::Ok;
-            case DistinctStatus::FitFailed:
-                message = "transform fit failed";
-                return Status::Error;
-            case DistinctStatus::Cancelled:
-                message = "cancelled";
-                return Status::Cancelled;
-            default:
-                message = "no consistent set of points found";
-                return Status::NoMatch;
-        }
-    }
-
-    // getAlignment with caller-defined Rules: admissible() filters
-    // nodes; edgeOk() (rigid, params.sameScale) or tripleOk()
-    // (similarity) vet edges.
+    // alignPoints with caller-defined Rules: rigid (RigidPoints:
+    // edgeOk) or similarity (SimilarityPoints2D: tripleOk) matching.
+    // cols.label is left to the Rules.
     template <class Rules>
-    Status getAlignmentWithRules(
-        const DoubleMatrixR& left_pts, const DoubleMatrixR& right_pts,
-        const PointCols& cols, const Rules& rules,
-        const RTSParams& params, Progress& progress,
-        std::vector<MatchedPoints>& results, std::string& message)
+    PointResult alignPointsWithRules(const DoubleMatrixR& left,
+                                     const DoubleMatrixR& right,
+                                     const PointCols& cols,
+                                     const Rules& rules,
+                                     const PointOptions& options,
+                                     const CliqueOptions& clique,
+                                     Progress& progress)
     {
-        if (params.sameScale)
+        if (options.mode == PointMode::Rigid)
         {
-            RigidPoints<Rules> model(left_pts, right_pts, cols,
-                                     params.epsilon, rules);
-            if (!(params.anchorTol > 0.0))
-                return alignWith(model, left_pts, right_pts, cols,
-                                 params, progress, results, message);
-            // scale range 1: a rigid anchor, no reflection
-            PointAnchor2D anchor(left_pts, right_pts, cols, 1.0,
-                                 params.anchorTol);
-            return alignWith(model, left_pts, right_pts, cols, params,
-                             progress, results, message, &anchor);
+            RigidPoints<Rules> model(left, right, cols, options.epsilon,
+                                     rules);
+            return detail::alignPointModel(model, left, right, cols,
+                                           rules, options, clique,
+                                           progress);
+        }
+        if (cols.dim != 2)
+        {
+            PointResult result;
+            result.message = "similarity matching needs 2-D points";
+            return result;
         }
         SimilarityParams sp;
-        sp.scaleRange = params.scaleRange;
-        sp.epsilon = params.epsilon;
-        sp.angleCol = params.angleCol;
-        sp.angleTolDeg = params.angleTolDeg;
-        SimilarityPoints2D<Rules> model(left_pts, right_pts, cols, sp,
-                                        rules);
-        if (!(params.anchorTol > 0.0))
-            return alignWith(model, left_pts, right_pts, cols, params,
-                             progress, results, message);
-        PointAnchor2D anchor(left_pts, right_pts, cols,
-                             params.scaleRange, params.anchorTol);
-        return alignWith(model, left_pts, right_pts, cols, params,
-                         progress, results, message, &anchor);
+        sp.scaleRange = options.scaleRange;
+        sp.epsilon = options.epsilon;
+        sp.angleCol = cols.angle;
+        sp.angleTolDeg = options.orientationTolDeg;
+        SimilarityPoints2D<Rules> model(left, right, cols, sp, rules);
+        return detail::alignPointModel(model, left, right, cols, rules,
+                                       options, clique, progress);
+    }
+
+    // alignLines3D with caller-defined Rules. cols.label is left to
+    // the Rules.
+    template <class Rules>
+    LineResult alignLines3DWithRules(const DoubleMatrixR& left,
+                                     const DoubleMatrixR& right,
+                                     const LineCols& cols,
+                                     const Rules& rules,
+                                     const LineParams& params,
+                                     const CliqueOptions& clique,
+                                     Progress& progress)
+    {
+        LineResult result;
+        RigidLines3D<Rules> model(left, right, cols, params, rules);
+        if (!model.valid())
+        {
+            result.message = detail::kLineText.invalid;
+            return result;
+        }
+        const DistinctParams dp =
+            detail::distinctParams(clique, left.rows(), right.rows());
+        BuildParams bp;
+        bp.numWorkers = dp.numWorkers;
+        detail::LineFitter<Rules> fitter{left,
+                                         right,
+                                         cols,
+                                         rules,
+                                         params.angleTol,
+                                         params.sepTol,
+                                         result.alignments};
+        detail::graphAndDistinct(model, bp, dp, fitter, progress,
+                                 detail::kLineText, result);
+        return result;
     }
 }  // namespace AlignCalc
 

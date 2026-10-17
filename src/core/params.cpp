@@ -131,14 +131,27 @@ namespace shoecomp
                    : AlignCalc::DistinctMode::Explained;
     }
 
-    AlignCalc::RTSParams Params::rtsParams() const
+    AlignCalc::CliqueOptions CliqueSettings::toOptions(
+        size_t numWorkers) const
     {
-        AlignCalc::RTSParams p = align2d;
-        p.lowerBound = clique.minMatched;
-        p.upperBound = clique.maxMatched;
-        p.numResults = (size_t)clique.numResults;
-        p.distinct = clique.distinctMode();
-        return p;
+        AlignCalc::CliqueOptions o;
+        o.minMatched = minMatched;
+        o.maxMatched = maxMatched;
+        o.results = (size_t)numResults;
+        o.distinct = distinctMode();
+        o.numWorkers = numWorkers;
+        return o;
+    }
+
+    AlignCalc::PointOptions Align2DSettings::toOptions() const
+    {
+        AlignCalc::PointOptions o;
+        o.mode = sameScale ? AlignCalc::PointMode::Rigid
+                           : AlignCalc::PointMode::Similarity;
+        o.epsilon = epsilon;
+        o.scaleRange = scaleRange;
+        o.anchorTol = anchorTol;
+        return o;
     }
 
 #define SC_REF(member) \

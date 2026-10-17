@@ -6,18 +6,23 @@
 
 namespace AlignCalc
 {
-    // Which columns of a caller's row hold a point's position.
+    // Which columns of a caller's row hold a point's position, and
+    // optionally a label (alignPoints: only equal labels match) and an
+    // orientation in degrees (the similarity model's oriented-point
+    // prefilter); -1 = none.
     struct PointCols
     {
         int dim = 2;
         std::array<int, 3> pos = {0, 1, 2};
+        int label = -1;
+        int angle = -1;
 
         bool valid(const DoubleMatrixR& m) const
         {
             if (dim < 1 || dim > 3) return false;
             for (int d = 0; d < dim; ++d)
                 if (pos[d] < 0 || pos[d] >= m.cols()) return false;
-            return true;
+            return label < m.cols() && angle < m.cols();
         }
     };
 
@@ -26,6 +31,9 @@ namespace AlignCalc
     // b = (j1 <-> j2) as (L, i1, j1, R, i2, j2); they must give the
     // same answer for (L, j1, i1, R, j2, i2). tolScale is clamped to
     // (0, 1], so rules can only tighten a model's tolerance.
+    // acceptTransform vets a fitted alignment (PointTransform for
+    // points, Eigen::Isometry3d for lines): false sets it aside
+    // without reporting it, and the distinct search goes on.
     //
     // LabelRules: a node is admissible iff the label columns are
     // equal (labelCol < 0: no label, everything admissible).
@@ -58,6 +66,12 @@ namespace AlignCalc
                       const std::array<int32_t, 3>&,
                       const DoubleMatrixR&,
                       const std::array<int32_t, 3>&) const
+        {
+            return true;
+        }
+
+        template <class Transform>
+        bool acceptTransform(const Transform&) const
         {
             return true;
         }

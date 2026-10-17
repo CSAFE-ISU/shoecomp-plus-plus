@@ -27,23 +27,23 @@ namespace shoecomp
     // Automatic 2-D alignment of the annotation points
     // ({x, y, type} in points[]) of two images; same-type points
     // only. Communicates progress via |channel| and writes the
-    // estimated transforms into |results| (best first). A
-    // params.upperBound <= 0 means the smaller of the two point
-    // counts. |matched| (optional) gets each result's matched rows.
-    // Returns how the run ended; NoMatch and Error also post
-    // |message| (optional) to |channel| as an error. Ok may still
-    // leave |results| empty (every fit outside the scale range).
+    // estimated transforms into |results| (best first).
+    // |matched| (optional) gets each result's matched rows. Returns
+    // how the run ended; NoMatch and Error also post |message|
+    // (optional) to |channel| as an error.
     AlignCalc::Status runAutoAlign(
         const jt::Json& leftAnn, const jt::Json& rightAnn,
         WorkerChannel& channel, std::vector<AlignState>& results,
-        const AlignCalc::RTSParams& params,
+        const AlignCalc::PointOptions& options,
+        const AlignCalc::CliqueOptions& clique,
         const PointMatchRules& rules = {},
         std::vector<MatchedRows>* matched = nullptr,
         std::string* message = nullptr);
     AlignCalc::Status runRTSAlign(
         const jt::Json& leftAnn, const jt::Json& rightAnn,
         WorkerChannel& channel, std::vector<AlignState>& results,
-        const AlignCalc::RTSParams& params,
+        const AlignCalc::PointOptions& options,
+        const AlignCalc::CliqueOptions& clique,
         const PointMatchRules& rules = {},
         std::vector<MatchedRows>* matched = nullptr,
         std::string* message = nullptr);

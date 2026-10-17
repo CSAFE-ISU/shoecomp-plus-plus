@@ -34,7 +34,6 @@ add_library(aligncalc STATIC
     src/models/rigidLines3d.cpp
     src/models/pointAnchor2d.cpp
     src/estimate.cpp
-    src/transform.cpp
     src/rts/triangle2d.cpp
 )
 add_library(aligncalc::aligncalc ALIAS aligncalc)

@@ -605,8 +605,10 @@ namespace shoecomp
 
         if (!is3DType(left.type))
         {
-            AlignCalc::RTSParams p = params.rtsParams();
-            p.numWorkers = (size_t)resolveThreads(opts.threads);
+            const AlignCalc::PointOptions po =
+                params.align2d.toOptions();
+            const AlignCalc::CliqueOptions co = params.clique.toOptions(
+                (size_t)resolveThreads(opts.threads));
             std::vector<MatchedRows> rows;
             bool timedOut = false;
             AlignCalc::Status status = AlignCalc::Status::Error;
@@ -618,9 +620,10 @@ namespace shoecomp
                             rules.type = left.type;
                             rules.minutiaAngleTolDeg =
                                 params.minutiaAngleTolDeg;
-                            status = runAutoAlign(
-                                left.annotations, right.annotations, ch,
-                                res.align2d, p, rules, &rows, &err);
+                            status = runAutoAlign(left.annotations,
+                                                  right.annotations, ch,
+                                                  res.align2d, po, co,
+                                                  rules, &rows, &err);
                         });
             for (size_t i = 0; i < res.align2d.size(); ++i)
             {

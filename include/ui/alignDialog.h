@@ -31,7 +31,9 @@ namespace shoecomp
         WorkerChannel channel;
         std::thread workerThread;
         bool workerFinished = false;
-        AlignCalc::RTSParams rtsParams = Params().rtsParams();
+        Align2DSettings align2d = Params().align2d;
+        // minMatched / maxMatched are the dialog's bounds
+        AlignCalc::CliqueOptions clique = Params().clique.toOptions(2);
         // Input type of the two images (EBTS adds the minutia rules).
         ImageType type = ImageType::Shoe;
         float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;

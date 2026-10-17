@@ -104,9 +104,8 @@ namespace shoecomp
             int lp = countPts(leftImage);
             int rp = countPts(rightImage);
             maxPts = std::max(3, std::min(lp, rp));
-            rtsParams.upperBound = maxPts;
-            rtsParams.lowerBound =
-                std::min(rtsParams.lowerBound, maxPts);
+            clique.maxMatched = maxPts;
+            clique.minMatched = std::min(clique.minMatched, maxPts);
         }
 
         ImVec2 ds = ImGui::GetIO().DisplaySize;
@@ -123,17 +122,17 @@ namespace shoecomp
                         leftName.c_str());
             ImGui::Separator();
 
-            int nw = static_cast<int>(rtsParams.numWorkers);
+            int nw = static_cast<int>(clique.numWorkers);
             if (ImGui::SliderInt("Workers", &nw, 1, 8))
             {
-                rtsParams.numWorkers = static_cast<size_t>(nw);
+                clique.numWorkers = static_cast<size_t>(nw);
             }
 
-            int nr = static_cast<int>(rtsParams.numResults);
+            int nr = static_cast<int>(clique.results);
             if (ImGui::InputInt("Results", &nr))
             {
                 if (nr < 1) nr = 1;
-                rtsParams.numResults = static_cast<size_t>(nr);
+                clique.results = static_cast<size_t>(nr);
             }
 
             float labelW = ImGui::CalcTextSize("Bounds").x +
@@ -142,31 +141,31 @@ namespace shoecomp
                             ImGui::GetStyle().ItemSpacing.x;
             float halfW = widgetW * 0.5f;
             ImGui::SetNextItemWidth(halfW);
-            ImGui::SliderInt("##Lower", &rtsParams.lowerBound, 3,
-                             maxPts, "Min: %d");
-            if (rtsParams.lowerBound < 3) rtsParams.lowerBound = 3;
-            if (rtsParams.upperBound < rtsParams.lowerBound)
-                rtsParams.upperBound = rtsParams.lowerBound;
+            ImGui::SliderInt("##Lower", &clique.minMatched, 3, maxPts,
+                             "Min: %d");
+            if (clique.minMatched < 3) clique.minMatched = 3;
+            if (clique.maxMatched < clique.minMatched)
+                clique.maxMatched = clique.minMatched;
             ImGui::SameLine();
             ImGui::SetNextItemWidth(halfW);
-            ImGui::SliderInt("Bounds", &rtsParams.upperBound,
-                             rtsParams.lowerBound, maxPts, "Max: %d");
+            ImGui::SliderInt("Bounds", &clique.maxMatched,
+                             clique.minMatched, maxPts, "Max: %d");
 
-            if (!rtsParams.sameScale)
+            if (!align2d.sameScale)
             {
                 float scaleRange =
-                    static_cast<float>(rtsParams.scaleRange);
+                    static_cast<float>(align2d.scaleRange);
                 if (ImGui::SliderFloat("Scale Range", &scaleRange, 1.0f,
                                        10.0f, "%.2f"))
-                    rtsParams.scaleRange = scaleRange;
+                    align2d.scaleRange = scaleRange;
             }
 
-            float epsilon = static_cast<float>(rtsParams.epsilon);
+            float epsilon = static_cast<float>(align2d.epsilon);
             if (ImGui::SliderFloat("Allowed Error", &epsilon, 0.001f,
                                    0.25f, "%.3f"))
-                rtsParams.epsilon = epsilon;
+                align2d.epsilon = epsilon;
 
-            ImGui::Checkbox("Same Scale", &rtsParams.sameScale);
+            ImGui::Checkbox("Same Scale", &align2d.sameScale);
 
             ImGui::Spacing();
             ImGui::Spacing();
@@ -224,15 +223,17 @@ namespace shoecomp
 
         auto left = leftImage;
         auto right = rightImage;
-        auto params = rtsParams;
+        const AlignCalc::PointOptions options = align2d.toOptions();
+        const AlignCalc::CliqueOptions bounds = clique;
         PointMatchRules rules;
         rules.type = type;
         rules.minutiaAngleTolDeg = minutiaAngleTolDeg;
         workerThread = std::thread(
-            [this, left, right, params, rules]()
+            [this, left, right, options, bounds, rules]()
             {
                 runAutoAlign(left->annotations, right->annotations,
-                             channel, workerResults, params, rules);
+                             channel, workerResults, options, bounds,
+                             rules);
             });
     }
 

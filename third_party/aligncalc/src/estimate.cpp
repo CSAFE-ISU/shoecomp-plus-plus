@@ -8,6 +8,106 @@ namespace AlignCalc
 {
     namespace
     {
+        void centerify(DoubleMatrixR& pts, Eigen::Vector2d& center)
+        {
+            center(0) = pts.col(0).mean();
+            center(1) = pts.col(1).mean();
+            pts.col(0).array() -= center(0);
+            pts.col(1).array() -= center(1);
+        }
+
+        // 2-D Umeyama through the rotation angle (the 2-D results
+        // depend on its exact rounding).
+        bool similarity2D(const DoubleMatrixR& left,
+                          const DoubleMatrixR& right,
+                          const PointCols& cols,
+                          const std::vector<Correspondence>& pairs,
+                          bool withScale, PointTransform& out)
+        {
+            const Eigen::Index n = (Eigen::Index)pairs.size();
+            DoubleMatrixR src(n, 2), dst(n, 2);
+            for (Eigen::Index i = 0; i < n; ++i)
+                for (int d = 0; d < 2; ++d)
+                {
+                    src(i, d) = left(pairs[i].left, cols.pos[d]);
+                    dst(i, d) = right(pairs[i].right, cols.pos[d]);
+                }
+            Eigen::Vector2d srcMean, dstMean;
+            centerify(dst, dstMean);
+            centerify(src, srcMean);
+            const double srcVariance =
+                src.rowwise().norm().array().square().mean();
+            auto H = (dst.transpose() * src) / (1.0f * n);
+            Eigen::JacobiSVD<DoubleMatrixR,
+                             Eigen::ComputeFullU | Eigen::ComputeFullV>
+                svd(H);
+            auto U = svd.matrixU();
+            Eigen::VectorXd d = svd.singularValues();
+            auto Vt = svd.matrixV().transpose();
+            Eigen::MatrixXd S = Eigen::MatrixXd::Identity(2, 2);
+            const double det = U.determinant() * Vt.determinant();
+            S(1, 1) *= (det >= 0 ? 1 : -1);
+
+            const double scale = withScale
+                                     ? (d.asDiagonal() * S).trace() /
+                                           (srcVariance + 1e-8)
+                                     : 1.0;
+            const Eigen::Matrix2d rotmat = (U * S * Vt).transpose();
+            const double rot = std::atan2(rotmat(0, 1), rotmat(0, 0));
+            const double c = std::cos(rot), s = std::sin(rot);
+            out.angle = rot;
+            out.scale = scale;
+            out.rotation.resize(2, 2);
+            out.rotation << c, -s, s, c;
+            out.translation.resize(2);
+            out.translation(0) =
+                dstMean(0) - scale * (srcMean(0) * c - srcMean(1) * s);
+            out.translation(1) =
+                dstMean(1) - scale * (srcMean(0) * s + srcMean(1) * c);
+            return std::isfinite(scale) && std::isfinite(rot) &&
+                   out.translation.allFinite();
+        }
+
+        // Umeyama in 1 or 3 dimensions.
+        bool similarityND(const DoubleMatrixR& left,
+                          const DoubleMatrixR& right,
+                          const PointCols& cols,
+                          const std::vector<Correspondence>& pairs,
+                          bool withScale, PointTransform& out)
+        {
+            const int dim = cols.dim;
+            const Eigen::Index n = (Eigen::Index)pairs.size();
+            Eigen::MatrixXd X(dim, n), Y(dim, n);
+            for (Eigen::Index i = 0; i < n; ++i)
+                for (int d = 0; d < dim; ++d)
+                {
+                    X(d, i) = left(pairs[i].left, cols.pos[d]);
+                    Y(d, i) = right(pairs[i].right, cols.pos[d]);
+                }
+            const Eigen::VectorXd mx = X.rowwise().mean();
+            const Eigen::VectorXd my = Y.rowwise().mean();
+            X.colwise() -= mx;
+            Y.colwise() -= my;
+            const Eigen::MatrixXd sigma = Y * X.transpose() / double(n);
+            Eigen::JacobiSVD<Eigen::MatrixXd> svd(
+                sigma, Eigen::ComputeFullU | Eigen::ComputeFullV);
+            Eigen::VectorXd S = Eigen::VectorXd::Ones(dim);
+            if (svd.matrixU().determinant() *
+                    svd.matrixV().determinant() <
+                0)
+                S(dim - 1) = -1.0;
+            out.rotation = svd.matrixU() * S.asDiagonal() *
+                           svd.matrixV().transpose();
+            const double varX = X.squaredNorm() / double(n);
+            out.scale =
+                withScale ? svd.singularValues().dot(S) / varX : 1.0;
+            out.translation = my - out.scale * out.rotation * mx;
+            out.angle = 0.0;
+            return std::isfinite(out.scale) &&
+                   out.rotation.allFinite() &&
+                   out.translation.allFinite();
+        }
+
         Eigen::Vector3d col3(const DoubleMatrixR& m, int32_t r,
                              const std::array<int, 3>& c)
         {
@@ -49,6 +149,19 @@ namespace AlignCalc
             return T;
         }
     }  // namespace
+
+    bool estimatePointTransform(
+        const DoubleMatrixR& left, const DoubleMatrixR& right,
+        const PointCols& cols, const std::vector<Correspondence>& pairs,
+        bool withScale, PointTransform& out)
+    {
+        if (!cols.valid(left) || !cols.valid(right) || pairs.size() < 2)
+            return false;
+        return cols.dim == 2 ? similarity2D(left, right, cols, pairs,
+                                            withScale, out)
+                             : similarityND(left, right, cols, pairs,
+                                            withScale, out);
+    }
 
     bool estimateRigid3D(const DoubleMatrixR& left,
                          const DoubleMatrixR& right,

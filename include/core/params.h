@@ -44,6 +44,17 @@ namespace shoecomp
         std::string distinct = "explained";
 
         AlignCalc::DistinctMode distinctMode() const;
+        AlignCalc::CliqueOptions toOptions(size_t numWorkers) const;
+    };
+
+    struct Align2DSettings
+    {
+        double scaleRange = 5.0;  // scales within [1/s, s]
+        double epsilon = 0.005;   // allowed relative error
+        bool sameScale = false;   // rigid (scale 1)
+        double anchorTol = 0.05;  // anchored clique search; 0 = off
+
+        AlignCalc::PointOptions toOptions() const;
     };
 
     struct Align3DSettings
@@ -64,16 +75,13 @@ namespace shoecomp
     struct Params
     {
         Detect2DSettings detect2d;
-        // Bounds, results and distinct come from |clique| (see
-        // rtsParams()); numWorkers is a run option, not a parameter.
-        AlignCalc::RTSParams align2d;
+        // Bounds, results and distinct come from |clique|; the
+        // number of workers is a run option, not a parameter.
+        Align2DSettings align2d;
         float minutiaAngleTolDeg = kDefaultMinutiaAngleTolDeg;
         StriationSettings striation;
         Align3DSettings align3d;
         CliqueSettings clique;
-
-        // align2d with |clique| applied
-        AlignCalc::RTSParams rtsParams() const;
     };
 
     enum class ParamKind

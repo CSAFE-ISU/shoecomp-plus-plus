@@ -7,6 +7,25 @@
 
 namespace AlignCalc
 {
+    // x -> scale * rotation * x + translation, in 1-3 dimensions
+    // (rotation dim x dim, no reflection).
+    struct PointTransform
+    {
+        Eigen::MatrixXd rotation;
+        double scale = 1.0;
+        Eigen::VectorXd translation;
+        double angle = 0.0;  // 2-D: the rotation angle (radians)
+    };
+
+    // Similarity (|withScale|) or rigid transform T with
+    // T(left) ~= right over the matched rows, least squares
+    // (Umeyama), in cols.dim dimensions. Needs >= 2 pairs; false when
+    // the fit is not finite.
+    bool estimatePointTransform(
+        const DoubleMatrixR& left, const DoubleMatrixR& right,
+        const PointCols& cols, const std::vector<Correspondence>& pairs,
+        bool withScale, PointTransform& out);
+
     // Rigid transform T with T * left ~= right over the matched rows
     // (Kabsch, least squares). |cols| must be 3-D; needs >= 3 pairs.
     bool estimateRigid3D(const DoubleMatrixR& left,

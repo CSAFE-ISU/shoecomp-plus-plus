@@ -19,6 +19,7 @@ namespace shoecomp
     };
 
     constexpr double kUnlabeled = -1.0;
+    constexpr size_t kMaxPoints = 256;
 
     // EBTS correspondences: an untyped or Other point pairs with any
     // type, otherwise types must be equal. Two correspondences
@@ -89,7 +90,7 @@ namespace shoecomp
         }
         auto& pts = ann["points"].getArray();
         if (pts.size() == 0) { return false; }
-        if (pts.size() > AlignCalc::MAX_POINTS) { return false; }
+        if (pts.size() > kMaxPoints) { return false; }
         mat.resize(pts.size(), NumCols);
         for (size_t i = 0; i < pts.size(); ++i)
         {
@@ -114,19 +115,17 @@ namespace shoecomp
         return true;
     }
 
-    AlignCalc::Status runRTSAlign(const jt::Json& leftAnn,
-                                  const jt::Json& rightAnn,
-                                  WorkerChannel& channel,
-                                  std::vector<AlignState>& aligns,
-                                  const AlignCalc::RTSParams& params,
-                                  const PointMatchRules& rules,
-                                  std::vector<MatchedRows>* matched,
-                                  std::string* message)
+    AlignCalc::Status runRTSAlign(
+        const jt::Json& leftAnn, const jt::Json& rightAnn,
+        WorkerChannel& channel, std::vector<AlignState>& aligns,
+        const AlignCalc::PointOptions& options,
+        const AlignCalc::CliqueOptions& clique,
+        const PointMatchRules& rules, std::vector<MatchedRows>* matched,
+        std::string* message)
     {
         const bool ebts = rules.type == ImageType::EBTS;
         AlignCalc::DoubleMatrixR left_pts;
         AlignCalc::DoubleMatrixR right_pts;
-        std::vector<AlignCalc::MatchedPoints> results;
         std::string msg;
         auto fail = [&](AlignCalc::Status status)
         {
@@ -149,57 +148,54 @@ namespace shoecomp
             return fail(AlignCalc::Status::Error);
         }
 
-        AlignCalc::RTSParams run = params;
-        if (run.upperBound <= 0)
-        {
-            run.upperBound = std::max(
-                3, (int)std::min(left_pts.rows(), right_pts.rows()));
-        }
-
         AlignCalc::PointCols cols;
         cols.dim = 2;
         cols.pos = {ColX, ColY, 0};
+        AlignCalc::PointOptions run = options;
         ChannelProgress progress(channel);
-        AlignCalc::Status status;
+        AlignCalc::PointResult result;
         if (ebts)
         {
             EBTSRules er;
             er.angleTolDeg = rules.minutiaAngleTolDeg;
             if (er.angleTolDeg > 0.0)
             {
-                run.angleCol = ColTheta;
-                run.angleTolDeg = er.angleTolDeg;
+                cols.angle = ColTheta;
+                run.orientationTolDeg = er.angleTolDeg;
             }
-            status = AlignCalc::getAlignmentWithRules(
-                left_pts, right_pts, cols, er, run, progress, results,
-                msg);
+            result = AlignCalc::alignPointsWithRules(
+                left_pts, right_pts, cols, er, run, clique, progress);
         }
         else
         {
-            status = AlignCalc::getAlignment(left_pts, right_pts, cols,
-                                             ColType, run, progress,
-                                             results, msg);
+            cols.label = ColType;
+            result = AlignCalc::alignPoints(left_pts, right_pts, cols,
+                                            run, clique, &progress);
         }
-        if (status != AlignCalc::Status::Ok) return fail(status);
-
-        AlignCalc::RTSTransform tform;
-        for (const auto& match : results)
+        if (result.status != AlignCalc::Status::Ok)
         {
-            tform.estimate(match, true);
+            msg = result.message;
+            return fail(result.status);
+        }
 
-            double scale = params.sameScale ? 1.0 : tform.scale;
-            if (!params.sameScale && params.scaleRange > 0.0)
-            {
-                double lo = 1.0 / params.scaleRange;
-                double hi = params.scaleRange;
-                if (scale < lo || scale > hi) continue;
-            }
+        // AlignState maps right onto left: fit that direction.
+        const bool withScale =
+            options.mode == AlignCalc::PointMode::Similarity;
+        for (const auto& match : result.alignments)
+        {
+            std::vector<AlignCalc::Correspondence> swapped;
+            for (const auto& c : match.pairs)
+                swapped.push_back({c.right, c.left});
+            AlignCalc::PointTransform t;
+            if (!AlignCalc::estimatePointTransform(
+                    right_pts, left_pts, cols, swapped, withScale, t))
+                continue;
 
             aligns.push_back(AlignState{});
-            aligns.back().rotation = tform.rotation /* in radians */;
-            aligns.back().dx = tform.dx;
-            aligns.back().dy = tform.dy;
-            aligns.back().scale = scale;
+            aligns.back().rotation = t.angle /* in radians */;
+            aligns.back().dx = t.translation(0);
+            aligns.back().dy = t.translation(1);
+            aligns.back().scale = t.scale;
             aligns.back().mode = AlignMode::Automatic;
             if (matched) matched->push_back(match.pairs);
 
@@ -208,19 +204,19 @@ namespace shoecomp
             aligns.back().info["explained"] = jt::Json(match.explained);
             aligns.back().info["leftPoints"].setArray();
             aligns.back().info["rightPoints"].setArray();
-            for (int32_t i = 0; i < match.N; ++i)
+            for (const auto& c : match.pairs)
             {
                 jt::Json lpt;
                 lpt.setObject();
-                lpt["x"] = match.left_pts(i, 0);
-                lpt["y"] = match.left_pts(i, 1);
+                lpt["x"] = left_pts(c.left, ColX);
+                lpt["y"] = left_pts(c.left, ColY);
                 aligns.back().info["leftPoints"].getArray().push_back(
                     std::move(lpt));
 
                 jt::Json rpt;
                 rpt.setObject();
-                rpt["x"] = match.right_pts(i, 0);
-                rpt["y"] = match.right_pts(i, 1);
+                rpt["x"] = right_pts(c.right, ColX);
+                rpt["y"] = right_pts(c.right, ColY);
                 aligns.back().info["rightPoints"].getArray().push_back(
                     std::move(rpt));
             }

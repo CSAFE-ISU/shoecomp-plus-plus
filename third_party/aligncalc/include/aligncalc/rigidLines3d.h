@@ -7,12 +7,15 @@
 namespace AlignCalc
 {
     // Which columns of a caller's row describe a line segment:
-    // midpoint, direction (any length, any sign) and segment length.
+    // midpoint, direction (any length, any sign) and segment length;
+    // optionally a label (alignLines3D: only equal labels match; -1 =
+    // none).
     struct LineCols
     {
         std::array<int, 3> mid = {0, 1, 2};
         std::array<int, 3> dir = {3, 4, 5};
         int length = 6;
+        int label = -1;
 
         bool valid(const DoubleMatrixR& m) const
         {
@@ -20,7 +23,7 @@ namespace AlignCalc
                 if (mid[d] < 0 || mid[d] >= m.cols() || dir[d] < 0 ||
                     dir[d] >= m.cols())
                     return false;
-            return length >= 0 && length < m.cols();
+            return length >= 0 && length < m.cols() && label < m.cols();
         }
     };
 

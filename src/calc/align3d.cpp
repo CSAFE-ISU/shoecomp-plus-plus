@@ -4,10 +4,8 @@
 #include <cmath>
 #include <cstdio>
 
-#include "aligncalc/distinct.h"
+#include "aligncalc/alignWithRules.h"
 #include <Eigen/Eigenvalues>
-#include "aligncalc/estimate.h"
-#include "aligncalc/rigidLines3d.h"
 #include "calc/channelProgress.h"
 #include "formats/x3pAnnotationIo.h"
 
@@ -108,6 +106,15 @@ namespace shoecomp
                     std::clamp((Rot.trace() - 1.0) * 0.5, -1.0, 1.0);
                 return std::acos(c) <= maxRotation + margin;
             }
+
+            // a transform rotating past maxRotation (e.g. one land
+            // reversed end-for-end) is set aside but not reported
+            bool acceptTransform(const Eigen::Isometry3d& T) const
+            {
+                return !(maxRotation > 0.0 &&
+                         Eigen::AngleAxisd(T.rotation()).angle() >
+                             maxRotation);
+            }
         };
 
         AlignCalc::LineCols lineCols()
@@ -118,68 +125,6 @@ namespace shoecomp
             c.length = ColLength;
             return c;
         }
-
-        // Whether |T| maps left line |l| onto right line |r|: their
-        // directions agree within |angleTol| and the mapped left
-        // midpoint lies within |sepTol| of the right line (the offset
-        // along the line is not checked; it is often weakly fixed).
-        bool explains(const Eigen::Isometry3d& T,
-                      const AlignCalc::DoubleMatrixR& L, int l,
-                      const AlignCalc::DoubleMatrixR& R, int r,
-                      double angleTol, double sepTol)
-        {
-            const Eigen::Vector3d dl = T.linear() * rowDir(L, l);
-            const Eigen::Vector3d dr = rowDir(R, r);
-            const double c = std::min(1.0, std::abs(dl.dot(dr)));
-            if (std::acos(c) > angleTol) return false;
-            const Eigen::Vector3d q = T * rowMid(L, l) - rowMid(R, r);
-            return (q - q.dot(dr) * dr).norm() <= sepTol;
-        }
-
-        struct LineFitter
-        {
-            const AlignCalc::DoubleMatrixR& left;
-            const AlignCalc::DoubleMatrixR& right;
-            const AlignCalc::LineCols& cols;
-            double angleTol, sepTol, maxRot;
-            std::vector<StriationAlignment>& out;
-            StriationAlignment cur;
-
-            bool fit(const std::vector<AlignCalc::Correspondence>& clq)
-            {
-                AlignCalc::LineFit fit;
-                if (!AlignCalc::estimateRigidLines3D(left, right, cols,
-                                                     clq, fit))
-                    return false;
-                cur = StriationAlignment{};
-                cur.leftToRight = fit.transform;
-                cur.axis = fit.axis;
-                cur.rmsPerp = fit.rmsPerp;
-                cur.axialWeak = fit.axialWeak;
-                for (const auto& c : clq)
-                    cur.pairs.push_back({c.left, c.right});
-                return true;
-            }
-            bool explains(AlignCalc::Correspondence c) const
-            {
-                return shoecomp::explains(cur.leftToRight, left, c.left,
-                                          right, c.right, angleTol,
-                                          sepTol);
-            }
-            // a transform rotating past maxRot (e.g. one land reversed
-            // end-for-end) is set aside but not reported
-            bool accept() const
-            {
-                return !(maxRot > 0.0 &&
-                         Eigen::AngleAxisd(cur.leftToRight.rotation())
-                                 .angle() > maxRot);
-            }
-            void keep(int32_t explained)
-            {
-                cur.explained = explained;
-                out.push_back(std::move(cur));
-            }
-        };
     }  // namespace
 
     std::vector<StriationLine> surfaceStriations(
@@ -269,52 +214,39 @@ namespace shoecomp
         rules.maxRotation = params.maxRotationDeg * kPi / 180.0;
         rules.angleTol = lp.angleTol;
         rules.sepTol = lp.sepTol;
-        const AlignCalc::LineCols cols = lineCols();
-        AlignCalc::RigidLines3D<StriationRules> model(left, right, cols,
-                                                      lp, rules);
-        if (!model.valid())
-            return fail(AlignCalc::Status::Error,
-                        "invalid striation lines or tolerances");
-
-        AlignCalc::BuildParams bp;
-        bp.numWorkers = params.numWorkers;
-        AlignCalc::GraphRows graph;
+        AlignCalc::CliqueOptions clique;
+        clique.minMatched = minLines;
+        clique.maxMatched = params.maxLines;
+        clique.results = params.numResults;
+        clique.distinct = params.distinct;
+        clique.distinctMinFrac = params.distinctMinFrac;
+        clique.numWorkers = params.numWorkers;
         ChannelProgress progress(channel);
-        channel.report(0.25f, "matching striation pairs...");
-        if (!AlignCalc::buildGraph(model, bp, progress, graph))
+        const AlignCalc::LineResult res =
+            AlignCalc::alignLines3DWithRules(
+                left, right, lineCols(), rules, lp, clique, progress);
+        switch (res.status)
         {
-            if (progress.cancelled())
-                return fail(AlignCalc::Status::Cancelled, "cancelled");
-            return fail(AlignCalc::Status::Error,
-                        "could not build the match graph");
-        }
-
-        AlignCalc::DistinctParams dp;
-        dp.numWorkers = params.numWorkers;
-        dp.numResults = params.numResults;
-        dp.lowerBound = minLines;
-        dp.upperBound = (int32_t)std::min(left.rows(), right.rows());
-        if (params.maxLines > 0)
-            dp.upperBound = std::min(dp.upperBound, params.maxLines);
-        dp.mode = params.distinct;
-        dp.minFrac = params.distinctMinFrac;
-        LineFitter fitter{
-            left,        right,     cols,
-            lp.angleTol, lp.sepTol, params.maxRotationDeg * kPi / 180.0,
-            out,         {}};
-        channel.report(0.5f, "searching consistent matches...");
-        switch (AlignCalc::searchDistinct(graph, dp, fitter, progress))
-        {
-            case AlignCalc::DistinctStatus::Ok:
-                return AlignCalc::Status::Ok;
-            case AlignCalc::DistinctStatus::FitFailed:
-                return fail(AlignCalc::Status::Error,
-                            "transform fit failed");
-            case AlignCalc::DistinctStatus::Cancelled:
-                return fail(AlignCalc::Status::Cancelled, "cancelled");
-            default:
-                return fail(AlignCalc::Status::NoMatch,
+            case AlignCalc::Status::Ok:
+                break;
+            case AlignCalc::Status::NoMatch:
+                return fail(res.status,
                             "no consistent set of striations found");
+            default:
+                return fail(res.status, res.message.c_str());
         }
+        for (const AlignCalc::LineAlignment& a : res.alignments)
+        {
+            StriationAlignment sa;
+            sa.leftToRight = a.transform;
+            for (const auto& c : a.pairs)
+                sa.pairs.push_back({c.left, c.right});
+            sa.axis = a.axis;
+            sa.rmsPerp = a.rmsPerp;
+            sa.axialWeak = a.axialWeak;
+            sa.explained = a.explained;
+            out.push_back(std::move(sa));
+        }
+        return AlignCalc::Status::Ok;
     }
 }  // namespace shoecomp

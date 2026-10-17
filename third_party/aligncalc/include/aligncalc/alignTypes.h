@@ -5,7 +5,6 @@
 
 namespace AlignCalc
 {
-    static constexpr size_t MAX_POINTS = 256;
     using DoubleMatrixR =
         Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic,
                       Eigen::RowMajor>;
