@@ -238,10 +238,12 @@ namespace AlignCalc
         }
     }  // namespace detail
 
-    template class SimilarityPoints2D<LabelRules>;
-    template bool buildEdgesFirst(const SimilarityPoints2D<LabelRules>&,
-                                  const BuildParams&, Progress&,
-                                  GraphRows&);
-    template bool buildGraph(const SimilarityPoints2D<LabelRules>&,
-                             const BuildParams&, Progress&, GraphRows&);
+    template class ALIGNCALC_INSTANTIATION_API
+        SimilarityPoints2D<LabelRules>;
+    template ALIGNCALC_INSTANTIATION_API bool buildEdgesFirst(
+        const SimilarityPoints2D<LabelRules>&, const BuildParams&,
+        Progress&, GraphRows&);
+    template ALIGNCALC_INSTANTIATION_API bool buildGraph(
+        const SimilarityPoints2D<LabelRules>&, const BuildParams&,
+        Progress&, GraphRows&);
 }  // namespace AlignCalc

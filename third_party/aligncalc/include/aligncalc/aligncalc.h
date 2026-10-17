@@ -75,12 +75,12 @@ namespace AlignCalc
 
     // Point matching; only equal labels match when cols.label >= 0.
     // A similarity fit outside options.scaleRange is set aside.
-    PointResult alignPoints(const DoubleMatrixR& left,
-                            const DoubleMatrixR& right,
-                            const PointCols& cols,
-                            const PointOptions& options,
-                            const CliqueOptions& clique,
-                            Progress* progress = nullptr);
+    ALIGNCALC_API PointResult alignPoints(const DoubleMatrixR& left,
+                                          const DoubleMatrixR& right,
+                                          const PointCols& cols,
+                                          const PointOptions& options,
+                                          const CliqueOptions& clique,
+                                          Progress* progress = nullptr);
 
     struct LineAlignment
     {
@@ -104,12 +104,12 @@ namespace AlignCalc
 
     // Rigid matching of 3-D line segments (RigidLines3D); only equal
     // labels match when cols.label >= 0.
-    LineResult alignLines3D(const DoubleMatrixR& left,
-                            const DoubleMatrixR& right,
-                            const LineCols& cols,
-                            const LineParams& params,
-                            const CliqueOptions& clique,
-                            Progress* progress = nullptr);
+    ALIGNCALC_API LineResult alignLines3D(const DoubleMatrixR& left,
+                                          const DoubleMatrixR& right,
+                                          const LineCols& cols,
+                                          const LineParams& params,
+                                          const CliqueOptions& clique,
+                                          Progress* progress = nullptr);
 
 }  // namespace AlignCalc
 

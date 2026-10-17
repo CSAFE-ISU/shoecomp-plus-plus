@@ -8,6 +8,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 option(ALIGNCALC_SYSTEM_EIGEN
     "Use an installed Eigen3 instead of the bundled eigen/ submodule" OFF)
+option(ALIGNCALC_SHARED "Build aligncalc as a shared library"
+    ${BUILD_SHARED_LIBS})
 option(ALIGNCALC_INSTALL
     "Generate install rules and the aligncalc CMake package"
     ${PROJECT_IS_TOP_LEVEL})
@@ -24,8 +26,14 @@ else()
     find_package(Eigen3 REQUIRED CONFIG)
 endif()
 
-# Static on purpose: shoecomp/scpp link aligncalc statically.
-add_library(aligncalc STATIC
+# shoecomp/scpp set ALIGNCALC_SHARED OFF: they always link it
+# statically.
+if(ALIGNCALC_SHARED)
+    set(ALIGNCALC_LIBRARY_TYPE SHARED)
+else()
+    set(ALIGNCALC_LIBRARY_TYPE STATIC)
+endif()
+add_library(aligncalc ${ALIGNCALC_LIBRARY_TYPE}
     src/aligncalc.cpp
     src/clq/maxClique.cpp
     src/clq/search.cpp
@@ -48,6 +56,7 @@ target_sources(aligncalc PUBLIC
         include/aligncalc/correspondence.h
         include/aligncalc/distinct.h
         include/aligncalc/estimate.h
+        include/aligncalc/export.h
         include/aligncalc/graphBuild.h
         include/aligncalc/pointAnchor2d.h
         include/aligncalc/progress.h
@@ -67,6 +76,17 @@ endif()
 set_target_properties(aligncalc PROPERTIES
     VERSION ${PROJECT_VERSION}
     EXPORT_NAME aligncalc)
+if(ALIGNCALC_SHARED)
+    # Only ALIGNCALC_API symbols are exported (export.h); 0.x minor
+    # versions may break the ABI.
+    target_compile_definitions(aligncalc
+        PUBLIC ALIGNCALC_SHARED
+        PRIVATE ALIGNCALC_BUILDING)
+    set_target_properties(aligncalc PROPERTIES
+        SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+        CXX_VISIBILITY_PRESET hidden
+        VISIBILITY_INLINES_HIDDEN ON)
+endif()
 
 if(ALIGNCALC_INSTALL)
     include(GNUInstallDirs)

@@ -2,10 +2,11 @@
 
 namespace AlignCalc
 {
-    template class RigidPoints<LabelRules>;
-    template bool buildNodesFirst(const RigidPoints<LabelRules>&,
-                                  const BuildParams&, Progress&,
-                                  GraphRows&);
-    template bool buildGraph(const RigidPoints<LabelRules>&,
-                             const BuildParams&, Progress&, GraphRows&);
+    template class ALIGNCALC_INSTANTIATION_API RigidPoints<LabelRules>;
+    template ALIGNCALC_INSTANTIATION_API bool buildNodesFirst(
+        const RigidPoints<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&);
+    template ALIGNCALC_INSTANTIATION_API bool buildGraph(
+        const RigidPoints<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&);
 }  // namespace AlignCalc

@@ -72,9 +72,9 @@ namespace AlignCalc
         {
             std::vector<uint64_t> pending_;
             std::vector<std::pair<uint64_t, int32_t>> counted_;
-            friend void finalizeEdges(std::vector<Correspondence>&&,
-                                      std::vector<EdgeAccumulator>&,
-                                      int32_t, GraphRows&);
+            friend ALIGNCALC_API void finalizeEdges(
+                std::vector<Correspondence>&&,
+                std::vector<EdgeAccumulator>&, int32_t, GraphRows&);
 
            public:
             static constexpr size_t kFlushSize = size_t(1) << 20;
@@ -85,16 +85,18 @@ namespace AlignCalc
                                    uint32_t(b));
                 if (pending_.size() >= kFlushSize) flush();
             }
-            void flush();
+            ALIGNCALC_API void flush();
         };
 
         // |rows| must be sorted and duplicate-free.
-        void finalizeRows(std::vector<Correspondence>&& nodes,
-                          std::vector<std::vector<int32_t>>&& rows,
-                          size_t numWorkers, GraphRows& out);
-        void finalizeEdges(std::vector<Correspondence>&& nodes,
-                           std::vector<EdgeAccumulator>& accs,
-                           int32_t minSupport, GraphRows& out);
+        ALIGNCALC_API void finalizeRows(
+            std::vector<Correspondence>&& nodes,
+            std::vector<std::vector<int32_t>>&& rows, size_t numWorkers,
+            GraphRows& out);
+        ALIGNCALC_API void finalizeEdges(
+            std::vector<Correspondence>&& nodes,
+            std::vector<EdgeAccumulator>& accs, int32_t minSupport,
+            GraphRows& out);
 
         // Progress reports in 5% steps (as the clique search's), so a
         // caller relaying them through a bounded queue gets few.

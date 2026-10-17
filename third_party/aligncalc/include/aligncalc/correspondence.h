@@ -1,5 +1,6 @@
 #ifndef ALIGNCALC_CORRESPONDENCE_H
 #define ALIGNCALC_CORRESPONDENCE_H
+#include "export.h"
 #include "progress.h"
 #include <array>
 #include <cstddef>
@@ -74,7 +75,7 @@ namespace AlignCalc
     // that anchor, so a result is a maximum clique among those. The
     // solver filters an anchor's candidates before building any
     // bitset. Called from several threads at once.
-    class CliqueConstraint
+    class ALIGNCALC_API CliqueConstraint
     {
        public:
         virtual ~CliqueConstraint() = default;
@@ -98,10 +99,11 @@ namespace AlignCalc
         bool deterministic = false;
     };
 
-    bool searchCliques(const GraphRows&, const CliqueParams&, Progress&,
-                       std::vector<std::vector<Correspondence>>&);
+    ALIGNCALC_API bool searchCliques(
+        const GraphRows&, const CliqueParams&, Progress&,
+        std::vector<std::vector<Correspondence>>&);
 
-    bool isSymmetric(const GraphRows&);
+    ALIGNCALC_API bool isSymmetric(const GraphRows&);
 
 }  // namespace AlignCalc
 

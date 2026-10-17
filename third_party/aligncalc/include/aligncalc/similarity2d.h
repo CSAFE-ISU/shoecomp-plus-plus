@@ -28,20 +28,20 @@ namespace AlignCalc
         class SimilarityIndex2D
         {
            public:
-            SimilarityIndex2D(const DoubleMatrixR& left,
-                              const DoubleMatrixR& right,
-                              const PointCols& cols,
-                              const SimilarityParams& params);
-            ~SimilarityIndex2D();
+            ALIGNCALC_API SimilarityIndex2D(
+                const DoubleMatrixR& left, const DoubleMatrixR& right,
+                const PointCols& cols, const SimilarityParams& params);
+            ALIGNCALC_API ~SimilarityIndex2D();
             SimilarityIndex2D(const SimilarityIndex2D&) = delete;
             SimilarityIndex2D& operator=(const SimilarityIndex2D&) =
                 delete;
 
-            bool valid() const;
+            ALIGNCALC_API bool valid() const;
             // appends every right triangle (and vertex ordering)
             // similar to the left triangle |l|
-            void match(const std::array<int32_t, 3>& l,
-                       std::vector<TupleMatch<3>>& out) const;
+            ALIGNCALC_API void match(
+                const std::array<int32_t, 3>& l,
+                std::vector<TupleMatch<3>>& out) const;
 
            private:
             struct Impl;
@@ -113,13 +113,14 @@ namespace AlignCalc
         int32_t nR_;
     };
 
-    extern template class SimilarityPoints2D<LabelRules>;
-    extern template bool buildEdgesFirst(
+    ALIGNCALC_EXTERN_TEMPLATE(
+        class ALIGNCALC_API SimilarityPoints2D<LabelRules>)
+    ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildEdgesFirst(
         const SimilarityPoints2D<LabelRules>&, const BuildParams&,
-        Progress&, GraphRows&);
-    extern template bool buildGraph(
+        Progress&, GraphRows&))
+    ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildGraph(
         const SimilarityPoints2D<LabelRules>&, const BuildParams&,
-        Progress&, GraphRows&);
+        Progress&, GraphRows&))
 
 }  // namespace AlignCalc
 

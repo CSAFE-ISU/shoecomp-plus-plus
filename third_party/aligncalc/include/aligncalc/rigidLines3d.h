@@ -57,10 +57,10 @@ namespace AlignCalc
         // (n x n, symmetric, zero diagonal). Separation is the offset
         // between the two midpoints perpendicular to the pair's mean
         // direction.
-        bool lineInvariants(const DoubleMatrixR& m,
-                            const LineCols& cols,
-                            std::vector<double>& angle,
-                            std::vector<double>& sep);
+        ALIGNCALC_API bool lineInvariants(const DoubleMatrixR& m,
+                                          const LineCols& cols,
+                                          std::vector<double>& angle,
+                                          std::vector<double>& sep);
 
         struct SepEntry
         {
@@ -68,8 +68,9 @@ namespace AlignCalc
             int32_t j;
         };
         // per row i: the other rows sorted by sep[i][j]
-        void sortBySeparation(int32_t n, const std::vector<double>& sep,
-                              std::vector<SepEntry>& out);
+        ALIGNCALC_API void sortBySeparation(
+            int32_t n, const std::vector<double>& sep,
+            std::vector<SepEntry>& out);
     }  // namespace detail
 
     // Rigid matching of 3-D line segments (e.g. striations), nodes-
@@ -204,13 +205,14 @@ namespace AlignCalc
         std::vector<detail::SepEntry> sortedR_;
     };
 
-    extern template class RigidLines3D<LabelRules>;
-    extern template bool buildNodesFirst(
+    ALIGNCALC_EXTERN_TEMPLATE(
+        class ALIGNCALC_API RigidLines3D<LabelRules>)
+    ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildNodesFirst(
         const RigidLines3D<LabelRules>&, const BuildParams&, Progress&,
-        GraphRows&);
-    extern template bool buildGraph(const RigidLines3D<LabelRules>&,
-                                    const BuildParams&, Progress&,
-                                    GraphRows&);
+        GraphRows&))
+    ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildGraph(
+        const RigidLines3D<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&))
 
 }  // namespace AlignCalc
 

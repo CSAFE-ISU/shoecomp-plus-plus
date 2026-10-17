@@ -1,12 +1,14 @@
 #ifndef ALIGNCALC_PROGRESS_H
 #define ALIGNCALC_PROGRESS_H
 
+#include "export.h"
+
 namespace AlignCalc
 {
     // Progress and cancellation for the long-running calls (graph
     // building, clique search, distinct alignments). The defaults
     // report nothing and never cancel.
-    class Progress
+    class ALIGNCALC_API Progress
     {
        public:
         virtual ~Progress() = default;

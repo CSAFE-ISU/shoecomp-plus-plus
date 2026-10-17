@@ -152,13 +152,14 @@ namespace AlignCalc
         }
     }
 
-    extern template class RigidPoints<LabelRules>;
-    extern template bool buildNodesFirst(const RigidPoints<LabelRules>&,
-                                         const BuildParams&, Progress&,
-                                         GraphRows&);
-    extern template bool buildGraph(const RigidPoints<LabelRules>&,
-                                    const BuildParams&, Progress&,
-                                    GraphRows&);
+    ALIGNCALC_EXTERN_TEMPLATE(
+        class ALIGNCALC_API RigidPoints<LabelRules>)
+    ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildNodesFirst(
+        const RigidPoints<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&))
+    ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildGraph(
+        const RigidPoints<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&))
 
 }  // namespace AlignCalc
 

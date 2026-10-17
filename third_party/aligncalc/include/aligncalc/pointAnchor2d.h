@@ -16,7 +16,7 @@ namespace AlignCalc
     // mirror-image match keeps only points near its anchor line.
     //
     // Keeps references to |left| and |right|; they must outlive it.
-    class PointAnchor2D : public CliqueConstraint
+    class ALIGNCALC_API PointAnchor2D : public CliqueConstraint
     {
        public:
         PointAnchor2D(const DoubleMatrixR& left,

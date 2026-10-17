@@ -102,8 +102,10 @@ endif()
 # =====================================================================
 # 5. AlignCalc (alignment calculations)
 # =====================================================================
+# aligncalc is versioned with shoecomp and linked statically, whatever
+# BUILD_SHARED_LIBS says.
+set(ALIGNCALC_SHARED OFF)
 add_subdirectory(third_party/aligncalc EXCLUDE_FROM_ALL)
-# aligncalc is versioned with shoecomp (and linked statically).
 get_target_property(SC_ALIGNCALC_VERSION aligncalc VERSION)
 if(NOT SC_ALIGNCALC_VERSION VERSION_EQUAL PROJECT_VERSION)
     message(FATAL_ERROR "third_party/aligncalc version "

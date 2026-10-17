@@ -95,8 +95,8 @@ namespace AlignCalc
 
     // |g| restricted to the nodes with keep[i] set (ids renumbered in
     // order; nodes left without neighbours are dropped).
-    GraphRows keepNodes(const GraphRows& g,
-                        const std::vector<char>& keep);
+    ALIGNCALC_API GraphRows keepNodes(const GraphRows& g,
+                                      const std::vector<char>& keep);
 
     // Distinct alignments, best first. Each round takes a maximum
     // clique of what is left (deterministic), fits it, sets aside what

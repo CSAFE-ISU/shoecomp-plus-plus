@@ -21,18 +21,17 @@ namespace AlignCalc
     // T(left) ~= right over the matched rows, least squares
     // (Umeyama), in cols.dim dimensions. Needs >= 2 pairs; false when
     // the fit is not finite.
-    bool estimatePointTransform(
+    ALIGNCALC_API bool estimatePointTransform(
         const DoubleMatrixR& left, const DoubleMatrixR& right,
         const PointCols& cols, const std::vector<Correspondence>& pairs,
         bool withScale, PointTransform& out);
 
     // Rigid transform T with T * left ~= right over the matched rows
     // (Kabsch, least squares). |cols| must be 3-D; needs >= 3 pairs.
-    bool estimateRigid3D(const DoubleMatrixR& left,
-                         const DoubleMatrixR& right,
-                         const PointCols& cols,
-                         const std::vector<Correspondence>& pairs,
-                         Eigen::Isometry3d& out);
+    ALIGNCALC_API bool estimateRigid3D(
+        const DoubleMatrixR& left, const DoubleMatrixR& right,
+        const PointCols& cols, const std::vector<Correspondence>& pairs,
+        Eigen::Isometry3d& out);
 
     struct LineFit
     {
@@ -51,11 +50,10 @@ namespace AlignCalc
     // |axialWeak| is set. Directions may have either sign but the
     // matched lines are assumed to form a near-parallel bundle.
     // Needs >= 2 pairs.
-    bool estimateRigidLines3D(const DoubleMatrixR& left,
-                              const DoubleMatrixR& right,
-                              const LineCols& cols,
-                              const std::vector<Correspondence>& pairs,
-                              LineFit& out);
+    ALIGNCALC_API bool estimateRigidLines3D(
+        const DoubleMatrixR& left, const DoubleMatrixR& right,
+        const LineCols& cols, const std::vector<Correspondence>& pairs,
+        LineFit& out);
 
 }  // namespace AlignCalc
 

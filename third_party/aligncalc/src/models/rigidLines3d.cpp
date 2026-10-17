@@ -84,10 +84,11 @@ namespace AlignCalc
         }
     }  // namespace detail
 
-    template class RigidLines3D<LabelRules>;
-    template bool buildNodesFirst(const RigidLines3D<LabelRules>&,
-                                  const BuildParams&, Progress&,
-                                  GraphRows&);
-    template bool buildGraph(const RigidLines3D<LabelRules>&,
-                             const BuildParams&, Progress&, GraphRows&);
+    template class ALIGNCALC_INSTANTIATION_API RigidLines3D<LabelRules>;
+    template ALIGNCALC_INSTANTIATION_API bool buildNodesFirst(
+        const RigidLines3D<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&);
+    template ALIGNCALC_INSTANTIATION_API bool buildGraph(
+        const RigidLines3D<LabelRules>&, const BuildParams&, Progress&,
+        GraphRows&);
 }  // namespace AlignCalc
