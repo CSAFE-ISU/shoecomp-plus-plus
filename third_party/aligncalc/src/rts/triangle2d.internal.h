@@ -1,6 +1,6 @@
 #ifndef ALIGNCALC_TRIANGLE2D_INTERNAL_H
 #define ALIGNCALC_TRIANGLE2D_INTERNAL_H
-#include "alignTypes.h"
+#include "aligncalc/alignTypes.h"
 #include <cstdint>
 
 namespace AlignCalc

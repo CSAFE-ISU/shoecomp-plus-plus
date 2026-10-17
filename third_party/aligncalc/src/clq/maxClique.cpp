@@ -1,5 +1,5 @@
-#include "correspondence.h"
-#include "graphBuild.h"
+#include "aligncalc/correspondence.h"
+#include "aligncalc/graphBuild.h"
 #include <algorithm>
 #include <atomic>
 #include <limits>

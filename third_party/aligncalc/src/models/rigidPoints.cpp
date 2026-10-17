@@ -1,4 +1,4 @@
-#include "rigidPoints.h"
+#include "aligncalc/rigidPoints.h"
 
 namespace AlignCalc
 {

@@ -1,5 +1,5 @@
-#include "aligncalc.h"
-#include "alignWithRules.h"
+#include "aligncalc/aligncalc.h"
+#include "aligncalc/alignWithRules.h"
 
 namespace AlignCalc
 {

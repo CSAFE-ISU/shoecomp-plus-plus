@@ -1,4 +1,4 @@
-#include "estimate.h"
+#include "aligncalc/estimate.h"
 #include "Eigen/Dense"
 #include <algorithm>
 #include <cmath>

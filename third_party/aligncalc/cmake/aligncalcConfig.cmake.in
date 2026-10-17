@@ -1,0 +1,10 @@
+@PACKAGE_INIT@
+
+include(CMakeFindDependencyMacro)
+find_dependency(Eigen3 CONFIG)
+if(NOT EMSCRIPTEN)
+    find_dependency(Threads)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/aligncalcTargets.cmake")
+check_required_components(aligncalc)

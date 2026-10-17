@@ -103,6 +103,13 @@ endif()
 # 5. AlignCalc (alignment calculations)
 # =====================================================================
 add_subdirectory(third_party/aligncalc EXCLUDE_FROM_ALL)
+# aligncalc is versioned with shoecomp (and linked statically).
+get_target_property(SC_ALIGNCALC_VERSION aligncalc VERSION)
+if(NOT SC_ALIGNCALC_VERSION VERSION_EQUAL PROJECT_VERSION)
+    message(FATAL_ERROR "third_party/aligncalc version "
+        "${SC_ALIGNCALC_VERSION} != shoecomp ${PROJECT_VERSION}; "
+        "bump both project() versions together")
+endif()
 
 # =====================================================================
 # 6. Core library (GUI-free: formats, calc, core) shared by both binaries
@@ -150,7 +157,7 @@ endif()
 # ${CMAKE_DL_LIBS} pulls in libdl on Linux for the runtime dlopen of the
 # optional onnxruntime library (empty on Windows/macOS). onnxruntime
 # itself is NOT built or linked -- it is loaded at runtime if present.
-target_link_libraries(shoecomp_core PUBLIC json aligncalc zlibstatic
+target_link_libraries(shoecomp_core PUBLIC json aligncalc::aligncalc zlibstatic
                       png_static ${SC_STB_LIB} ${SC_THREADS_LIB}
                       ${CMAKE_DL_LIBS})
 
@@ -244,6 +251,8 @@ sc_embed_assets(SC_LICENSE_SRCS
 )
 add_library(shoecomp_licenses STATIC src/core/licenseData.cpp
             ${SC_LICENSE_SRCS})
+# licenseData.cpp reports through aligncalc's WorkerChannel.
+target_link_libraries(shoecomp_licenses PRIVATE aligncalc::aligncalc)
 
 # =====================================================================
 # 6b. scpp command-line tool

@@ -1,5 +1,5 @@
-#include "distinct.h"
-#include "graphBuild.h"
+#include "aligncalc/distinct.h"
+#include "aligncalc/graphBuild.h"
 #include <algorithm>
 #include <atomic>
 

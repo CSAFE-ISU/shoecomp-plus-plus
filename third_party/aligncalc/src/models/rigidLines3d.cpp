@@ -1,4 +1,4 @@
-#include "rigidLines3d.h"
+#include "aligncalc/rigidLines3d.h"
 #include "Eigen/Geometry"
 #include <algorithm>
 

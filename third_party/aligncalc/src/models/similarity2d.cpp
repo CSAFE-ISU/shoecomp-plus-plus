@@ -1,4 +1,4 @@
-#include "similarity2d.h"
+#include "aligncalc/similarity2d.h"
 #include "rts/triangle2d.internal.h"
 #include <algorithm>
 #include <cmath>

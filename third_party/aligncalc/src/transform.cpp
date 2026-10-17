@@ -1,4 +1,4 @@
-#include "aligncalc.h"
+#include "aligncalc/aligncalc.h"
 #include "Eigen/SVD"
 #include <cmath>
 
