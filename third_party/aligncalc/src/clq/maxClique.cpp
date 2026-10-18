@@ -552,7 +552,9 @@ namespace AlignCalc
                 CliqueParams fixed = params;
                 fixed.lowerBound = fixed.upperBound =
                     int32_t(cliques.front().size());
-                Solver again(rows, fixed, progress, want,
+                // the first pass has reported this stage already
+                detail::CancelOnly quiet(progress);
+                Solver again(rows, fixed, quiet, want,
                              fixed.lowerBound);
                 cliques.clear();
                 if (!again.run(cliques) || cliques.empty())
