@@ -13,6 +13,8 @@ option(ALIGNCALC_SHARED "Build aligncalc as a shared library"
 option(ALIGNCALC_INSTALL
     "Generate install rules and the aligncalc CMake package"
     ${PROJECT_IS_TOP_LEVEL})
+option(ALIGNCALC_BUILD_TESTS "Build the aligncalc tests (ctest)"
+    ${PROJECT_IS_TOP_LEVEL})
 
 if(NOT ALIGNCALC_SYSTEM_EIGEN
    AND EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/eigen/CMakeLists.txt")
@@ -86,6 +88,13 @@ if(ALIGNCALC_SHARED)
         SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
         CXX_VISIBILITY_PRESET hidden
         VISIBILITY_INLINES_HIDDEN ON)
+endif()
+
+if(ALIGNCALC_BUILD_TESTS)
+    # enable_testing(), not include(CTest): no CDash targets, and the
+    # bundled Eigen keeps its own tests off.
+    enable_testing()
+    add_subdirectory(tests)
 endif()
 
 if(ALIGNCALC_INSTALL)
