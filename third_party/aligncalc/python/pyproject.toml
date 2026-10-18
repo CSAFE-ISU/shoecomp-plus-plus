@@ -1,0 +1,30 @@
+# pip install ./third_party/aligncalc/python
+# Builds from this checkout (the library sources are in the parent
+# directory, so an sdist of this directory alone does not build).
+[build-system]
+requires = ["scikit-build-core>=0.10", "pybind11>=2.12"]
+build-backend = "scikit_build_core.build"
+
+[project]
+name = "aligncalc"
+dynamic = ["version"]
+description = "Rigid and similarity matching of point sets and 3-D line segments (correspondence graph + maximum cliques)"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.8"
+dependencies = ["numpy"]
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.scikit-build]
+minimum-version = "0.10"
+wheel.packages = ["aligncalc"]
+install.components = ["python"]
+cmake.build-type = "Release"
+
+# version = the C++ library's project(aligncalc VERSION ...)
+[tool.scikit-build.metadata.version]
+provider = "scikit_build_core.metadata.regex"
+input = "../CMakeLists.txt"
+regex = 'project\(aligncalc VERSION (?P<value>[0-9.]+)'
