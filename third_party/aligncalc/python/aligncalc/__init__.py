@@ -3,6 +3,7 @@ segments without an initial guess (correspondence graph + maximum
 cliques).
 
     align_points(left, right, ...)    -> [PointAlignment, ...]
+    match_points(left, right, ...)    -> [PointMatch, ...] (no fit)
     align_lines_3d(left, right, ...)  -> [LineAlignment, ...]
 
 Each call returns its distinct alignments, best first, or [] when
@@ -28,8 +29,10 @@ __version__ = getattr(_core, "__version__", "unknown")
 
 __all__ = [
     "align_points",
+    "match_points",
     "align_lines_3d",
     "PointAlignment",
+    "PointMatch",
     "LineAlignment",
     "Cancelled",
     "__version__",
@@ -55,6 +58,15 @@ class PointAlignment:
         """Map left-frame points (n, d) into the right frame."""
         p = np.asarray(points, dtype=np.float64)
         return self.scale * p @ self.rotation.T + self.translation
+
+
+@dataclass(frozen=True)
+class PointMatch:
+    """Matched points, no transform (match_points)."""
+
+    pairs: np.ndarray  # (k, 2) int32: left row, right row
+    left_points: np.ndarray  # (k, d) matched left positions
+    right_points: np.ndarray  # (k, d) matching right positions
 
 
 @dataclass(frozen=True)
@@ -139,6 +151,9 @@ _CLIQUE = {
     "distinct": (_as_str, "explained"),
     "distinct_min_frac": (_as_float, 0.7),
 }
+
+# match_points: no transform, so only disjoint peeling
+_CLIQUE_MATCH = dict(_CLIQUE, distinct=(_as_str, "disjoint"))
 
 _POINTS = {
     "mode": (_as_str, None),  # "rt" | "rts"; default from same_scale
@@ -273,6 +288,76 @@ def _finish(status, message, alignments, make):
     raise ValueError(message)
 
 
+def _point_args(left, right, labels, orientations, workers, align2d,
+                clique, clique_spec, kwargs):
+    """Checked _core arguments for align_points / match_points, and
+    the point positions (n, d) of both sides."""
+    o = _merge(
+        [("align2d", align2d, _POINTS), ("clique", clique, clique_spec)],
+        kwargs,
+    )
+    if o["mode"] is not None and o["mode"] not in ("rt", "rts"):
+        raise ValueError("mode must be 'rt' or 'rts'")
+    if o["mode"] is not None and o["same_scale"] is not None:
+        if (o["mode"] == "rt") != o["same_scale"]:
+            raise ValueError("mode and same_scale disagree")
+    similarity = (
+        o["mode"] == "rts"
+        if o["mode"] is not None
+        else o["same_scale"] is False
+    )
+    tol_deg = _one_of(o, "orientation_tol_deg", "minutia_angle_tol_deg", 0.0)
+    if not o["epsilon"] > 0:
+        raise ValueError("epsilon must be > 0")
+    if not o["scale_range"] >= 1:
+        raise ValueError("scale_range must be >= 1")
+    if not o["anchor_tol"] >= 0:
+        raise ValueError("anchor_tol must be >= 0")
+    if o["min_support"] < 1:
+        raise ValueError("min_support must be >= 1")
+    if not 0 <= tol_deg <= 180:
+        raise ValueError("orientation_tol_deg must be in [0, 180]")
+    c = _clique_args(o, workers)
+
+    L = _rows("left", left, (1, 3))
+    R = _rows("right", right, (1, 3))
+    dim = L.shape[1]
+    if R.shape[1] != dim:
+        raise ValueError("left and right must have the same dimension")
+    if similarity and dim != 2:
+        raise ValueError("similarity ('rts') matching needs 2-D points")
+    lab = _pair("labels", labels, len(L), len(R))
+    ori = _pair("orientations", orientations, len(L), len(R))
+    cols_l, cols_r = [L], [R]
+    label_col = angle_col = -1
+    if lab is not None:
+        a, b = _label_codes(lab)
+        label_col = dim
+        cols_l.append(a[:, None])
+        cols_r.append(b[:, None])
+    if ori is not None:
+        angle_col = dim + (lab is not None)
+        a = _rows("orientations[0]", ori[0][:, None], (1, 1))
+        b = _rows("orientations[1]", ori[1][:, None], (1, 1))
+        cols_l.append(a)
+        cols_r.append(b)
+    args = dict(
+        left=np.ascontiguousarray(np.hstack(cols_l)),
+        right=np.ascontiguousarray(np.hstack(cols_r)),
+        dim=dim,
+        label_col=label_col,
+        angle_col=angle_col,
+        similarity=similarity,
+        epsilon=o["epsilon"],
+        scale_range=o["scale_range"],
+        anchor_tol=o["anchor_tol"],
+        min_support=o["min_support"],
+        orientation_tol_deg=tol_deg,
+        **c,
+    )
+    return args, L, R
+
+
 # ---- entry points ----------------------------------------------------
 
 
@@ -335,8 +420,9 @@ def align_points(
         distinct_min_frac: later results need this fraction of the
             first one's size (0.7).
     """
-    o = _merge(
-        [("align2d", align2d, _POINTS), ("clique", clique, _CLIQUE)],
+    args, L, R = _point_args(
+        left, right, labels, orientations, workers, align2d, clique,
+        _CLIQUE,
         dict(
             mode=mode,
             same_scale=same_scale,
@@ -353,67 +439,75 @@ def align_points(
             distinct_min_frac=distinct_min_frac,
         ),
     )
-    if o["mode"] is not None and o["mode"] not in ("rt", "rts"):
-        raise ValueError("mode must be 'rt' or 'rts'")
-    if o["mode"] is not None and o["same_scale"] is not None:
-        if (o["mode"] == "rt") != o["same_scale"]:
-            raise ValueError("mode and same_scale disagree")
-    similarity = (
-        o["mode"] == "rts"
-        if o["mode"] is not None
-        else o["same_scale"] is False
-    )
-    tol_deg = _one_of(o, "orientation_tol_deg", "minutia_angle_tol_deg", 0.0)
-    if not o["epsilon"] > 0:
-        raise ValueError("epsilon must be > 0")
-    if not o["scale_range"] >= 1:
-        raise ValueError("scale_range must be >= 1")
-    if not o["anchor_tol"] >= 0:
-        raise ValueError("anchor_tol must be >= 0")
-    if o["min_support"] < 1:
-        raise ValueError("min_support must be >= 1")
-    if not 0 <= tol_deg <= 180:
-        raise ValueError("orientation_tol_deg must be in [0, 180]")
-    c = _clique_args(o, workers)
-
-    L = _rows("left", left, (1, 3))
-    R = _rows("right", right, (1, 3))
-    dim = L.shape[1]
-    if R.shape[1] != dim:
-        raise ValueError("left and right must have the same dimension")
-    if similarity and dim != 2:
-        raise ValueError("similarity ('rts') matching needs 2-D points")
-    lab = _pair("labels", labels, len(L), len(R))
-    ori = _pair("orientations", orientations, len(L), len(R))
-    cols_l, cols_r = [L], [R]
-    label_col = angle_col = -1
-    if lab is not None:
-        a, b = _label_codes(lab)
-        label_col = dim
-        cols_l.append(a[:, None])
-        cols_r.append(b[:, None])
-    if ori is not None:
-        angle_col = dim + (lab is not None)
-        a = _rows("orientations[0]", ori[0][:, None], (1, 1))
-        b = _rows("orientations[1]", ori[1][:, None], (1, 1))
-        cols_l.append(a)
-        cols_r.append(b)
-    status, message, out = _core.align_points(
-        np.ascontiguousarray(np.hstack(cols_l)),
-        np.ascontiguousarray(np.hstack(cols_r)),
-        dim=dim,
-        label_col=label_col,
-        angle_col=angle_col,
-        similarity=similarity,
-        epsilon=o["epsilon"],
-        scale_range=o["scale_range"],
-        anchor_tol=o["anchor_tol"],
-        min_support=o["min_support"],
-        orientation_tol_deg=tol_deg,
-        progress=progress,
-        **c,
-    )
+    status, message, out = _core.align_points(progress=progress, **args)
     return _finish(status, message, out, PointAlignment)
+
+
+def match_points(
+    left,
+    right,
+    *,
+    labels=None,
+    orientations=None,
+    workers=0,
+    progress=None,
+    align2d=None,
+    clique=None,
+    mode=None,
+    same_scale=None,
+    epsilon=None,
+    scale_range=None,
+    anchor_tol=None,
+    min_support=None,
+    orientation_tol_deg=None,
+    minutia_angle_tol_deg=None,
+    min_matched=None,
+    max_matched=None,
+    results=None,
+    distinct=None,
+    distinct_min_frac=None,
+):
+    """align_points without fitting a transform: the matched points of
+    each distinct match, best first; returns [PointMatch], [] when
+    nothing matches.
+
+    Takes the same arguments and options as align_points. Later
+    matches share no point with earlier ones (distinct="disjoint", the
+    default here; "explained" needs a transform and raises). Without a
+    fit there is no check of the overall scale: for "rts", scale_range
+    only bounds each matched triangle pair.
+    """
+    args, L, R = _point_args(
+        left, right, labels, orientations, workers, align2d, clique,
+        _CLIQUE_MATCH,
+        dict(
+            mode=mode,
+            same_scale=same_scale,
+            epsilon=epsilon,
+            scale_range=scale_range,
+            anchor_tol=anchor_tol,
+            min_support=min_support,
+            orientation_tol_deg=orientation_tol_deg,
+            minutia_angle_tol_deg=minutia_angle_tol_deg,
+            min_matched=min_matched,
+            max_matched=max_matched,
+            results=results,
+            distinct=distinct,
+            distinct_min_frac=distinct_min_frac,
+        ),
+    )
+    if not args.pop("disjoint"):
+        raise ValueError(
+            "match_points fits no transform, so distinct='explained' "
+            "is not available; use 'disjoint'"
+        )
+    status, message, out = _core.match_points(progress=progress, **args)
+    return _finish(
+        status,
+        message,
+        [dict(pairs=p) for p in out],
+        lambda pairs: PointMatch(pairs, L[pairs[:, 0]], R[pairs[:, 1]]),
+    )
 
 
 def align_lines_3d(

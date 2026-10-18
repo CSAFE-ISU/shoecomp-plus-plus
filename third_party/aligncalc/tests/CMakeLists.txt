@@ -3,6 +3,7 @@
 set(ALIGNCALC_TESTS
     clique_exact   # searchCliques vs exact Bron-Kerbosch
     points_2d      # alignPoints, planted 2-D sets, worker counts
+    match_points   # matchPoints (no fit) vs alignPoints disjoint
     anchor_mirror  # anchored search vs mirror-image matches
     distinct       # two copies -> two distinct alignments
     lines_3d       # alignLines3D, transform recovery, labels

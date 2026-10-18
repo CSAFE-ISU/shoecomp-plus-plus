@@ -82,6 +82,31 @@ namespace AlignCalc
                                           const CliqueOptions& clique,
                                           Progress* progress = nullptr);
 
+    struct PointMatch
+    {
+        // matched rows, left -> right
+        std::vector<Correspondence> pairs;
+    };
+
+    struct MatchResult
+    {
+        Status status = Status::Error;
+        std::string message;  // set unless status is Ok
+        std::vector<PointMatch> matches;
+    };
+
+    // alignPoints without fitting a transform: the matched pairs of
+    // each distinct clique, best first. Later matches share no point
+    // with earlier ones (DistinctMode::Disjoint; clique.distinct is
+    // ignored). With nothing fitted there is no scale check beyond the
+    // similarity model's per-triangle options.scaleRange.
+    ALIGNCALC_API MatchResult matchPoints(const DoubleMatrixR& left,
+                                          const DoubleMatrixR& right,
+                                          const PointCols& cols,
+                                          const PointOptions& options,
+                                          const CliqueOptions& clique,
+                                          Progress* progress = nullptr);
+
     struct LineAlignment
     {
         // matched rows, left -> right

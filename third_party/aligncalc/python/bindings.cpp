@@ -1,7 +1,7 @@
-// aligncalc._core: the tier-1 calls (alignPoints, alignLines3D) for
-// the Python package. Argument handling (INI keys, labels, defaults,
-// validation) is in aligncalc/__init__.py; this layer takes the
-// assembled row matrices and plain options.
+// aligncalc._core: the tier-1 calls (alignPoints, matchPoints,
+// alignLines3D) for the Python package. Argument handling (INI keys,
+// labels, defaults, validation) is in aligncalc/__init__.py; this
+// layer takes the assembled row matrices and plain options.
 #include "aligncalc/aligncalc.h"
 #include <pybind11/eigen.h>
 #include <pybind11/pybind11.h>
@@ -146,6 +146,37 @@ namespace
         return result;
     }
 
+    struct PointCall
+    {
+        PointCols cols;
+        PointOptions options;
+        CliqueOptions clique;
+    };
+
+    PointCall pointCall(int dim, int labelCol, int angleCol,
+                        bool similarity, double epsilon,
+                        double scaleRange, double anchorTol,
+                        int minSupport, double orientationTolDeg,
+                        int minMatched, int maxMatched, size_t results,
+                        bool disjoint, double distinctMinFrac,
+                        size_t workers)
+    {
+        PointCall c;
+        c.cols.dim = dim;
+        c.cols.label = labelCol;
+        c.cols.angle = angleCol;
+        PointOptions& o = c.options;
+        o.mode = similarity ? PointMode::Similarity : PointMode::Rigid;
+        o.epsilon = epsilon;
+        o.scaleRange = scaleRange;
+        o.anchorTol = anchorTol;
+        o.minSupport = minSupport;
+        o.orientationTolDeg = orientationTolDeg;
+        c.clique = cliqueOptions(minMatched, maxMatched, results,
+                                 disjoint, distinctMinFrac, workers);
+        return c;
+    }
+
     py::tuple alignPointsPy(const DoubleMatrixR& left,
                             const DoubleMatrixR& right, int dim,
                             int labelCol, int angleCol, bool similarity,
@@ -156,24 +187,17 @@ namespace
                             bool disjoint, double distinctMinFrac,
                             size_t workers, py::object progress)
     {
-        PointCols cols;
-        cols.dim = dim;
-        cols.label = labelCol;
-        cols.angle = angleCol;
-        PointOptions o;
-        o.mode = similarity ? PointMode::Similarity : PointMode::Rigid;
-        o.epsilon = epsilon;
-        o.scaleRange = scaleRange;
-        o.anchorTol = anchorTol;
-        o.minSupport = minSupport;
-        o.orientationTolDeg = orientationTolDeg;
-        const CliqueOptions c =
-            cliqueOptions(minMatched, maxMatched, results, disjoint,
-                          distinctMinFrac, workers);
+        const PointCall c = pointCall(
+            dim, labelCol, angleCol, similarity, epsilon, scaleRange,
+            anchorTol, minSupport, orientationTolDeg, minMatched,
+            maxMatched, results, disjoint, distinctMinFrac, workers);
         PyProgress p(std::move(progress));
-        const PointResult r = runReleased(
-            p,
-            [&] { return alignPoints(left, right, cols, o, c, &p); });
+        const PointResult r =
+            runReleased(p,
+                        [&] {
+                            return alignPoints(left, right, c.cols,
+                                               c.options, c.clique, &p);
+                        });
         py::list out;
         for (const PointAlignment& a : r.alignments)
         {
@@ -186,6 +210,34 @@ namespace
             d["explained"] = a.explained;
             out.append(d);
         }
+        return py::make_tuple(r.status, r.message, out);
+    }
+
+    // matchPoints: always disjoint; returns pairs arrays only
+    py::tuple matchPointsPy(const DoubleMatrixR& left,
+                            const DoubleMatrixR& right, int dim,
+                            int labelCol, int angleCol, bool similarity,
+                            double epsilon, double scaleRange,
+                            double anchorTol, int minSupport,
+                            double orientationTolDeg, int minMatched,
+                            int maxMatched, size_t results,
+                            double distinctMinFrac, size_t workers,
+                            py::object progress)
+    {
+        const PointCall c = pointCall(
+            dim, labelCol, angleCol, similarity, epsilon, scaleRange,
+            anchorTol, minSupport, orientationTolDeg, minMatched,
+            maxMatched, results, true, distinctMinFrac, workers);
+        PyProgress p(std::move(progress));
+        const MatchResult r =
+            runReleased(p,
+                        [&] {
+                            return matchPoints(left, right, c.cols,
+                                               c.options, c.clique, &p);
+                        });
+        py::list out;
+        for (const PointMatch& m : r.matches)
+            out.append(pairArray(m.pairs));
         return py::make_tuple(r.status, r.message, out);
     }
 
@@ -248,6 +300,15 @@ PYBIND11_MODULE(_core, m)
           py::arg("max_matched"), py::arg("results"),
           py::arg("disjoint"), py::arg("distinct_min_frac"),
           py::arg("workers"), py::arg("progress"));
+    m.def("match_points", &matchPointsPy, py::arg("left"),
+          py::arg("right"), py::arg("dim"), py::arg("label_col"),
+          py::arg("angle_col"), py::arg("similarity"),
+          py::arg("epsilon"), py::arg("scale_range"),
+          py::arg("anchor_tol"), py::arg("min_support"),
+          py::arg("orientation_tol_deg"), py::arg("min_matched"),
+          py::arg("max_matched"), py::arg("results"),
+          py::arg("distinct_min_frac"), py::arg("workers"),
+          py::arg("progress"));
     m.def("align_lines_3d", &alignLines3DPy, py::arg("left"),
           py::arg("right"), py::arg("label_col"), py::arg("angle_tol"),
           py::arg("sep_tol"), py::arg("extent_scale"),

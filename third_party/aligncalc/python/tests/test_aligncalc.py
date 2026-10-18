@@ -204,6 +204,60 @@ def test_errors():
         raise AssertionError(f"no error for {kw}")
 
 
+# ---- match_points ----------------------------------------------------
+
+
+def test_match_points_equals_align_disjoint():
+    for scale, mode in ((1.3, "rts"), (1.0, "rt")):
+        left, right, truth = similarity_case(seed=10, extra=20,
+                                             scale=scale)
+        m = aligncalc.match_points(left, right, mode=mode, results=3)
+        a = aligncalc.align_points(left, right, mode=mode, results=3,
+                                   distinct="disjoint")
+        assert m and isinstance(m[0], aligncalc.PointMatch)
+        assert len(m) == len(a)
+        for x, y in zip(m, a):
+            assert np.array_equal(x.pairs, y.pairs)
+        best = m[0]
+        assert correct(best, truth) == 30
+        assert np.array_equal(best.left_points, left[best.pairs[:, 0]])
+        assert np.array_equal(best.right_points, right[best.pairs[:, 1]])
+        assert best.left_points.shape == (30, 2)
+
+
+def test_match_points_two_copies_and_options():
+    rng = np.random.default_rng(4)
+    left = rng.uniform(0, 1000, (40, 2))
+    right = np.vstack([left[:20] @ rot2(0.4).T + [1200, -300],
+                       left[20:36] @ rot2(-2.1).T + [-800, 1500]])
+    m = aligncalc.match_points(left, right, results=3,
+                               clique={"min_matched": "5"})
+    assert sorted(m[0].pairs[:, 0]) == list(range(20))
+    assert sorted(m[1].pairs[:, 0]) == list(range(20, 36))
+    used = np.concatenate([x.pairs for x in m])
+    assert len(set(used[:, 0])) == len(used) == len(set(used[:, 1]))
+    assert aligncalc.match_points(left, right, distinct="disjoint")
+    for kw in (dict(distinct="explained"),
+               dict(clique={"distinct": "explained"}),
+               dict(mode="rts", left=np.zeros((5, 3)))):
+        lft = kw.pop("left", left)
+        try:
+            aligncalc.match_points(lft, right if lft is left else lft,
+                                   **kw)
+        except ValueError:
+            continue
+        raise AssertionError(f"no error for {kw}")
+    assert aligncalc.match_points(rng.uniform(0, 1000, (20, 2)),
+                                  rng.uniform(0, 1000, (20, 2)),
+                                  min_matched=15) == []
+    try:
+        aligncalc.match_points(left, right, progress=lambda f, s: True)
+    except aligncalc.Cancelled:
+        pass
+    else:
+        raise AssertionError("not cancelled")
+
+
 # ---- INI-style options -----------------------------------------------
 
 INI = """

@@ -18,6 +18,21 @@ namespace AlignCalc
                                     progress ? *progress : none);
     }
 
+    MatchResult matchPoints(const DoubleMatrixR& left,
+                            const DoubleMatrixR& right,
+                            const PointCols& cols,
+                            const PointOptions& options,
+                            const CliqueOptions& clique,
+                            Progress* progress)
+    {
+        Progress none;
+        LabelRules rules;
+        rules.labelCol = cols.label;
+        return matchPointsWithRules(left, right, cols, rules, options,
+                                    clique,
+                                    progress ? *progress : none);
+    }
+
     LineResult alignLines3D(const DoubleMatrixR& left,
                             const DoubleMatrixR& right,
                             const LineCols& cols,

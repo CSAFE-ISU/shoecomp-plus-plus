@@ -197,6 +197,12 @@ namespace AlignCalc
             const char* noMatch;
         };
 
+        // A cancelled call reports nothing, not the alignments found
+        // before the cancel.
+        inline void clearItems(PointResult& r) { r.alignments.clear(); }
+        inline void clearItems(LineResult& r) { r.alignments.clear(); }
+        inline void clearItems(MatchResult& r) { r.matches.clear(); }
+
         // Graph + distinct alignments for a valid |model|; fills
         // |result|'s status and message.
         template <class Model, class Fitter, class Result>
@@ -239,6 +245,7 @@ namespace AlignCalc
                 case DistinctStatus::Cancelled:
                     result.status = Status::Cancelled;
                     result.message = "cancelled";
+                    clearItems(result);
                     return;
                 default:
                     result.status = Status::NoMatch;
@@ -257,18 +264,22 @@ namespace AlignCalc
             "could not build the match graph",
             "no consistent set of lines found"};
 
-        template <class Model, class Rules>
-        PointResult alignPointModel(
-            const Model& model, const DoubleMatrixR& left,
-            const DoubleMatrixR& right, const PointCols& cols,
-            const Rules& rules, const PointOptions& options,
-            const CliqueOptions& clique, Progress& progress)
+        // Graph + distinct cliques for a point |model|, with the
+        // anchored search when options.anchorTol is set (2-D).
+        template <class Model, class Fitter, class Result>
+        void runPointModel(const Model& model,
+                           const DoubleMatrixR& left,
+                           const DoubleMatrixR& right,
+                           const PointCols& cols,
+                           const PointOptions& options,
+                           const CliqueOptions& clique, Fitter& fitter,
+                           Progress& progress, Result& result)
         {
-            PointResult result;
             if (!model.valid())
             {
+                result.status = Status::Error;
                 result.message = kPointText.invalid;
-                return result;
+                return;
             }
             const bool similarity =
                 options.mode == PointMode::Similarity;
@@ -283,19 +294,61 @@ namespace AlignCalc
             BuildParams bp;
             bp.numWorkers = dp.numWorkers;
             bp.minSupport = options.minSupport;
-            PointFitter<Rules> fitter{
-                left,
-                right,
-                cols,
-                rules,
-                kExplainTolFactor * options.epsilon,
-                similarity,
-                options.scaleRange,
-                result.alignments};
             graphAndDistinct(model, bp, dp, fitter, progress,
                              kPointText, result);
-            return result;
         }
+
+        // runPointModel with the model options.mode asks for:
+        // RigidPoints or SimilarityPoints2D.
+        template <class Rules, class Fitter, class Result>
+        void runPoints(const DoubleMatrixR& left,
+                       const DoubleMatrixR& right,
+                       const PointCols& cols, const Rules& rules,
+                       const PointOptions& options,
+                       const CliqueOptions& clique, Fitter& fitter,
+                       Progress& progress, Result& result)
+        {
+            if (options.mode == PointMode::Rigid)
+            {
+                RigidPoints<Rules> model(left, right, cols,
+                                         options.epsilon, rules);
+                runPointModel(model, left, right, cols, options, clique,
+                              fitter, progress, result);
+                return;
+            }
+            if (cols.dim != 2)
+            {
+                result.status = Status::Error;
+                result.message = "similarity matching needs 2-D points";
+                return;
+            }
+            SimilarityParams sp;
+            sp.scaleRange = options.scaleRange;
+            sp.epsilon = options.epsilon;
+            sp.angleCol = cols.angle;
+            sp.angleTolDeg = options.orientationTolDeg;
+            SimilarityPoints2D<Rules> model(left, right, cols, sp,
+                                            rules);
+            runPointModel(model, left, right, cols, options, clique,
+                          fitter, progress, result);
+        }
+
+        // searchDistinct "fitter" that fits nothing: every clique is
+        // kept as found (Disjoint mode only; it explains nothing).
+        struct MatchCollector
+        {
+            std::vector<PointMatch>& out;
+            PointMatch cur{};
+
+            bool fit(const std::vector<Correspondence>& clq)
+            {
+                cur.pairs = clq;
+                return true;
+            }
+            bool explains(Correspondence) const { return false; }
+            bool accept() const { return true; }
+            void keep(int32_t) { out.push_back(std::move(cur)); }
+        };
     }  // namespace detail
 
     // alignPoints with caller-defined Rules: rigid (RigidPoints:
@@ -310,28 +363,39 @@ namespace AlignCalc
                                      const CliqueOptions& clique,
                                      Progress& progress)
     {
-        if (options.mode == PointMode::Rigid)
-        {
-            RigidPoints<Rules> model(left, right, cols, options.epsilon,
-                                     rules);
-            return detail::alignPointModel(model, left, right, cols,
-                                           rules, options, clique,
-                                           progress);
-        }
-        if (cols.dim != 2)
-        {
-            PointResult result;
-            result.message = "similarity matching needs 2-D points";
-            return result;
-        }
-        SimilarityParams sp;
-        sp.scaleRange = options.scaleRange;
-        sp.epsilon = options.epsilon;
-        sp.angleCol = cols.angle;
-        sp.angleTolDeg = options.orientationTolDeg;
-        SimilarityPoints2D<Rules> model(left, right, cols, sp, rules);
-        return detail::alignPointModel(model, left, right, cols, rules,
-                                       options, clique, progress);
+        PointResult result;
+        detail::PointFitter<Rules> fitter{
+            left,
+            right,
+            cols,
+            rules,
+            detail::kExplainTolFactor * options.epsilon,
+            options.mode == PointMode::Similarity,
+            options.scaleRange,
+            result.alignments};
+        detail::runPoints(left, right, cols, rules, options, clique,
+                          fitter, progress, result);
+        return result;
+    }
+
+    // matchPoints with caller-defined Rules (acceptTransform is not
+    // used: nothing is fitted). cols.label is left to the Rules.
+    template <class Rules>
+    MatchResult matchPointsWithRules(const DoubleMatrixR& left,
+                                     const DoubleMatrixR& right,
+                                     const PointCols& cols,
+                                     const Rules& rules,
+                                     const PointOptions& options,
+                                     const CliqueOptions& clique,
+                                     Progress& progress)
+    {
+        MatchResult result;
+        CliqueOptions disjoint = clique;
+        disjoint.distinct = DistinctMode::Disjoint;
+        detail::MatchCollector collector{result.matches};
+        detail::runPoints(left, right, cols, rules, options, disjoint,
+                          collector, progress, result);
+        return result;
     }
 
     // alignLines3D with caller-defined Rules. cols.label is left to
