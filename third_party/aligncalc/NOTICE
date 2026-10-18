@@ -1,0 +1,18 @@
+aligncalc is licensed under the MIT License (LICENSE).
+
+It uses Eigen (https://gitlab.com/libeigen/eigen), a header-only C++
+template library, bundled as the eigen/ submodule at the version that
+submodule pins. Compiled aligncalc libraries and the Python extension
+contain code generated from Eigen's headers.
+
+Eigen is primarily licensed under the Mozilla Public License 2.0
+(eigen/COPYING.MPL2). Some of its headers carry other, MPL-2.0
+compatible licenses, stated in each file: Apache License 2.0
+(eigen/COPYING.APACHE), BSD-style licenses (eigen/COPYING.BSD and
+per-file notices) and the Minpack license (eigen/COPYING.MINPACK); see
+eigen/COPYING.README. Eigen's source code, including any of these
+files, is available at the address above.
+
+Installs of aligncalc (share/doc/aligncalc/) and the Python package
+(the wheel's .dist-info/licenses/) include LICENSE, this NOTICE and
+Eigen's COPYING files (eigen/).

@@ -21,6 +21,21 @@ get_target_property(ALIGNCALC_PY_VERSION aligncalc VERSION)
 target_compile_definitions(_core PRIVATE
     ALIGNCALC_PY_VERSION="${ALIGNCALC_PY_VERSION}")
 
-# Only the module goes into the wheel (pyproject: install.components);
-# the bundled Eigen's own install rules stay out.
+# Only the "python" component (the module and the license texts) goes
+# into the wheel (pyproject: install.components); the bundled Eigen's
+# own install rules stay out.
 install(TARGETS _core LIBRARY DESTINATION aligncalc COMPONENT python)
+
+# License texts into the wheel's .dist-info/licenses (see ../NOTICE).
+if(DEFINED SKBUILD_METADATA_DIR)
+    set(ALIGNCALC_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    install(FILES "${ALIGNCALC_ROOT}/LICENSE" "${ALIGNCALC_ROOT}/NOTICE"
+        DESTINATION "${SKBUILD_METADATA_DIR}/licenses"
+        COMPONENT python)
+    file(GLOB ALIGNCALC_EIGEN_COPYING "${ALIGNCALC_ROOT}/eigen/COPYING.*")
+    if(ALIGNCALC_EIGEN_COPYING)
+        install(FILES ${ALIGNCALC_EIGEN_COPYING}
+            DESTINATION "${SKBUILD_METADATA_DIR}/licenses/eigen"
+            COMPONENT python)
+    endif()
+endif()

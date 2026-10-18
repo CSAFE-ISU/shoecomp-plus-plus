@@ -122,4 +122,14 @@ if(ALIGNCALC_INSTALL)
         "${CMAKE_CURRENT_BINARY_DIR}/aligncalcConfig.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/aligncalcConfigVersion.cmake"
         DESTINATION "${ALIGNCALC_CMAKE_DIR}")
+
+    # License texts (see NOTICE); Eigen's from the bundled submodule,
+    # since the compiled library contains code from its headers.
+    install(FILES LICENSE NOTICE DESTINATION "${CMAKE_INSTALL_DOCDIR}")
+    file(GLOB ALIGNCALC_EIGEN_COPYING
+        "${CMAKE_CURRENT_SOURCE_DIR}/eigen/COPYING.*")
+    if(ALIGNCALC_EIGEN_COPYING)
+        install(FILES ${ALIGNCALC_EIGEN_COPYING}
+            DESTINATION "${CMAKE_INSTALL_DOCDIR}/eigen")
+    endif()
 endif()
