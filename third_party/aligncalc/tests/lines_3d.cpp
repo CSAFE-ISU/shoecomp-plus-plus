@@ -3,8 +3,10 @@
 // directions flipped) plus unrelated segments on both sides. The
 // copy and its transform are recovered; with a label column only
 // equal labels match, and shifted labels leave nothing to match.
-// angleTol = 0 turns the pair angle check off.
+// angleTol = 0 turns the pair angle check off. LineAnchor3D keeps
+// lines that fit the anchor's transform across and in depth.
 #include "aligncalc/aligncalc.h"
+#include "aligncalc/lineAnchor3d.h"
 #include "check.h"
 #include <cmath>
 #include <numeric>
@@ -118,9 +120,43 @@ void angleOff()
     }
 }
 
+// Parallel lines across a flat land (x = 0, 0.2, 0.5, 1 mm); the
+// right copy moves line 3 by 3 um in depth (z), which the pairwise
+// separation barely sees. Anchor (0, 1): line 2 kept, line 3 only
+// with a depth tolerance above 3 um; flipped right directions too.
+void lineAnchor()
+{
+    DoubleMatrixR L = DoubleMatrixR::Zero(4, 7);
+    const double xs[4] = {0, 2e-4, 5e-4, 1e-3};
+    for (int i = 0; i < 4; ++i)
+    {
+        L(i, 0) = xs[i];
+        L(i, 4) = 1.0;
+        L(i, 6) = 5e-4;
+    }
+    DoubleMatrixR R = L;
+    R(3, 2) = 3e-6;
+    const Correspondence cands[2] = {{2, 2}, {3, 3}};
+    for (double sign : {1.0, -1.0})
+    {
+        DoubleMatrixR Rs = R;
+        Rs.col(4) *= sign;
+        for (double depth : {1e-6, 5e-6})
+        {
+            const LineAnchor3D anchor(L, Rs, LineCols{}, 4e-6, depth);
+            uint8_t keep[2] = {9, 9};
+            anchor.filter({0, 0}, {1, 1}, cands, 2, keep);
+            CHECKF(keep[0] == 1 && keep[1] == (depth > 3e-6),
+                   "sign %g depth %g: keep %d %d", sign, depth,
+                   int(keep[0]), int(keep[1]));
+        }
+    }
+}
+
 int main()
 {
     angleOff();
+    lineAnchor();
     const int n = 30, extra = 10;
     for (unsigned seed = 1; seed <= 5; ++seed)
     {
@@ -153,6 +189,22 @@ int main()
                 rotationError(a.transform, d.T),
                 (a.transform.translation() - d.T.translation()).norm());
             CHECK(a.explained >= int32_t(a.pairs.size()));
+        }
+
+        // anchored search
+        LineParams anchored = params();
+        anchored.anchorTol = 1e-6;
+        const LineResult rn =
+            alignLines3D(d.L, d.R, LineCols{}, anchored, co);
+        CHECKF(rn.status == Status::Ok, "seed %u anchor: status %d",
+               seed, int(rn.status));
+        if (rn.status == Status::Ok)
+        {
+            int correct = 0;
+            for (const Correspondence& c : rn.alignments[0].pairs)
+                correct += d.truth[c.left] == c.right;
+            CHECKF(correct >= n - 2, "seed %u anchor: %d correct", seed,
+                   correct);
         }
 
         // separation only

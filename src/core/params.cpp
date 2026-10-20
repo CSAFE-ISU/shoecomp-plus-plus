@@ -115,6 +115,7 @@ namespace shoecomp
         p.sepTolUm = sepTolUm;
         p.maxLengthRatio = maxLengthRatio;
         p.extentScale = extentScale;
+        p.anchorTolUm = anchorTolUm;
         p.minLines = c.minMatched;
         p.maxLines = c.maxMatched;
         p.distinct = c.distinctMode();
@@ -223,6 +224,11 @@ namespace shoecomp
              "Reject alignments that rotate one land by more than this "
              "(deg; e.g. reversed end-for-end); 0 = off",
              ParamKind::Float, SC_REF(align3d.maxRotationDeg)},
+            {"align3d", "anchor_tol_um",
+             "Anchored search: every striation must fit the transform of "
+             "its match's first two within this depth (um; across: "
+             "sep_tol_um); 0 = off",
+             ParamKind::Float, SC_REF(align3d.anchorTolUm)},
 
             {"clique", "min_matched",
              "Minimum matched points (2-D) or striations (x3p), >= 3",
@@ -456,6 +462,8 @@ namespace shoecomp
             return bad("[align3d] max_length_ratio must be >= 0");
         if (l.extentScale < 0.0f)
             return bad("[align3d] extent_scale must be >= 0");
+        if (!(l.anchorTolUm >= 0.0f))
+            return bad("[align3d] anchor_tol_um must be >= 0");
         if (!(l.maxRotationDeg >= 0.0f && l.maxRotationDeg <= 180.0f))
             return bad(
                 "[align3d] max_rotation_deg must be in [0, 180]");

@@ -64,6 +64,7 @@ namespace shoecomp
         float maxLengthRatio = 0.0f;   // 0 = off
         float extentScale = 0.0f;      // 0 = off
         float maxRotationDeg = 30.0f;  // 0 = off
+        float anchorTolUm = 0.0f;      // 0 = off
 
         StriationAlignParams toParams(size_t numWorkers,
                                       const CliqueSettings& c) const;

@@ -3,6 +3,7 @@
 #include "aligncalc.h"
 #include "distinct.h"
 #include "estimate.h"
+#include "lineAnchor3d.h"
 #include "pointAnchor2d.h"
 #include "rigidLines3d.h"
 #include "rigidPoints.h"
@@ -417,8 +418,11 @@ namespace AlignCalc
             result.message = detail::kLineText.invalid;
             return result;
         }
-        const DistinctParams dp =
+        DistinctParams dp =
             detail::distinctParams(clique, left.rows(), right.rows());
+        const LineAnchor3D anchor(left, right, cols, params.sepTol,
+                                  params.anchorTol);
+        if (params.anchorTol > 0.0) dp.constraint = &anchor;
         BuildParams bp;
         bp.numWorkers = dp.numWorkers;
         detail::LineFitter<Rules> fitter{left,

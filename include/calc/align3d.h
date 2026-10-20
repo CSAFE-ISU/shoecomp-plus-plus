@@ -21,6 +21,7 @@ namespace shoecomp
         double sepTolUm = 4.0;
         double maxLengthRatio = 0.0;  // > 1: bound on longer/shorter
         double extentScale = 0.0;     // see AlignCalc::LineParams
+        double anchorTolUm = 0.0;     // LineParams::anchorTol, um
         size_t numWorkers = 4;
         size_t numResults = 2;  // distinct alignments, best first
         int minLines = 10;

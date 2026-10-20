@@ -42,6 +42,7 @@ add_library(aligncalc ${ALIGNCALC_LIBRARY_TYPE}
     src/models/rigidPoints.cpp
     src/models/similarity2d.cpp
     src/models/rigidLines3d.cpp
+    src/models/lineAnchor3d.cpp
     src/models/pointAnchor2d.cpp
     src/estimate.cpp
     src/rts/triangle2d.cpp
@@ -60,6 +61,7 @@ target_sources(aligncalc PUBLIC
         include/aligncalc/estimate.h
         include/aligncalc/export.h
         include/aligncalc/graphBuild.h
+        include/aligncalc/lineAnchor3d.h
         include/aligncalc/pointAnchor2d.h
         include/aligncalc/progress.h
         include/aligncalc/rigidLines3d.h

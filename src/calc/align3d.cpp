@@ -210,6 +210,7 @@ namespace shoecomp
         lp.angleTol = params.angleTolDeg * kPi / 180.0;
         lp.sepTol = params.sepTolUm * 1e-6;
         lp.extentScale = params.extentScale;
+        lp.anchorTol = params.anchorTolUm * 1e-6;
         StriationRules rules;
         rules.maxLengthRatio = params.maxLengthRatio;
         rules.maxRotation = params.maxRotationDeg * kPi / 180.0;

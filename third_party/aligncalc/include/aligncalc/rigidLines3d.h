@@ -40,6 +40,9 @@ namespace AlignCalc
         double angleTol = 0.5 * 3.14159265358979323846 / 180.0;  // rad
         double sepTol = 4e-6;
         double extentScale = 0.0;
+        // > 0: anchored clique search (LineAnchor3D) with this depth
+        // tolerance (position units) and sepTol across; 0 = off.
+        double anchorTol = 0.0;
     };
 
     // Invariants of a line pair, left (i1, j1) and right (i2, j2):
