@@ -212,18 +212,23 @@ function(sc_embed_assets out_var)
         list(GET parts 0 src_rel)
         list(GET parts 1 sym)
         list(GET parts 2 mode)
+        if(IS_ABSOLUTE ${src_rel})
+            set(src ${src_rel})
+        else()
+            set(src ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel})
+        endif()
         set(out_c ${SC_GENERATED_ASSETS_DIR}/${sym}.cpp)
         add_custom_command(
             OUTPUT ${out_c}
             COMMAND ${CMAKE_COMMAND}
                     -DTOOL=${B2CC_TOOL}
-                    -DINPUT=${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                    -DINPUT=${src}
                     -DSYMBOL=${sym}
                     -DOUTPUT=${out_c}
                     -DMODE=${mode}
                     -P ${SC_ASSET_SCRIPT}
             DEPENDS ${B2CC_DEP}
-                    ${CMAKE_CURRENT_SOURCE_DIR}/${src_rel}
+                    ${src}
                     ${SC_ASSET_SCRIPT}
             VERBATIM
         )
@@ -232,13 +237,35 @@ function(sc_embed_assets out_var)
     set(${out_var} ${srcs} PARENT_SCOPE)
 endfunction()
 
+# Eigen's entry: one line on the non-MPL parts of the headers aligncalc
+# uses (see third_party/aligncalc/NOTICE), then the license texts.
+# Rewritten only when the inputs change.
+set(_eigen_text "Parts under other licenses (texts below): BFloat16.h \
+Apache-2.0 (The TensorFlow Authors); MKL_support.h BSD-3-Clause \
+(Intel); AlignedBox::transform BSD-3-Clause (Willow Garage, Open \
+Source Robotics Foundation); Half.h conversions permissive (Fabian \
+Giesen).\n\n")
+foreach(f IN ITEMS COPYING.MPL2 COPYING.APACHE COPYING.BSD)
+    set(_path ${CMAKE_CURRENT_SOURCE_DIR}/third_party/aligncalc/eigen/${f})
+    file(READ ${_path} _part)
+    string(APPEND _eigen_text "==== ${f} ====\n\n${_part}\n")
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                 ${_path})
+endforeach()
+set(SC_EIGEN_LICENSE ${SC_GENERATED_ASSETS_DIR}/eigen-license.txt)
+file(WRITE ${SC_EIGEN_LICENSE}.tmp "${_eigen_text}")
+file(COPY_FILE ${SC_EIGEN_LICENSE}.tmp ${SC_EIGEN_LICENSE}
+     ONLY_IF_DIFFERENT)
+file(REMOVE ${SC_EIGEN_LICENSE}.tmp)
+
 # Every license text (both binaries share the table; each lists the
-# entries it contains).
+# entries it contains). Paths are relative to the source dir, or
+# absolute for generated texts.
 sc_embed_assets(SC_LICENSE_SRCS
     "LICENSE|LicShoeComp|raw"
     "third_party/hello_imgui/external/imgui/LICENSE.txt|LicDearImGui|raw"
     "third_party/hello_imgui/LICENSE|LicHelloImGui|raw"
-    "third_party/aligncalc/eigen/COPYING.MPL2|LicEigen|raw"
+    "${SC_EIGEN_LICENSE}|LicEigen|raw"
     "third_party/freetype/docs/FTL.TXT|LicFreetype|raw"
     "third_party/jtjson/LICENSE|LicJsonCpp|raw"
     "third_party/libpng/LICENSE|LicLibpng|raw"

@@ -30,7 +30,7 @@ namespace shoecomp
             {"Hello ImGui", "1.92.6", "MIT",
              "https://github.com/pthom/hello_imgui",
              LicHelloImGui_data, LicHelloImGui_size, kInGui},
-            {"Eigen", "5.0.1", "MPL-2.0",
+            {"Eigen", "5.0.1", "MPL-2.0 + Apache/BSD",
              "https://gitlab.com/libeigen/eigen",
              LicEigen_data, LicEigen_size, kBoth},
             {"FreeType", "2.14.2", "FreeType License",
