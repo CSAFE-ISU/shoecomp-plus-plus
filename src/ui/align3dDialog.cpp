@@ -112,7 +112,10 @@ namespace shoecomp
         ImGui::BeginDisabled(running);
         ImGui::PushItemWidth(ImGui::GetContentRegionAvail().x * 0.4f);
         ImGui::DragFloat("Angle tolerance (deg)", &settings.angleTolDeg,
-                         0.05f, 0.01f, 10.0f, "%.2f");
+                         0.05f, 0.0f, 10.0f,
+                         settings.angleTolDeg > 0.0f ? "%.2f" : "off");
+        if (ImGui::IsItemHovered())
+            ImGui::SetTooltip("0 = no angle check");
         ImGui::DragFloat("Separation tolerance (um)",
                          &settings.sepTolUm, 0.1f, 0.1f, 100.0f,
                          "%.1f");

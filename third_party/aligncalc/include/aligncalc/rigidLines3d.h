@@ -27,8 +27,9 @@ namespace AlignCalc
         }
     };
 
-    // Tolerances on pair invariants. sepTol is in position units
-    // (the default suits x3p metres: 4 um). extentScale > 0 widens
+    // Tolerances on pair invariants. angleTol = 0 turns the angle
+    // check off. sepTol is in position units (the default suits x3p
+    // metres: 4 um). extentScale > 0 widens
     // a pair's separation tolerance for segments whose detected
     // extents differ: a midpoint shifted by d along a line moves the
     // separation by d * sin(angle / 2), and the shift is at most half
@@ -75,9 +76,9 @@ namespace AlignCalc
 
     // Rigid matching of 3-D line segments (e.g. striations), nodes-
     // first: a = (i1 <-> i2) and b = (j1 <-> j2) are consistent when
-    // both the pair angle and the pair separation agree within
-    // angleTol and sepTol (scaled down by Rules::tolScale). Directions
-    // may have either sign.
+    // the pair separation agrees within sepTol and, unless angleTol is
+    // 0, the pair angle within angleTol (both scaled down by
+    // Rules::tolScale). Directions may have either sign.
     //
     // The model keeps references to |left| and |right|; they must
     // outlive it.
@@ -140,6 +141,7 @@ namespace AlignCalc
             const detail::SepEntry* end = row + (nR_ - 1);
             const double slack = 1e-12 + 1e-9 * params_.sepTol;
             const bool extent = params_.extentScale > 0.0;
+            const bool angle = params_.angleTol > 0.0;
             const double dI =
                 extent ? std::fabs(lenL_[i1] - lenR_[i2]) : 0.0;
             for (int32_t j1 = 0; j1 < nL_; ++j1)
@@ -171,7 +173,8 @@ namespace AlignCalc
                             std::max(tL, tR),
                             dI + std::fabs(lenL_[j1] - lenR_[j2]));
                     if (std::fabs(sL - sR) <= sepTol * k &&
-                        std::fabs(tL - tR) <= params_.angleTol * k &&
+                        (!angle ||
+                         std::fabs(tL - tR) <= params_.angleTol * k) &&
                         rules_.edgeOk(L_, i1, j1, R_, i2, j2,
                                       Invariants{tL, tR, sL, sR}))
                     {

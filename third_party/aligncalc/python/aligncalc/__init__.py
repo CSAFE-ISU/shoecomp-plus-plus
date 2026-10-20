@@ -540,7 +540,8 @@ def align_lines_3d(
         align_points. align3d: scpp's [align3d] section as a mapping.
 
     Options (default):
-        angle_tol_deg: allowed angle difference of line pairs (0.5).
+        angle_tol_deg: allowed angle difference of line pairs; 0 =
+            no angle check (0.5).
         sep_tol: allowed separation difference, position units; or
             sep_tol_um for positions in metres (4 um, i.e. 4e-6).
         extent_scale: widen the separation tolerance for segments
@@ -576,8 +577,8 @@ def align_lines_3d(
         if o["sep_tol"] is not None
         else (o["sep_tol_um"] if o["sep_tol_um"] is not None else 4.0) * 1e-6
     )
-    if not o["angle_tol_deg"] > 0:
-        raise ValueError("angle_tol_deg must be > 0")
+    if not o["angle_tol_deg"] >= 0:
+        raise ValueError("angle_tol_deg must be >= 0")
     if not sep > 0:
         raise ValueError("sep_tol must be > 0")
     if not o["extent_scale"] >= 0:

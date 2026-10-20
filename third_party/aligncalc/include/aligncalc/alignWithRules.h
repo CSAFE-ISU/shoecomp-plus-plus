@@ -162,10 +162,10 @@ namespace AlignCalc
                 return true;
             }
             // The transform maps left line l onto right line r: their
-            // directions agree within angleTol and the mapped left
-            // midpoint lies within sepTol of the right line (the offset
-            // along the line is not checked; it is often weakly
-            // fixed).
+            // directions agree within angleTol (unless it is 0) and the
+            // mapped left midpoint lies within sepTol of the right line
+            // (the offset along the line is not checked; it is often
+            // weakly fixed).
             bool explains(Correspondence c) const
             {
                 const Eigen::Isometry3d& T = cur.transform;
@@ -173,7 +173,8 @@ namespace AlignCalc
                     T.linear() * dir(left, cols, c.left);
                 const Eigen::Vector3d dr = dir(right, cols, c.right);
                 const double cs = std::min(1.0, std::abs(dl.dot(dr)));
-                if (std::acos(cs) > angleTol) return false;
+                if (angleTol > 0.0 && std::acos(cs) > angleTol)
+                    return false;
                 const Eigen::Vector3d q = T * mid(left, cols, c.left) -
                                           mid(right, cols, c.right);
                 return (q - q.dot(dr) * dr).norm() <= sepTol;

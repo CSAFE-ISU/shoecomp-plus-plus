@@ -70,8 +70,9 @@ namespace shoecomp
             // p between their midpoints, and d x p. The rotation taking
             // the left frame to the right one estimates the
             // transform's; an edge of an alignment within maxRotation
-            // stays within it up to the noise in d (angleTol) and in
-            // p's direction (asin(2 sepTol / |p|)). Rejects end-for-end
+            // stays within it up to the noise in d (angleTol; none
+            // when the angle check is off) and in p's direction
+            // (asin(2 sepTol / |p|)). Rejects end-for-end
             // flips, which the distance/angle tests cannot tell apart.
             template <class Invariants>
             bool edgeOk(const AlignCalc::DoubleMatrixR& L, int32_t i1,

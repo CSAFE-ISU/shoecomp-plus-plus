@@ -207,7 +207,7 @@ namespace shoecomp
              "Also skip this much inside each found shoulder (um)",
              ParamKind::Float, SC_REF(striation.shoulderMarginUm)},
 
-            {"align3d", "angle_tol_deg", "Angle tolerance (deg)",
+            {"align3d", "angle_tol_deg", "Angle tolerance (deg); 0 = off",
              ParamKind::Float, SC_REF(align3d.angleTolDeg)},
             {"align3d", "sep_tol_um", "Separation tolerance (um)",
              ParamKind::Float, SC_REF(align3d.sepTolUm)},
@@ -448,8 +448,8 @@ namespace shoecomp
             return bad("[striation] shoulder_margin_um must be >= 0");
 
         const auto& l = p.align3d;
-        if (!(l.angleTolDeg > 0.0f))
-            return bad("[align3d] angle_tol_deg must be > 0");
+        if (!(l.angleTolDeg >= 0.0f))
+            return bad("[align3d] angle_tol_deg must be >= 0");
         if (!(l.sepTolUm > 0.0f))
             return bad("[align3d] sep_tol_um must be > 0");
         if (l.maxLengthRatio < 0.0f)

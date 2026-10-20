@@ -3,6 +3,7 @@
 // directions flipped) plus unrelated segments on both sides. The
 // copy and its transform are recovered; with a label column only
 // equal labels match, and shifted labels leave nothing to match.
+// angleTol = 0 turns the pair angle check off.
 #include "aligncalc/aligncalc.h"
 #include "check.h"
 #include <cmath>
@@ -92,8 +93,34 @@ namespace
     }
 }  // namespace
 
+// Two right lines at the left pair's separation but 10 deg apart
+// (left: parallel): an edge only with the angle check off.
+void angleOff()
+{
+    DoubleMatrixR L = DoubleMatrixR::Zero(2, 7), R = L;
+    L(0, 3) = L(1, 3) = R(0, 3) = 1.0;
+    L(1, 1) = R(1, 1) = 1e-4;
+    const double a = 10 * 3.14159265358979323846 / 180;
+    R(1, 3) = std::cos(a);
+    R(1, 5) = std::sin(a);
+    L(0, 6) = L(1, 6) = R(0, 6) = R(1, 6) = 5e-4;
+    for (double tol : {0.01, 0.0})
+    {
+        LineParams lp = params();
+        lp.angleTol = tol;
+        const RigidLines3D<> model(L, R, LineCols{}, lp);
+        std::vector<Correspondence> out;
+        model.consistentWith({0, 0}, out);
+        const bool edge =
+            out.size() == 1 && out[0].left == 1 && out[0].right == 1;
+        CHECKF(edge == (tol == 0.0), "angleTol %g: %zu edges", tol,
+               out.size());
+    }
+}
+
 int main()
 {
+    angleOff();
     const int n = 30, extra = 10;
     for (unsigned seed = 1; seed <= 5; ++seed)
     {
@@ -126,6 +153,22 @@ int main()
                 rotationError(a.transform, d.T),
                 (a.transform.translation() - d.T.translation()).norm());
             CHECK(a.explained >= int32_t(a.pairs.size()));
+        }
+
+        // separation only
+        LineParams noAngle = params();
+        noAngle.angleTol = 0.0;
+        const LineResult ra =
+            alignLines3D(d.L, d.R, LineCols{}, noAngle, co);
+        CHECKF(ra.status == Status::Ok, "seed %u no angle: status %d",
+               seed, int(ra.status));
+        if (ra.status == Status::Ok)
+        {
+            int correct = 0;
+            for (const Correspondence& c : ra.alignments[0].pairs)
+                correct += d.truth[c.left] == c.right;
+            CHECKF(correct >= n - 2, "seed %u no angle: %d correct",
+                   seed, correct);
         }
 
         // labels 0..2; only equal labels match
