@@ -244,16 +244,18 @@ namespace
     py::tuple alignLines3DPy(const DoubleMatrixR& left,
                              const DoubleMatrixR& right, int labelCol,
                              double angleTol, double sepTol,
-                             double extentScale, int minMatched,
-                             int maxMatched, size_t results,
-                             bool disjoint, double distinctMinFrac,
-                             size_t workers, py::object progress)
+                             double anchorTol, double extentScale,
+                             int minMatched, int maxMatched,
+                             size_t results, bool disjoint,
+                             double distinctMinFrac, size_t workers,
+                             py::object progress)
     {
         LineCols cols;
         cols.label = labelCol;
         LineParams lp;
         lp.angleTol = angleTol;
         lp.sepTol = sepTol;
+        lp.anchorTol = anchorTol;
         lp.extentScale = extentScale;
         const CliqueOptions c =
             cliqueOptions(minMatched, maxMatched, results, disjoint,
@@ -311,9 +313,9 @@ PYBIND11_MODULE(_core, m)
           py::arg("progress"));
     m.def("align_lines_3d", &alignLines3DPy, py::arg("left"),
           py::arg("right"), py::arg("label_col"), py::arg("angle_tol"),
-          py::arg("sep_tol"), py::arg("extent_scale"),
-          py::arg("min_matched"), py::arg("max_matched"),
-          py::arg("results"), py::arg("disjoint"),
-          py::arg("distinct_min_frac"), py::arg("workers"),
-          py::arg("progress"));
+          py::arg("sep_tol"), py::arg("anchor_tol"),
+          py::arg("extent_scale"), py::arg("min_matched"),
+          py::arg("max_matched"), py::arg("results"),
+          py::arg("disjoint"), py::arg("distinct_min_frac"),
+          py::arg("workers"), py::arg("progress"));
 }

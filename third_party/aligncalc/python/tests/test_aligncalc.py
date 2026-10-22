@@ -269,11 +269,12 @@ anchor_tol = 0.05
 minutia_angle_tol_deg = 20
 
 [align3d]
-angle_tol_deg = 0.5
-sep_tol_um = 4
+angle_tol_deg = 5
+sep_tol_um = 5
 max_length_ratio = 0
 extent_scale = 0
 max_rotation_deg = 0
+anchor_tol_um = 1
 
 [clique]
 min_matched = 5
@@ -353,12 +354,27 @@ def test_lines_labels_and_scpp_rules():
                                    min_matched=5, sep_tol=2e-6)
     assert all(np.sum(a.pairs[:, 0] == a.pairs[:, 1]) == 0 for a in res)
     for kw in (dict(max_rotation_deg=30), dict(max_length_ratio=2),
-               dict(sep_tol=1e-6, sep_tol_um=1)):
+               dict(sep_tol=1e-6, sep_tol_um=1),
+               dict(anchor_tol=1e-6, anchor_tol_um=1),
+               dict(anchor_tol=-1e-6)):
         try:
             aligncalc.align_lines_3d(left, right, **kw)
         except (ValueError, TypeError):
             continue
         raise AssertionError(f"no error for {kw}")
+
+
+def test_lines_anchor():
+    left, right, _, _ = lines_case()
+    # default (anchored, 1 um), the same in metres, and off
+    runs = [aligncalc.align_lines_3d(left, right, sep_tol=2e-6,
+                                     min_matched=5, **kw)
+            for kw in (dict(), dict(anchor_tol=1e-6),
+                       dict(anchor_tol_um=1), dict(anchor_tol=0))]
+    for res in runs:
+        assert res and np.sum(res[0].pairs[:, 0] == res[0].pairs[:, 1]) >= 28
+    assert np.array_equal(runs[0][0].pairs, runs[1][0].pairs)
+    assert np.array_equal(runs[0][0].pairs, runs[2][0].pairs)
 
 
 # ---- progress and cancellation ---------------------------------------

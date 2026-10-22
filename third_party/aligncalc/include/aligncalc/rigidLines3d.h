@@ -28,8 +28,8 @@ namespace AlignCalc
     };
 
     // Tolerances on pair invariants. angleTol = 0 turns the angle
-    // check off. sepTol is in position units (the default suits x3p
-    // metres: 4 um). extentScale > 0 widens
+    // check off. sepTol and anchorTol are in position units (the
+    // defaults suit x3p metres: 5 um, 1 um). extentScale > 0 widens
     // a pair's separation tolerance for segments whose detected
     // extents differ: a midpoint shifted by d along a line moves the
     // separation by d * sin(angle / 2), and the shift is at most half
@@ -37,12 +37,12 @@ namespace AlignCalc
     // sepTol + extentScale * sin(angle / 2) * (dLen_i + dLen_j) / 2.
     struct LineParams
     {
-        double angleTol = 0.5 * 3.14159265358979323846 / 180.0;  // rad
-        double sepTol = 4e-6;
+        double angleTol = 5.0 * 3.14159265358979323846 / 180.0;  // rad
+        double sepTol = 5e-6;
         double extentScale = 0.0;
         // > 0: anchored clique search (LineAnchor3D) with this depth
-        // tolerance (position units) and sepTol across; 0 = off.
-        double anchorTol = 0.0;
+        // tolerance and sepTol across; 0 = off.
+        double anchorTol = 1e-6;
     };
 
     // Invariants of a line pair, left (i1, j1) and right (i2, j2):

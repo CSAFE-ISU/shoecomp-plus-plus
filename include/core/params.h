@@ -59,12 +59,12 @@ namespace shoecomp
 
     struct Align3DSettings
     {
-        float angleTolDeg = 0.5f;
-        float sepTolUm = 4.0f;
+        float angleTolDeg = 5.0f;
+        float sepTolUm = 5.0f;
         float maxLengthRatio = 0.0f;   // 0 = off
         float extentScale = 0.0f;      // 0 = off
         float maxRotationDeg = 30.0f;  // 0 = off
-        float anchorTolUm = 0.0f;      // 0 = off
+        float anchorTolUm = 1.0f;      // 0 = off
 
         StriationAlignParams toParams(size_t numWorkers,
                                       const CliqueSettings& c) const;

@@ -122,8 +122,8 @@ scpp version                             # version + licenses
   defaults): `detect2d iou`, `align2d anchor_tol` and
   `minutia_angle_tol_deg`, `striation max_dev_deg`,
   `exclude_shoulders` and `shoulder_margin_um`, `align3d
-  max_length_ratio`, `extent_scale` and `max_rotation_deg`, and
-  `clique distinct`. `-j N` sets the threads for every stage
+  max_length_ratio`, `extent_scale`, `max_rotation_deg` and
+  `anchor_tol_um`, and `clique distinct`. `-j N` sets the threads for every stage
   (default: all cores); results do not depend on it.
 - **Output:** a summary per alignment on stdout; `--json` prints, and
   `-o FILE` writes, the full result, whose alignments use the GUI's

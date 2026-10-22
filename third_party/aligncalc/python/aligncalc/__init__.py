@@ -167,9 +167,11 @@ _POINTS = {
 }
 
 _LINES = {
-    "angle_tol_deg": (_as_float, 0.5),
+    "angle_tol_deg": (_as_float, 5.0),
     "sep_tol": (_as_float, None),  # position units
     "sep_tol_um": (_as_float, None),  # [align3d]: positions in metres
+    "anchor_tol": (_as_float, None),  # position units
+    "anchor_tol_um": (_as_float, None),  # [align3d]: positions in metres
     "extent_scale": (_as_float, 0.0),
     # scpp-only rules (striation length ratio, rotation limit): not
     # part of aligncalc, accepted only as 0 = off
@@ -213,6 +215,16 @@ def _one_of(o, a, b, default):
     if o[a] is not None and o[b] is not None:
         raise TypeError(f"give {a!r} or {b!r}, not both")
     return o[a] if o[a] is not None else o[b] if o[b] is not None else default
+
+
+def _metres(o, key, default_um):
+    """o[key] (position units) or o[key + "_um"] * 1e-6, not both."""
+    um = key + "_um"
+    if o[key] is not None and o[um] is not None:
+        raise TypeError(f"give {key!r} or {um!r}, not both")
+    if o[key] is not None:
+        return o[key]
+    return (o[um] if o[um] is not None else default_um) * 1e-6
 
 
 def _clique_args(o, workers):
@@ -522,6 +534,8 @@ def align_lines_3d(
     angle_tol_deg=None,
     sep_tol=None,
     sep_tol_um=None,
+    anchor_tol=None,
+    anchor_tol_um=None,
     extent_scale=None,
     max_length_ratio=None,
     max_rotation_deg=None,
@@ -541,9 +555,13 @@ def align_lines_3d(
 
     Options (default):
         angle_tol_deg: allowed angle difference of line pairs; 0 =
-            no angle check (0.5).
+            no angle check (5).
         sep_tol: allowed separation difference, position units; or
-            sep_tol_um for positions in metres (4 um, i.e. 4e-6).
+            sep_tol_um for positions in metres (5 um, i.e. 5e-6).
+        anchor_tol: anchored search, every line must fit the transform
+            of its match's first two lines within this depth (across:
+            sep_tol), position units; or anchor_tol_um for positions
+            in metres; 0 = off (1 um, i.e. 1e-6).
         extent_scale: widen the separation tolerance for segments
             whose lengths differ; 0 = off (0).
         max_length_ratio, max_rotation_deg: scpp-only rules, accepted
@@ -555,6 +573,8 @@ def align_lines_3d(
             angle_tol_deg=angle_tol_deg,
             sep_tol=sep_tol,
             sep_tol_um=sep_tol_um,
+            anchor_tol=anchor_tol,
+            anchor_tol_um=anchor_tol_um,
             extent_scale=extent_scale,
             max_length_ratio=max_length_ratio,
             max_rotation_deg=max_rotation_deg,
@@ -570,17 +590,14 @@ def align_lines_3d(
             raise ValueError(
                 f"{key} is an scpp rule, not part of aligncalc; pass 0"
             )
-    if o["sep_tol"] is not None and o["sep_tol_um"] is not None:
-        raise TypeError("give 'sep_tol' or 'sep_tol_um', not both")
-    sep = (
-        o["sep_tol"]
-        if o["sep_tol"] is not None
-        else (o["sep_tol_um"] if o["sep_tol_um"] is not None else 4.0) * 1e-6
-    )
+    sep = _metres(o, "sep_tol", 5.0)
+    anchor = _metres(o, "anchor_tol", 1.0)
     if not o["angle_tol_deg"] >= 0:
         raise ValueError("angle_tol_deg must be >= 0")
     if not sep > 0:
         raise ValueError("sep_tol must be > 0")
+    if not anchor >= 0:
+        raise ValueError("anchor_tol must be >= 0")
     if not o["extent_scale"] >= 0:
         raise ValueError("extent_scale must be >= 0")
     c = _clique_args(o, workers)
@@ -607,6 +624,7 @@ def align_lines_3d(
         label_col=label_col,
         angle_tol=math.radians(o["angle_tol_deg"]),
         sep_tol=sep,
+        anchor_tol=anchor,
         extent_scale=o["extent_scale"],
         progress=progress,
         **c,

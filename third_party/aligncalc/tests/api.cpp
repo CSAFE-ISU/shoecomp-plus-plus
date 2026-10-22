@@ -115,6 +115,7 @@ namespace
         LineParams lp;
         lp.angleTol = 0.01;
         lp.sepTol = 2e-6;
+        lp.anchorTol = 0.0;
         return lp;
     }
 
