@@ -42,6 +42,8 @@ namespace shoecomp
         int numResults = 2;  // distinct alignments, best first
         // "explained" or "disjoint" (AlignCalc::DistinctMode)
         std::string distinct = "explained";
+        // results after the best need this fraction of its count
+        double distinctMinFrac = 0.7;
 
         AlignCalc::DistinctMode distinctMode() const;
         AlignCalc::CliqueOptions toOptions(size_t numWorkers) const;

@@ -119,6 +119,7 @@ namespace shoecomp
         p.minLines = c.minMatched;
         p.maxLines = c.maxMatched;
         p.distinct = c.distinctMode();
+        p.distinctMinFrac = c.distinctMinFrac;
         p.maxRotationDeg = maxRotationDeg;
         p.numResults = (size_t)c.numResults;
         p.numWorkers = numWorkers;
@@ -140,6 +141,7 @@ namespace shoecomp
         o.maxMatched = maxMatched;
         o.results = (size_t)numResults;
         o.distinct = distinctMode();
+        o.distinctMinFrac = distinctMinFrac;
         o.numWorkers = numWorkers;
         return o;
     }
@@ -244,6 +246,10 @@ namespace shoecomp
              "no pair an earlier result's transform explains; "
              "disjoint = no point shared with an earlier result",
              ParamKind::String, SC_REF(clique.distinct)},
+            {"clique", "distinct_min_frac",
+             "Results after the best need at least this fraction of its "
+             "matched count (and min_matched), [0, 1]",
+             ParamKind::Double, SC_REF(clique.distinctMinFrac)},
         };
         // clang-format on
         return table;
@@ -478,6 +484,8 @@ namespace shoecomp
         if (c.distinct != "explained" && c.distinct != "disjoint")
             return bad(
                 "[clique] distinct must be explained or disjoint");
+        if (!(c.distinctMinFrac >= 0.0 && c.distinctMinFrac <= 1.0))
+            return bad("[clique] distinct_min_frac must be in [0, 1]");
         return true;
     }
 }  // namespace shoecomp
