@@ -78,7 +78,12 @@ scpp version                             # version + licenses
   Detection skips the groove shoulders at the land edges, found from
   the land's averaged cross-section (`-v` prints where;
   `--striation-shoulder-margin-um` trims further inside,
-  `--striation-exclude-shoulders false` keeps them).
+  `--striation-exclude-shoulders false` keeps them). Lines are
+  searched in directions within `dir_cone_deg` of the land's axis in
+  steps of `dir_step_deg` (default 12 / 2.5; `dir_depth_cone_deg` /
+  `dir_depth_step_deg` out of the surface); a line follows a tilted
+  striation only to about the step, and every direction costs time
+  and memory.
   `--redetect` ignores sidecars; `--save-annotations DIR` writes what
   was detected (never next to the inputs).
 - **Matching rules:** shoe and handwriting points only pair with the
@@ -123,7 +128,8 @@ scpp version                             # version + licenses
   with their defaults. Some are CLI-only (the GUI uses their
   defaults): `detect2d iou`, `align2d anchor_tol` and
   `minutia_angle_tol_deg`, `striation max_dev_deg`,
-  `exclude_shoulders` and `shoulder_margin_um`, `align3d
+  `exclude_shoulders`, `shoulder_margin_um` and the four `dir_*`
+  keys, `align3d
   max_length_ratio`, `extent_scale`, `max_rotation_deg` and
   `anchor_tol_um`, and `clique distinct` and `distinct_min_frac`. `-j N` sets the threads for every stage
   (default: all cores); results do not depend on it.

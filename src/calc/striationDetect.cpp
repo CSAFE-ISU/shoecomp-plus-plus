@@ -25,11 +25,10 @@ namespace shoecomp
         const double kNaN = std::numeric_limits<double>::quiet_NaN();
         const double kDeg = 3.14159265358979323846 / 180.0;
 
-        // Internal tuning knobs (not exposed in the dialog).
-        const double kConeHalf = 12.0 * kDeg;  // direction search cone
-        const double kAngStep = 2.5 * kDeg;    // cone sampling step
-        const double kBinCells = 3.0;          // Hough bin size (cells)
-        const double kVoteFrac = 0.4;          // votes per unit length
+        // Internal tuning knobs (not exposed in the dialog; the
+        // direction search cone is StriationParams::dirCone & co).
+        const double kBinCells = 3.0;  // Hough bin size (cells)
+        const double kVoteFrac = 0.4;  // votes per unit length
         const int kMinVotesFloor = 5;
 
         // Groove-shoulder search (see findShoulders).
@@ -456,16 +455,18 @@ namespace shoecomp
         aEst.normalize();
 
         // --- (3) candidate directions in a cone around aEst --------
+        // u1 runs across the land along the surface, u2 out of it.
         Eigen::Vector3d t = (std::abs(aEst.x()) < 0.9)
                                 ? Eigen::Vector3d::UnitX()
                                 : Eigen::Vector3d::UnitY();
         Eigen::Vector3d u1 = (t - t.dot(aEst) * aEst).normalized();
         Eigen::Vector3d u2 = aEst.cross(u1).normalized();
         std::vector<HoughDir> dirs;
-        for (double tu = -kConeHalf; tu <= kConeHalf + 1e-9;
-             tu += kAngStep)
-            for (double tv = -kConeHalf; tv <= kConeHalf + 1e-9;
-                 tv += kAngStep)
+        for (double tu = -params.dirCone; tu <= params.dirCone + 1e-9;
+             tu += params.dirStep)
+            for (double tv = -params.dirDepthCone;
+                 tv <= params.dirDepthCone + 1e-9;
+                 tv += params.dirDepthStep)
             {
                 HoughDir hd;
                 hd.b = (aEst + std::tan(tu) * u1 + std::tan(tv) * u2)

@@ -30,6 +30,15 @@ namespace shoecomp
         bool includeValleys = true;
         bool excludeShoulders = true;
         float shoulderMarginUm = 20.0f;
+        // Hough direction search (deg): cone and step across the land
+        // and in depth (StriationParams::dirCone & co)
+        float dirConeDeg = 12.0f;
+        float dirStepDeg = 2.5f;
+        float dirDepthConeDeg = 12.0f;
+        float dirDepthStepDeg = 2.5f;
+
+        // Candidate directions the search tests (cone / step grid).
+        int numDirections() const;
 
         StriationParams toParams(int numThreads = 0) const;
     };

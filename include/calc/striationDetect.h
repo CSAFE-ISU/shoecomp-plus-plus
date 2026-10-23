@@ -40,7 +40,16 @@ namespace shoecomp
                                        // cross-section profile)
         double shoulderMargin = 0.0;   // metres: also skip this much
                                        // inside each found shoulder
-        int numThreads = 0;            // 0 = hardware concurrency
+        // Hough direction search: a grid of candidate directions around
+        // the estimated axial direction, -cone to +cone in steps, along
+        // the surface (across the land) and out of it (depth); radians.
+        // A line cannot settle much off a grid direction, so the step
+        // bounds how well tilted striations are followed.
+        double dirCone = 12.0 * 3.14159265358979323846 / 180.0;
+        double dirStep = 2.5 * 3.14159265358979323846 / 180.0;
+        double dirDepthCone = 12.0 * 3.14159265358979323846 / 180.0;
+        double dirDepthStep = 2.5 * 3.14159265358979323846 / 180.0;
+        int numThreads = 0;  // 0 = hardware concurrency
     };
 
     // Detect striations on |surf| and emit one StriationLine per

@@ -15,6 +15,9 @@ namespace shoecomp
     namespace
     {
         constexpr double kPi = 3.14159265358979323846;
+        // Cap on the striation direction search (memory: one vote grid
+        // per direction).
+        constexpr int kMaxDirections = 2048;
 
         std::string trim(const std::string& s)
         {
@@ -103,8 +106,27 @@ namespace shoecomp
         p.includeValleys = includeValleys;
         p.excludeShoulders = excludeShoulders;
         p.shoulderMargin = shoulderMarginUm * 1e-6;
+        p.dirCone = dirConeDeg * kPi / 180.0;
+        p.dirStep = dirStepDeg * kPi / 180.0;
+        p.dirDepthCone = dirDepthConeDeg * kPi / 180.0;
+        p.dirDepthStep = dirDepthStepDeg * kPi / 180.0;
         p.numThreads = numThreads;
         return p;
+    }
+
+    int StriationSettings::numDirections() const
+    {
+        // Same grid as detectStriations: -cone, -cone + step, ... up to
+        // +cone (radians there; the count does not depend on units).
+        auto n = [](double cone, double step)
+        {
+            const double c = cone * kPi / 180.0, s = step * kPi / 180.0;
+            int k = 0;
+            for (double t = -c; t <= c + 1e-9; t += s) ++k;
+            return k;
+        };
+        return n(dirConeDeg, dirStepDeg) *
+               n(dirDepthConeDeg, dirDepthStepDeg);
     }
 
     StriationAlignParams Align3DSettings::toParams(
@@ -209,6 +231,20 @@ namespace shoecomp
             {"striation", "shoulder_margin_um",
              "Also skip this much inside each found shoulder (um)",
              ParamKind::Float, SC_REF(striation.shoulderMarginUm)},
+            {"striation", "dir_cone_deg",
+             "Line directions searched within this angle of the land's "
+             "axis, across the land (deg)",
+             ParamKind::Float, SC_REF(striation.dirConeDeg)},
+            {"striation", "dir_step_deg",
+             "... in steps of this (deg); lines follow tilted striations "
+             "only to about this step",
+             ParamKind::Float, SC_REF(striation.dirStepDeg)},
+            {"striation", "dir_depth_cone_deg",
+             "Same out of the surface (depth): cone (deg)",
+             ParamKind::Float, SC_REF(striation.dirDepthConeDeg)},
+            {"striation", "dir_depth_step_deg",
+             "... and step (deg)",
+             ParamKind::Float, SC_REF(striation.dirDepthStepDeg)},
 
             {"align3d", "angle_tol_deg", "Angle tolerance (deg); 0 = off",
              ParamKind::Float, SC_REF(align3d.angleTolDeg)},
@@ -424,7 +460,7 @@ namespace shoecomp
 
     bool validateParams(const Params& p, std::string& err)
     {
-        auto bad = [&](const char* what)
+        auto bad = [&](const std::string& what)
         {
             err = what;
             return false;
@@ -458,6 +494,22 @@ namespace shoecomp
             return bad("[striation] max_count must be >= 1");
         if (s.shoulderMarginUm < 0.0f)
             return bad("[striation] shoulder_margin_um must be >= 0");
+        if (!(s.dirConeDeg >= 0.0f && s.dirConeDeg <= 45.0f) ||
+            !(s.dirDepthConeDeg >= 0.0f && s.dirDepthConeDeg <= 45.0f))
+            return bad(
+                "[striation] dir_cone_deg and dir_depth_cone_deg "
+                "must be in [0, 45]");
+        if (!(s.dirStepDeg > 0.0f) || !(s.dirDepthStepDeg > 0.0f))
+            return bad(
+                "[striation] dir_step_deg and dir_depth_step_deg "
+                "must be > 0");
+        // Each direction keeps a vote grid (~0.5 MB on an HS10 land).
+        if (s.numDirections() > kMaxDirections)
+            return bad("[striation] the direction search has " +
+                       std::to_string(s.numDirections()) +
+                       " directions (cone / step, across x depth); at "
+                       "most " +
+                       std::to_string(kMaxDirections));
 
         const auto& l = p.align3d;
         if (!(l.angleTolDeg >= 0.0f))
