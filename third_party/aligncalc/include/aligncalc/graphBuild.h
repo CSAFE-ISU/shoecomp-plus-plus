@@ -248,7 +248,10 @@ namespace AlignCalc
                     model.consistentWith(tuple, matches);
                     for (const auto& m : matches)
                     {
-                        int32_t id[K];
+                        // Model::arity, not K: MSVC does not treat
+                        // a constexpr local as a constant inside a
+                        // nested lambda (C2131)
+                        int32_t id[Model::arity];
                         bool ok = true;
                         for (int p = 0; p < K && ok; ++p)
                         {
