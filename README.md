@@ -80,10 +80,11 @@ scpp version                             # version + licenses
   `--striation-shoulder-margin-um` trims further inside,
   `--striation-exclude-shoulders false` keeps them). Lines are
   searched in directions within `dir_cone_deg` of the land's axis in
-  steps of `dir_step_deg` (default 12 / 2.5; `dir_depth_cone_deg` /
-  `dir_depth_step_deg` out of the surface); a line follows a tilted
-  striation only to about the step, and every direction costs time
-  and memory.
+  steps of `dir_step_deg` (default 2 / 0.5; `dir_depth_cone_deg` /
+  `dir_depth_step_deg` out of the surface, default 4 / 1); a line
+  follows a tilted striation only to about the step, and every
+  direction costs time and memory (a wider cone may suit bullets
+  with more tilted striations than HS10).
   `--redetect` ignores sidecars; `--save-annotations DIR` writes what
   was detected (never next to the inputs).
 - **Matching rules:** shoe and handwriting points only pair with the

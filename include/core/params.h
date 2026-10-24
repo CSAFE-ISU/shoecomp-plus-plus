@@ -31,11 +31,13 @@ namespace shoecomp
         bool excludeShoulders = true;
         float shoulderMarginUm = 20.0f;
         // Hough direction search (deg): cone and step across the land
-        // and in depth (StriationParams::dirCone & co)
-        float dirConeDeg = 12.0f;
-        float dirStepDeg = 2.5f;
-        float dirDepthConeDeg = 12.0f;
-        float dirDepthStepDeg = 2.5f;
+        // and in depth (StriationParams::dirCone & co); defaults
+        // picked on the HS10 bullets (a 2.5 deg step quantized line
+        // directions)
+        float dirConeDeg = 2.0f;
+        float dirStepDeg = 0.5f;
+        float dirDepthConeDeg = 4.0f;
+        float dirDepthStepDeg = 1.0f;
 
         // Candidate directions the search tests (cone / step grid).
         int numDirections() const;

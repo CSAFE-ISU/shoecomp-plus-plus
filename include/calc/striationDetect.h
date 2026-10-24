@@ -45,10 +45,11 @@ namespace shoecomp
         // the surface (across the land) and out of it (depth); radians.
         // A line cannot settle much off a grid direction, so the step
         // bounds how well tilted striations are followed.
-        double dirCone = 12.0 * 3.14159265358979323846 / 180.0;
-        double dirStep = 2.5 * 3.14159265358979323846 / 180.0;
-        double dirDepthCone = 12.0 * 3.14159265358979323846 / 180.0;
-        double dirDepthStep = 2.5 * 3.14159265358979323846 / 180.0;
+        static constexpr double kDeg = 3.14159265358979323846 / 180.0;
+        double dirCone = 2.0 * kDeg;
+        double dirStep = 0.5 * kDeg;
+        double dirDepthCone = 4.0 * kDeg;
+        double dirDepthStep = 1.0 * kDeg;
         int numThreads = 0;  // 0 = hardware concurrency
     };
 
