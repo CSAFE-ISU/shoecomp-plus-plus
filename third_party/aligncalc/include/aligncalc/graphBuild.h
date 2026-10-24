@@ -161,7 +161,7 @@ namespace AlignCalc
         std::vector<std::vector<int32_t>> rows(total);
         std::atomic<size_t> next{0};
         std::atomic<bool> stop{false};
-        constexpr size_t kBlock = 64;
+        static constexpr size_t kBlock = 64;  // static: see K below
         int lastPct = -1;
 
         detail::runWorkers(
@@ -218,7 +218,10 @@ namespace AlignCalc
                       "model lacks leftCount/rightCount/admissible");
         static_assert(detail::HasTupleGen<Model>::value,
                       "model lacks an edges-first consistentWith");
-        constexpr int K = Model::arity;
+        // static: MSVC mishandles plain constexpr locals the worker
+        // lambdas capture (not constant there: C2131 / C2975; nested
+        // closure fails to build: C2440). Statics are not captured.
+        static constexpr int K = Model::arity;
         static_assert(K == 2 || K == 3, "arity must be 2 or 3");
         const int32_t nL = model.leftCount();
         const int32_t nR = model.rightCount();
@@ -232,7 +235,7 @@ namespace AlignCalc
         const size_t total = size_t(nL) * size_t(nL);
         std::atomic<size_t> next{0};
         std::atomic<bool> stop{false};
-        constexpr size_t kBlock = K == 2 ? 1024 : 16;
+        static constexpr size_t kBlock = K == 2 ? 1024 : 16;
         int lastPct = -1;
 
         detail::runWorkers(
@@ -248,10 +251,7 @@ namespace AlignCalc
                     model.consistentWith(tuple, matches);
                     for (const auto& m : matches)
                     {
-                        // Model::arity, not K: MSVC does not treat
-                        // a constexpr local as a constant inside a
-                        // nested lambda (C2131)
-                        int32_t id[Model::arity];
+                        int32_t id[K];
                         bool ok = true;
                         for (int p = 0; p < K && ok; ++p)
                         {
