@@ -40,7 +40,7 @@ add_library(aligncalc ${ALIGNCALC_LIBRARY_TYPE}
     src/clq/maxClique.cpp
     src/clq/search.cpp
     src/models/rigidPoints.cpp
-    src/models/similarity2d.cpp
+    src/models/similarityPoints.cpp
     src/models/rigidLines3d.cpp
     src/models/lineAnchor3d.cpp
     src/models/pointAnchor2d.cpp
