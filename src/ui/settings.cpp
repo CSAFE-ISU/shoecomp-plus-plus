@@ -170,10 +170,7 @@ namespace shoecomp
             ImGuiTheme::ApplyTheme(ImGuiTheme::ImGuiTheme_MaterialFlat);
             applyShoeCompDark();
         }
-        else
-        {
-            ImGuiTheme::ApplyTheme(themeMap[idx]);
-        }
+        else { ImGuiTheme::ApplyTheme(themeMap[idx]); }
         applyModernStyling();
     }
 
@@ -268,16 +265,22 @@ namespace shoecomp
 
         ImGui::Spacing();
 
-        // Live (not deferred): only affects future loads.
-        ImGui::Checkbox("Auto-fit cylinder for bullet-land x3p on load",
-                        &s.autoFitCylinder);
-        if (ImGui::IsItemHovered())
-            ImGui::SetTooltip(
-                "When a Bullet land (x3p) surface loads, fit the "
-                "cylinder\nand align the vertical strip view to its "
-                "axis.");
+        // Live (not deferred): only affects future loads, so it shows
+        // only while the committed active kind loads x3p surfaces.
+        if (s.activeKind == ImageCanvas::Kind::X3P ||
+            s.activeKind == ImageCanvas::Kind::X3PBulletLand)
+        {
+            ImGui::Checkbox(
+                "Auto-fit cylinder for bullet-land x3p on load",
+                &s.autoFitCylinder);
+            if (ImGui::IsItemHovered())
+                ImGui::SetTooltip(
+                    "When a Bullet land (x3p) surface loads, fit the "
+                    "cylinder\nand align the vertical strip view to "
+                    "its axis.");
 
-        ImGui::Spacing();
+            ImGui::Spacing();
+        }
 
         // Annotations section (owned by ImageCanvas)
         activeCanvas.renderAnnotationStyleSettings();
