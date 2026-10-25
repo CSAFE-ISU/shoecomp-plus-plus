@@ -10,8 +10,9 @@ namespace AlignCalc
     {
         double scaleRange = 5.0;
         double epsilon = 0.005;
-        // Oriented points (e.g. minutiae): with angleCol >= 0 and
-        // angleTolDeg > 0, a triangle pair is skipped before the
+        // Oriented 2-D points (e.g. minutiae; ignored in other
+        // dimensions): with angleCol >= 0 and angleTolDeg > 0, a
+        // triangle pair is skipped before the
         // similarity test unless the sorted circular gaps between its
         // three directions (degrees; rotation- and order-invariant)
         // agree within angleTolDeg. Points with a NaN angle disable
@@ -49,11 +50,13 @@ namespace AlignCalc
         };
     }  // namespace detail
 
-    // Similarity (rotation, translation, scale) matching of 2-D points,
-    // edges-first over triangles: a left and a right triangle match
-    // when their side ratios agree within epsilon and the mean ratio
-    // lies in [1/scaleRange, scaleRange]; every match joins its three
-    // correspondences. Rules::tripleOk can veto a match.
+    // Similarity (rotation, translation, scale) matching of points in
+    // 2 or more dimensions (the name predates N-D), edges-first over
+    // triangles: a left and a right triangle match when their side
+    // ratios agree within epsilon and the mean ratio lies in
+    // [1/scaleRange, scaleRange]; every match joins its three
+    // correspondences. Side ratios cannot tell a triangle from its
+    // mirror image. Rules::tripleOk can veto a match.
     //
     // The model keeps references to |left| and |right|; they must
     // outlive it.

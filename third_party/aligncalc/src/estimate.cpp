@@ -29,8 +29,8 @@ namespace AlignCalc
             for (Eigen::Index i = 0; i < n; ++i)
                 for (int d = 0; d < 2; ++d)
                 {
-                    src(i, d) = left(pairs[i].left, cols.pos[d]);
-                    dst(i, d) = right(pairs[i].right, cols.pos[d]);
+                    src(i, d) = left(pairs[i].left, cols.col(d));
+                    dst(i, d) = right(pairs[i].right, cols.col(d));
                 }
             Eigen::Vector2d srcMean, dstMean;
             centerify(dst, dstMean);
@@ -68,7 +68,7 @@ namespace AlignCalc
                    out.translation.allFinite();
         }
 
-        // Umeyama in 1 or 3 dimensions.
+        // Umeyama in any dimension but 2.
         bool similarityND(const DoubleMatrixR& left,
                           const DoubleMatrixR& right,
                           const PointCols& cols,
@@ -81,8 +81,8 @@ namespace AlignCalc
             for (Eigen::Index i = 0; i < n; ++i)
                 for (int d = 0; d < dim; ++d)
                 {
-                    X(d, i) = left(pairs[i].left, cols.pos[d]);
-                    Y(d, i) = right(pairs[i].right, cols.pos[d]);
+                    X(d, i) = left(pairs[i].left, cols.col(d));
+                    Y(d, i) = right(pairs[i].right, cols.col(d));
                 }
             const Eigen::VectorXd mx = X.rowwise().mean();
             const Eigen::VectorXd my = Y.rowwise().mean();
@@ -175,8 +175,12 @@ namespace AlignCalc
         std::vector<Eigen::Vector3d> src, dst;
         for (const auto& c : pairs)
         {
-            src.push_back(col3(left, c.left, cols.pos));
-            dst.push_back(col3(right, c.right, cols.pos));
+            src.push_back({left(c.left, cols.col(0)),
+                           left(c.left, cols.col(1)),
+                           left(c.left, cols.col(2))});
+            dst.push_back({right(c.right, cols.col(0)),
+                           right(c.right, cols.col(1)),
+                           right(c.right, cols.col(2))});
         }
         out = kabsch(src, dst);
         return true;

@@ -8,7 +8,7 @@ namespace AlignCalc
                                  const DoubleMatrixR& right,
                                  const PointCols& cols,
                                  double scaleRange, double tol)
-        : L_(left), R_(right), x_(cols.pos[0]), y_(cols.pos[1]),
+        : L_(left), R_(right), x_(cols.col(0)), y_(cols.col(1)),
           scaleRange_(scaleRange), tol_(tol)
     {
     }

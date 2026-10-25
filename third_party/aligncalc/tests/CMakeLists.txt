@@ -8,6 +8,7 @@ set(ALIGNCALC_TESTS
     distinct       # two copies -> two distinct alignments
     lines_3d       # alignLines3D, transform recovery, labels
     api            # Progress, cancel, Status, 1-D / 3-D points
+    points_nd      # similarity in 3-6 dimensions, scale anchor
 )
 foreach(name IN LISTS ALIGNCALC_TESTS)
     set(target aligncalc_test_${name})

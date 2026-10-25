@@ -35,8 +35,8 @@ namespace AlignCalc
 
     enum class PointMode
     {
-        Rigid,       // RT, points in 1-3 dimensions
-        Similarity,  // RTS, 2-D points
+        Rigid,       // RT, points in any dimension
+        Similarity,  // RTS, points in 2 or more dimensions
     };
 
     struct PointOptions
@@ -46,8 +46,9 @@ namespace AlignCalc
         double epsilon = 0.005;
         // Similarity: scales within [1/scaleRange, scaleRange].
         double scaleRange = 5.0;
-        // 2-D anchored clique search (PointAnchor2D) with this
-        // relative tolerance; 0 = off.
+        // Anchored clique search with this relative tolerance; 0 =
+        // off. 2-D: PointAnchor2D; similarity in more dimensions:
+        // PointScaleAnchor (common scale only, keeps mirror images).
         double anchorTol = 0.05;
         // Similarity: an edge needs this many matched triangles.
         int32_t minSupport = 1;

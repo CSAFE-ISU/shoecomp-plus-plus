@@ -5,11 +5,13 @@
 #include "estimate.h"
 #include "lineAnchor3d.h"
 #include "pointAnchor2d.h"
+#include "pointScaleAnchor.h"
 #include "rigidLines3d.h"
 #include "rigidPoints.h"
 #include "similarity2d.h"
 #include <algorithm>
 #include <cmath>
+#include <memory>
 #include <thread>
 
 // alignPoints / alignLines3D with caller-defined Rules (see rules.h):
@@ -76,11 +78,17 @@ namespace AlignCalc
             bool explains(Correspondence c) const
             {
                 const int dim = cols.dim;
-                double lc[3], rc[3], dl[3], dr[3];
+                double stack[12];
+                std::vector<double> heap;
+                if (dim > 3) heap.resize(4 * size_t(dim));
+                double* const lc = dim > 3 ? heap.data() : stack;
+                double* const rc = lc + dim;
+                double* const dl = rc + dim;
+                double* const dr = dl + dim;
                 for (int d = 0; d < dim; ++d)
                 {
-                    lc[d] = left(c.left, cols.pos[d]);
-                    rc[d] = right(c.right, cols.pos[d]);
+                    lc[d] = left(c.left, cols.col(d));
+                    rc[d] = right(c.right, cols.col(d));
                 }
                 const double tol2 = tol * tol;
                 const int32_t n = (int32_t)cur.pairs.size();
@@ -91,8 +99,8 @@ namespace AlignCalc
                     const Correspondence m = cur.pairs[k];
                     for (int d = 0; d < dim; ++d)
                     {
-                        dl[d] = lc[d] - left(m.left, cols.pos[d]);
-                        dr[d] = rc[d] - right(m.right, cols.pos[d]);
+                        dl[d] = lc[d] - left(m.left, cols.col(d));
+                        dr[d] = rc[d] - right(m.right, cols.col(d));
                     }
                     double e2 = 0.0, r2 = 0.0;
                     for (int i = 0; i < dim; ++i)
@@ -267,7 +275,8 @@ namespace AlignCalc
             "no consistent set of lines found"};
 
         // Graph + distinct cliques for a point |model|, with the
-        // anchored search when options.anchorTol is set (2-D).
+        // anchored search when options.anchorTol is set: PointAnchor2D
+        // in 2-D, PointScaleAnchor for similarity in more dimensions.
         template <class Model, class Fitter, class Result>
         void runPointModel(const Model& model,
                            const DoubleMatrixR& left,
@@ -291,8 +300,16 @@ namespace AlignCalc
             PointAnchor2D anchor(left, right, cols,
                                  similarity ? options.scaleRange : 1.0,
                                  options.anchorTol);
+            std::unique_ptr<PointScaleAnchor> scaleAnchor;
             if (options.anchorTol > 0.0 && cols.dim == 2)
                 dp.constraint = &anchor;
+            else if (options.anchorTol > 0.0 && similarity)
+            {
+                scaleAnchor = std::make_unique<PointScaleAnchor>(
+                    left, right, cols, options.scaleRange,
+                    options.anchorTol);
+                dp.constraint = scaleAnchor.get();
+            }
             BuildParams bp;
             bp.numWorkers = dp.numWorkers;
             bp.minSupport = options.minSupport;
@@ -318,10 +335,11 @@ namespace AlignCalc
                               fitter, progress, result);
                 return;
             }
-            if (cols.dim != 2)
+            if (cols.dim < 2)
             {
                 result.status = Status::Error;
-                result.message = "similarity matching needs 2-D points";
+                result.message =
+                    "similarity matching needs 2 or more dimensions";
                 return;
             }
             SimilarityParams sp;

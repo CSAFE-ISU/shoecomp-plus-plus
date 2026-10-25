@@ -2,7 +2,7 @@
 // on the calling thread), cancellation -> Status::Cancelled, a Rules
 // acceptTransform that rejects everything -> Status::NoMatch, invalid
 // input -> Status::Error, impossible bounds -> Status::NoMatch, and
-// rigid points in 1 and 3 dimensions.
+// rigid points in 1 and 3 dimensions (similarity in more: points_nd).
 #include "aligncalc/aligncalc.h"
 #include "aligncalc/alignWithRules.h"
 #include "check.h"
@@ -231,14 +231,14 @@ namespace
         PointOptions sim;
         sim.mode = PointMode::Similarity;
 
-        DoubleMatrixR L3(20, 3), R3(20, 3);
-        L3.setRandom();
-        R3.setRandom();
-        PointCols c3;
-        c3.dim = 3;
-        PointResult r = alignPoints(L3, R3, c3, sim, co);
+        DoubleMatrixR L1(20, 1), R1(20, 1);
+        L1.setRandom();
+        R1.setRandom();
+        PointCols c1;
+        c1.dim = 1;
+        PointResult r = alignPoints(L1, R1, c1, sim, co);
         CHECKF(r.status == Status::Error && !r.message.empty(),
-               "3-D similarity: status %d", int(r.status));
+               "1-D similarity: status %d", int(r.status));
 
         PointCols outside;  // y column past the matrix
         outside.pos = {0, 5, 2};
@@ -246,7 +246,7 @@ namespace
         CHECKF(r.status == Status::Error && !r.message.empty(),
                "bad columns: status %d", int(r.status));
 
-        PointCols noDim;
+        PointCols noDim;  // 4-D on 2-column rows
         noDim.dim = 4;
         r = alignPoints(L, R, noDim, PointOptions{}, co);
         CHECKF(r.status == Status::Error, "dim 4: status %d",

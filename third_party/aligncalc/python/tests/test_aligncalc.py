@@ -183,8 +183,10 @@ def test_no_match_is_empty():
 def test_errors():
     left, right, _ = similarity_case()
     bad = [
-        dict(mode="rts", left=np.zeros((5, 3)), right=np.zeros((5, 3))),
-        dict(left=np.zeros((5, 4)), right=np.zeros((5, 4))),
+        dict(mode="rts", left=np.zeros((5, 1)), right=np.zeros((5, 1))),
+        dict(mode="rts", left=np.ones((5, 3)), right=np.ones((5, 3)),
+             orientations=(np.zeros(5), np.zeros(5)),
+             orientation_tol_deg=10),
         dict(left=np.zeros((5, 2)), right=np.zeros((5, 3))),
         dict(epsilon=0),
         dict(scale_range=0.5),
@@ -202,6 +204,63 @@ def test_errors():
         except (ValueError, TypeError):
             continue
         raise AssertionError(f"no error for {kw}")
+
+
+def random_rotation(rng, d, mirror=False):
+    q, r = np.linalg.qr(rng.normal(size=(d, d)))
+    q = q * np.sign(np.diag(r))
+    if np.linalg.det(q) < 0:
+        q[:, 0] = -q[:, 0]
+    if mirror:
+        q[0] = -q[0]
+    return q
+
+
+def similarity_case_nd(d, seed=1, n=30, extra=10, scale=2.5,
+                       mirror=False):
+    """similarity_case in d dimensions (random rotation, small noise,
+    extras on both sides: truth -1); also returns the rotation and
+    translation."""
+    rng = np.random.default_rng(seed)
+    q = random_rotation(rng, d, mirror)
+    t = rng.uniform(-50, 50, d)
+    left = rng.uniform(-50, 50, (n + extra, d))
+    moved = scale * left[:n] @ q.T + t
+    right = np.vstack([moved, rng.uniform(-100, 100, (extra, d))])
+    right += rng.normal(0, 0.002, right.shape)
+    perm = rng.permutation(len(right))
+    out = np.empty_like(right)
+    out[perm] = right
+    truth = np.concatenate([perm[:n], np.full(extra, -1)])
+    return left, out, truth, q, t
+
+
+def test_similarity_nd_match_points():
+    for d in (3, 4, 6):
+        left, right, truth, _, _ = similarity_case_nd(d, seed=d)
+        m = aligncalc.match_points(left, right, mode="rts", epsilon=0.01,
+                                   min_matched=5)
+        assert m, d
+        best = m[0]
+        assert correct(best, truth) >= 29, (d, correct(best, truth))
+        assert len(best.pairs) - correct(best, truth) <= 1, d
+        assert best.left_points.shape == (len(best.pairs), d)
+
+
+def test_similarity_nd_align_and_mirror():
+    left, right, truth, q, t = similarity_case_nd(4, seed=7, scale=0.4)
+    a = aligncalc.align_points(left, right, mode="rts", epsilon=0.01,
+                               min_matched=5)
+    assert a and correct(a[0], truth) >= 29
+    assert abs(a[0].scale / 0.4 - 1) < 1e-3
+    assert np.linalg.norm(a[0].rotation - q) < 1e-3
+    assert np.linalg.norm(a[0].translation - t) < 0.05
+    # distances cannot see a reflection: the mirror image matches too
+    left, right, truth, _, _ = similarity_case_nd(3, seed=3, scale=1.7,
+                                                  mirror=True)
+    m = aligncalc.match_points(left, right, mode="rts", epsilon=0.01,
+                               min_matched=5)
+    assert m and correct(m[0], truth) >= 29
 
 
 # ---- match_points ----------------------------------------------------
@@ -239,7 +298,7 @@ def test_match_points_two_copies_and_options():
     assert aligncalc.match_points(left, right, distinct="disjoint")
     for kw in (dict(distinct="explained"),
                dict(clique={"distinct": "explained"}),
-               dict(mode="rts", left=np.zeros((5, 3)))):
+               dict(mode="rts", left=np.zeros((5, 1)))):
         lft = kw.pop("left", left)
         try:
             aligncalc.match_points(lft, right if lft is left else lft,

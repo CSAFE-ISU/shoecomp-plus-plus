@@ -253,11 +253,12 @@ def _clique_args(o, workers):
 
 def _rows(name, a, ncols):
     a = np.asarray(a, dtype=np.float64)
-    if a.ndim == 1 and ncols == (1, 3):
+    if a.ndim == 1 and ncols == (1, None):
         a = a.reshape(-1, 1)
     lo, hi = ncols
-    if a.ndim != 2 or not lo <= a.shape[1] <= hi:
-        want = f"{lo}" if lo == hi else f"{lo}-{hi}"
+    if a.ndim != 2 or not lo <= a.shape[1] <= (hi or a.shape[1]):
+        want = (f"{lo}" if lo == hi else
+                f"{lo}-{hi}" if hi else "d >= 1")
         raise ValueError(f"{name} must be an (n, {want}) array")
     if not np.all(np.isfinite(a)):
         raise ValueError(f"{name} has non-finite values")
@@ -331,15 +332,18 @@ def _point_args(left, right, labels, orientations, workers, align2d,
         raise ValueError("orientation_tol_deg must be in [0, 180]")
     c = _clique_args(o, workers)
 
-    L = _rows("left", left, (1, 3))
-    R = _rows("right", right, (1, 3))
+    L = _rows("left", left, (1, None))
+    R = _rows("right", right, (1, None))
     dim = L.shape[1]
     if R.shape[1] != dim:
         raise ValueError("left and right must have the same dimension")
-    if similarity and dim != 2:
-        raise ValueError("similarity ('rts') matching needs 2-D points")
+    if similarity and dim < 2:
+        raise ValueError(
+            "similarity ('rts') matching needs 2 or more dimensions")
     lab = _pair("labels", labels, len(L), len(R))
     ori = _pair("orientations", orientations, len(L), len(R))
+    if ori is not None and dim != 2:
+        raise ValueError("orientations need 2-D points")
     cols_l, cols_r = [L], [R]
     label_col = angle_col = -1
     if lab is not None:
@@ -399,11 +403,11 @@ def align_points(
 ):
     """Match two point sets; returns [PointAlignment], best first.
 
-    left, right: (n, d) arrays, d = 1-3 ("rt") or 2 ("rts").
+    left, right: (n, d) arrays, d >= 1 ("rt") or d >= 2 ("rts").
     labels: (left, right) per-row labels (any hashable values); only
         equal labels match.
     orientations: (left, right) per-row directions in degrees, for
-        "rts" with orientation_tol_deg > 0: a triangle pair is skipped
+        2-D "rts" with orientation_tol_deg > 0: a triangle pair is skipped
         unless the circular gaps between its three directions agree
         within the tolerance (rotation-invariant; NaN = no check).
     workers: threads, 0 = all cores.
@@ -417,7 +421,9 @@ def align_points(
             same_scale is the same choice (True = "rt").
         epsilon: allowed relative distance error (0.005).
         scale_range: "rts" scales within [1/s, s] (5).
-        anchor_tol: 2-D anchored search, rejects mirror images; 0 = off
+        anchor_tol: anchored search; 0 = off. 2-D: rejects mirror
+            images; "rts" in d > 2: every match shares one scale
+            (mirror images kept), and needed for speed as d grows
             (0.05).
         min_support: "rts" edges need this many matched triangles (1).
         orientation_tol_deg: see orientations; [align2d] alias

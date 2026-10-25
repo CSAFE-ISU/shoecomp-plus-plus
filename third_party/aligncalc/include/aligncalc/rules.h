@@ -3,25 +3,31 @@
 #include "alignTypes.h"
 #include <array>
 #include <cstdint>
+#include <vector>
 
 namespace AlignCalc
 {
     // Which columns of a caller's row hold a point's position, and
     // optionally a label (alignPoints: only equal labels match) and an
     // orientation in degrees (the similarity model's oriented-point
-    // prefilter); -1 = none.
+    // prefilter, 2-D only); -1 = none. Coordinate d is in column
+    // pos[d], or column d past the end of pos.
     struct PointCols
     {
         int dim = 2;
-        std::array<int, 3> pos = {0, 1, 2};
+        std::vector<int> pos = {0, 1, 2};
         int label = -1;
         int angle = -1;
 
+        int col(int d) const
+        {
+            return d < int(pos.size()) ? pos[d] : d;
+        }
         bool valid(const DoubleMatrixR& m) const
         {
-            if (dim < 1 || dim > 3) return false;
+            if (dim < 1) return false;
             for (int d = 0; d < dim; ++d)
-                if (pos[d] < 0 || pos[d] >= m.cols()) return false;
+                if (col(d) < 0 || col(d) >= m.cols()) return false;
             return label < m.cols() && angle < m.cols();
         }
     };

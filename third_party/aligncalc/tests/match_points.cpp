@@ -142,7 +142,9 @@ int main()
         c3.dim = 3;
         PointOptions sim;
         sim.mode = PointMode::Similarity;
-        const MatchResult e = matchPoints(L3, R3, c3, sim, {});
+        PointCols c1;  // similarity needs 2 or more dimensions
+        c1.dim = 1;
+        const MatchResult e = matchPoints(L3, R3, c1, sim, {});
         CHECK(e.status == Status::Error && !e.message.empty() &&
               e.matches.empty());
         // rigid 3-D: R3 = L3 matches row for row

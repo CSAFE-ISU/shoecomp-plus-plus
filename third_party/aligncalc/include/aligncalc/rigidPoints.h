@@ -14,7 +14,7 @@ namespace AlignCalc
         double dRight;  // d_R(i2, j2)
     };
 
-    // Distance-preserving (rigid) point matching in 1-3 dimensions:
+    // Distance-preserving (rigid) point matching in any dimension:
     // a = (i1 <-> i2) and b = (j1 <-> j2) are consistent when
     // |d_L(i1, j1) - d_R(i2, j2)| <= epsilon * d_R(i2, j2), with
     // epsilon scaled down by Rules::tolScale. Nodes-first.
@@ -60,7 +60,7 @@ namespace AlignCalc
             double s = 0.0;
             for (int d = 0; d < c.dim; ++d)
             {
-                double t = m(i, c.pos[d]) - m(j, c.pos[d]);
+                double t = m(i, c.col(d)) - m(j, c.col(d));
                 s += t * t;
             }
             return std::sqrt(s);

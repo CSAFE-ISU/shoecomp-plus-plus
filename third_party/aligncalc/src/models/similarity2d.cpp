@@ -17,13 +17,34 @@ namespace AlignCalc
                                          {2, 1, 0}, {2, 0, 1}};
             constexpr double kSlack = 1e-9;
 
-            // same side formulas as Triangle2D::construct
+            double dist(const DoubleMatrixR& m, const PointCols& c,
+                        int32_t i, int32_t j)
+            {
+                double s = 0.0;
+                for (int d = 0; d < c.dim; ++d)
+                {
+                    const double t = m(i, c.col(d)) - m(j, c.col(d));
+                    s += t * t;
+                }
+                return std::sqrt(s);
+            }
+
+            // 2-D: same side formulas as Triangle2D::construct; the
+            // side-ratio test needs only the side lengths, so it holds
+            // in any dimension
             void sides(const DoubleMatrixR& m, const PointCols& c,
                        int32_t i, int32_t j, int32_t k,
                        RTS::Triangle2D& t)
             {
-                const int x = c.pos[0];
-                const int y = c.pos[1];
+                if (c.dim != 2)
+                {
+                    t.as = dist(m, c, k, j);
+                    t.bs = dist(m, c, i, k);
+                    t.cs = dist(m, c, j, i);
+                    return;
+                }
+                const int x = c.col(0);
+                const int y = c.col(1);
                 t.as = std::hypot(m(k, x) - m(j, x), m(k, y) - m(j, y));
                 t.bs = std::hypot(m(i, x) - m(k, x), m(i, y) - m(k, y));
                 t.cs = std::hypot(m(j, x) - m(i, x), m(j, y) - m(i, y));
@@ -99,12 +120,12 @@ namespace AlignCalc
                  const PointCols& c, const SimilarityParams& p)
                 : L(left), R(right), cols(c), params(p)
             {
-                if (cols.dim != 2 || !cols.valid(L) || !cols.valid(R) ||
+                if (cols.dim < 2 || !cols.valid(L) || !cols.valid(R) ||
                     !(params.epsilon >= 0.0) ||
                     !(params.scaleRange > 0.0))
                     return;
                 valid = true;
-                oriented = params.angleCol >= 0 &&
+                oriented = cols.dim == 2 && params.angleCol >= 0 &&
                            params.angleCol < L.cols() &&
                            params.angleCol < R.cols() &&
                            params.angleTolDeg > 0.0;

@@ -7,7 +7,7 @@
 
 namespace AlignCalc
 {
-    // x -> scale * rotation * x + translation, in 1-3 dimensions
+    // x -> scale * rotation * x + translation, in any dimension
     // (rotation dim x dim, no reflection).
     struct PointTransform
     {
