@@ -1,4 +1,4 @@
-#include "aligncalc/similarity2d.h"
+#include "aligncalc/similarityPoints.h"
 #include "rts/triangle2d.internal.h"
 #include <algorithm>
 #include <cmath>
@@ -260,11 +260,11 @@ namespace AlignCalc
     }  // namespace detail
 
     template class ALIGNCALC_INSTANTIATION_API
-        SimilarityPoints2D<LabelRules>;
+        SimilarityPoints<LabelRules>;
     template ALIGNCALC_INSTANTIATION_API bool buildEdgesFirst(
-        const SimilarityPoints2D<LabelRules>&, const BuildParams&,
+        const SimilarityPoints<LabelRules>&, const BuildParams&,
         Progress&, GraphRows&);
     template ALIGNCALC_INSTANTIATION_API bool buildGraph(
-        const SimilarityPoints2D<LabelRules>&, const BuildParams&,
+        const SimilarityPoints<LabelRules>&, const BuildParams&,
         Progress&, GraphRows&);
 }  // namespace AlignCalc

@@ -1,5 +1,5 @@
-#ifndef ALIGNCALC_SIMILARITY2D_H
-#define ALIGNCALC_SIMILARITY2D_H
+#ifndef ALIGNCALC_SIMILARITYPOINTS_H
+#define ALIGNCALC_SIMILARITYPOINTS_H
 #include "graphBuild.h"
 #include "rules.h"
 #include <memory>
@@ -24,7 +24,7 @@ namespace AlignCalc
 
     namespace detail
     {
-        // Triangle geometry for SimilarityPoints2D (independent of the
+        // Triangle geometry for SimilarityPoints (independent of the
         // Rules, so it is compiled once in the library).
         class SimilarityIndex2D
         {
@@ -51,41 +51,40 @@ namespace AlignCalc
     }  // namespace detail
 
     // Similarity (rotation, translation, scale) matching of points in
-    // 2 or more dimensions (the name predates N-D), edges-first over
-    // triangles: a left and a right triangle match when their side
-    // ratios agree within epsilon and the mean ratio lies in
-    // [1/scaleRange, scaleRange]; every match joins its three
-    // correspondences. Side ratios cannot tell a triangle from its
-    // mirror image. Rules::tripleOk can veto a match.
+    // 2 or more dimensions, edges-first over triangles: a left and a
+    // right triangle match when their side ratios agree within epsilon
+    // and the mean ratio lies in [1/scaleRange, scaleRange]; every
+    // match joins its three correspondences. Side ratios cannot tell a
+    // triangle from its mirror image. Rules::tripleOk can veto a match.
     //
     // The model keeps references to |left| and |right|; they must
     // outlive it.
     template <class Rules = LabelRules>
-    class SimilarityPoints2D
+    class SimilarityPoints
     {
        public:
         static constexpr int arity = 3;
 
-        SimilarityPoints2D(const DoubleMatrixR& left,
-                           const DoubleMatrixR& right,
-                           const PointCols& cols,
-                           const SimilarityParams& params,
-                           Rules rules = Rules{})
+        SimilarityPoints(const DoubleMatrixR& left,
+                         const DoubleMatrixR& right,
+                         const PointCols& cols,
+                         const SimilarityParams& params,
+                         Rules rules = Rules{})
             : L_(left), R_(right), index_(left, right, cols, params),
               rules_(std::move(rules)),
               nL_(index_.valid() ? int32_t(left.rows()) : 0),
               nR_(index_.valid() ? int32_t(right.rows()) : 0)
         {
         }
-        SimilarityPoints2D(DoubleMatrixR&&, const DoubleMatrixR&,
-                           const PointCols&, const SimilarityParams&,
-                           Rules = Rules{}) = delete;
-        SimilarityPoints2D(const DoubleMatrixR&, DoubleMatrixR&&,
-                           const PointCols&, const SimilarityParams&,
-                           Rules = Rules{}) = delete;
-        SimilarityPoints2D(DoubleMatrixR&&, DoubleMatrixR&&,
-                           const PointCols&, const SimilarityParams&,
-                           Rules = Rules{}) = delete;
+        SimilarityPoints(DoubleMatrixR&&, const DoubleMatrixR&,
+                         const PointCols&, const SimilarityParams&,
+                         Rules = Rules{}) = delete;
+        SimilarityPoints(const DoubleMatrixR&, DoubleMatrixR&&,
+                         const PointCols&, const SimilarityParams&,
+                         Rules = Rules{}) = delete;
+        SimilarityPoints(DoubleMatrixR&&, DoubleMatrixR&&,
+                         const PointCols&, const SimilarityParams&,
+                         Rules = Rules{}) = delete;
 
         bool valid() const { return index_.valid(); }
         int32_t leftCount() const { return nL_; }
@@ -117,12 +116,12 @@ namespace AlignCalc
     };
 
     ALIGNCALC_EXTERN_TEMPLATE(
-        class ALIGNCALC_API SimilarityPoints2D<LabelRules>)
+        class ALIGNCALC_API SimilarityPoints<LabelRules>)
     ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildEdgesFirst(
-        const SimilarityPoints2D<LabelRules>&, const BuildParams&,
+        const SimilarityPoints<LabelRules>&, const BuildParams&,
         Progress&, GraphRows&))
     ALIGNCALC_EXTERN_TEMPLATE(ALIGNCALC_API bool buildGraph(
-        const SimilarityPoints2D<LabelRules>&, const BuildParams&,
+        const SimilarityPoints<LabelRules>&, const BuildParams&,
         Progress&, GraphRows&))
 
 }  // namespace AlignCalc

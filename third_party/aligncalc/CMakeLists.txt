@@ -69,7 +69,7 @@ target_sources(aligncalc PUBLIC
         include/aligncalc/rigidLines3d.h
         include/aligncalc/rigidPoints.h
         include/aligncalc/rules.h
-        include/aligncalc/similarity2d.h
+        include/aligncalc/similarityPoints.h
 )
 target_include_directories(aligncalc PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}/src")

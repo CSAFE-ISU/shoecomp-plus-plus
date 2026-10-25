@@ -6,7 +6,7 @@
 namespace AlignCalc
 {
     // Clique constraint for 2-D point matching (see CliqueConstraint),
-    // for SimilarityPoints2D and, with scaleRange 1, RigidPoints. The
+    // for SimilarityPoints and, with scaleRange 1, RigidPoints. The
     // anchor pair (a, b) fixes a similarity T without reflection,
     // T(L[a]) = R[a] and T(L[b]) = R[b]; a candidate c is kept when
     // |T(L[c]) - R[c]| <= tol * (longest side of the right triangle

@@ -8,7 +8,7 @@
 #include "pointScaleAnchor.h"
 #include "rigidLines3d.h"
 #include "rigidPoints.h"
-#include "similarity2d.h"
+#include "similarityPoints.h"
 #include <algorithm>
 #include <cmath>
 #include <memory>
@@ -318,7 +318,7 @@ namespace AlignCalc
         }
 
         // runPointModel with the model options.mode asks for:
-        // RigidPoints or SimilarityPoints2D.
+        // RigidPoints or SimilarityPoints.
         template <class Rules, class Fitter, class Result>
         void runPoints(const DoubleMatrixR& left,
                        const DoubleMatrixR& right,
@@ -347,8 +347,7 @@ namespace AlignCalc
             sp.epsilon = options.epsilon;
             sp.angleCol = cols.angle;
             sp.angleTolDeg = options.orientationTolDeg;
-            SimilarityPoints2D<Rules> model(left, right, cols, sp,
-                                            rules);
+            SimilarityPoints<Rules> model(left, right, cols, sp, rules);
             runPointModel(model, left, right, cols, options, clique,
                           fitter, progress, result);
         }
@@ -372,7 +371,7 @@ namespace AlignCalc
     }  // namespace detail
 
     // alignPoints with caller-defined Rules: rigid (RigidPoints:
-    // edgeOk) or similarity (SimilarityPoints2D: tripleOk) matching.
+    // edgeOk) or similarity (SimilarityPoints: tripleOk) matching.
     // cols.label is left to the Rules.
     template <class Rules>
     PointResult alignPointsWithRules(const DoubleMatrixR& left,
