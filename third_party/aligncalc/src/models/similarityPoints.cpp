@@ -1,5 +1,5 @@
 #include "aligncalc/similarityPoints.h"
-#include "rts/triangle2d.internal.h"
+#include "rts/triangle.internal.h"
 #include <algorithm>
 #include <cmath>
 #include <limits>
@@ -11,7 +11,7 @@ namespace AlignCalc
         namespace
         {
             // right vertex matched to left vertex v, for each
-            // Triangle2D::compare check bit
+            // Triangle::compare check bit
             constexpr int kPerm[6][3] = {{0, 1, 2}, {0, 2, 1},
                                          {1, 0, 2}, {1, 2, 0},
                                          {2, 1, 0}, {2, 0, 1}};
@@ -29,12 +29,12 @@ namespace AlignCalc
                 return std::sqrt(s);
             }
 
-            // 2-D: same side formulas as Triangle2D::construct; the
+            // 2-D: same side formulas as Triangle::construct; the
             // side-ratio test needs only the side lengths, so it holds
             // in any dimension
             void sides(const DoubleMatrixR& m, const PointCols& c,
                        int32_t i, int32_t j, int32_t k,
-                       RTS::Triangle2D& t)
+                       RTS::Triangle& t)
             {
                 if (c.dim != 2)
                 {
@@ -51,8 +51,7 @@ namespace AlignCalc
             }
 
             // logs of the smallest and middle perimeter-normalized side
-            void shape(const RTS::Triangle2D& t, double& lu1,
-                       double& lu2)
+            void shape(const RTS::Triangle& t, double& lu1, double& lu2)
             {
                 double a = t.as, b = t.bs, c = t.cs;
                 if (a > b) std::swap(a, b);
@@ -99,9 +98,9 @@ namespace AlignCalc
         // f = 1 + eps / t of its partner, and so are the sorted sides.
         // Right triangles are binned by (log u1, log u2) with bin width
         // log f; a query visits the bins within log f of the left
-        // triangle and Triangle2D::compare decides. Without a positive
+        // triangle and Triangle::compare decides. Without a positive
         // t the index cannot prune and every triangle is a candidate.
-        struct SimilarityIndex2D::Impl
+        struct SimilarityIndex::Impl
         {
             const DoubleMatrixR& L;
             const DoubleMatrixR& R;
@@ -142,7 +141,7 @@ namespace AlignCalc
                 const int32_t n = int32_t(R.rows());
                 std::vector<std::pair<int64_t, std::array<int32_t, 3>>>
                     entries;
-                RTS::Triangle2D t;
+                RTS::Triangle t;
                 for (int32_t p0 = 0; p0 < n; ++p0)
                     for (int32_t p1 = p0 + 1; p1 < n; ++p1)
                         for (int32_t p2 = p1 + 1; p2 < n; ++p2)
@@ -180,7 +179,7 @@ namespace AlignCalc
                 return int64_t(std::floor(lu / width));
             }
 
-            void test(const RTS::Triangle2D& tl,
+            void test(const RTS::Triangle& tl,
                       const std::array<float, 2>& gl,
                       const std::array<int32_t, 3>& l, size_t idx,
                       std::vector<TupleMatch<3>>& out) const
@@ -195,7 +194,7 @@ namespace AlignCalc
                         return;
                 }
                 const auto& tri = tris[idx];
-                RTS::Triangle2D tr;
+                RTS::Triangle tr;
                 sides(R, cols, tri[0], tri[1], tri[2], tr);
                 uint8_t check[6];
                 if (!tl.compare(tr, check, params.scaleRange,
@@ -210,24 +209,25 @@ namespace AlignCalc
             }
         };
 
-        SimilarityIndex2D::SimilarityIndex2D(
-            const DoubleMatrixR& left, const DoubleMatrixR& right,
-            const PointCols& cols, const SimilarityParams& params)
+        SimilarityIndex::SimilarityIndex(const DoubleMatrixR& left,
+                                         const DoubleMatrixR& right,
+                                         const PointCols& cols,
+                                         const SimilarityParams& params)
             : impl_(std::make_unique<Impl>(left, right, cols, params))
         {
         }
 
-        SimilarityIndex2D::~SimilarityIndex2D() = default;
+        SimilarityIndex::~SimilarityIndex() = default;
 
-        bool SimilarityIndex2D::valid() const { return impl_->valid; }
+        bool SimilarityIndex::valid() const { return impl_->valid; }
 
-        void SimilarityIndex2D::match(
+        void SimilarityIndex::match(
             const std::array<int32_t, 3>& l,
             std::vector<TupleMatch<3>>& out) const
         {
             const Impl& m = *impl_;
             if (!m.valid) return;
-            RTS::Triangle2D tl;
+            RTS::Triangle tl;
             sides(m.L, m.cols, l[0], l[1], l[2], tl);
             if (!tl.valid()) return;
             const std::array<float, 2> gl =

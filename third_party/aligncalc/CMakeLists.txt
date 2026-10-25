@@ -46,7 +46,7 @@ add_library(aligncalc ${ALIGNCALC_LIBRARY_TYPE}
     src/models/pointAnchor2d.cpp
     src/models/pointScaleAnchor.cpp
     src/estimate.cpp
-    src/rts/triangle2d.cpp
+    src/rts/triangle.cpp
 )
 add_library(aligncalc::aligncalc ALIAS aligncalc)
 

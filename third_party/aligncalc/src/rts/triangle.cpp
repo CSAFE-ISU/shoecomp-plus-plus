@@ -1,4 +1,4 @@
-#include "rts/triangle2d.internal.h"
+#include "rts/triangle.internal.h"
 #include <cmath>
 
 namespace AlignCalc
@@ -47,43 +47,43 @@ namespace AlignCalc
 
     namespace RTS
     {
-        static double angle_compare0(const Triangle2D &self,
-                                     const Triangle2D &other)
+        static double angle_compare0(const Triangle &self,
+                                     const Triangle &other)
         {
             double x = ANGLE_COMPARE(self.at, other.at, self.bt,
                                      other.bt, self.ct, other.ct);
             return x;
         }
-        static double angle_compare1(const Triangle2D &self,
-                                     const Triangle2D &other)
+        static double angle_compare1(const Triangle &self,
+                                     const Triangle &other)
         {
             double x = ANGLE_COMPARE(self.at, other.at, self.bt,
                                      other.ct, self.ct, other.bt);
             return x;
         }
-        static double angle_compare2(const Triangle2D &self,
-                                     const Triangle2D &other)
+        static double angle_compare2(const Triangle &self,
+                                     const Triangle &other)
         {
             double x = ANGLE_COMPARE(self.at, other.bt, self.bt,
                                      other.at, self.ct, other.ct);
             return x;
         }
-        static double angle_compare3(const Triangle2D &self,
-                                     const Triangle2D &other)
+        static double angle_compare3(const Triangle &self,
+                                     const Triangle &other)
         {
             double x = ANGLE_COMPARE(self.at, other.bt, self.bt,
                                      other.ct, self.ct, other.at);
             return x;
         }
-        static double angle_compare4(const Triangle2D &self,
-                                     const Triangle2D &other)
+        static double angle_compare4(const Triangle &self,
+                                     const Triangle &other)
         {
             double x = ANGLE_COMPARE(self.at, other.ct, self.bt,
                                      other.bt, self.ct, other.at);
             return x;
         }
-        static double angle_compare5(const Triangle2D &self,
-                                     const Triangle2D &other)
+        static double angle_compare5(const Triangle &self,
+                                     const Triangle &other)
         {
             double x = ANGLE_COMPARE(self.at, other.ct, self.bt,
                                      other.at, self.ct, other.bt);
@@ -91,8 +91,8 @@ namespace AlignCalc
         }
         //
         //
-        static double sr_compare0(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double sr_compare0(const Triangle &self,
+                                  const Triangle &other)
         {
             double r1 = self.as / other.as;
             double r2 = self.bs / other.bs;
@@ -100,8 +100,8 @@ namespace AlignCalc
             double x = SRAT_COMPARE(r1, r2, r2, r3, r3, r1);
             return x;
         }
-        static double sr_compare1(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double sr_compare1(const Triangle &self,
+                                  const Triangle &other)
         {
             double r1 = self.as / other.as;
             double r2 = self.bs / other.cs;
@@ -109,8 +109,8 @@ namespace AlignCalc
             double x = SRAT_COMPARE(r1, r2, r2, r3, r3, r1);
             return x;
         }
-        static double sr_compare2(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double sr_compare2(const Triangle &self,
+                                  const Triangle &other)
         {
             double r1 = self.as / other.bs;
             double r2 = self.bs / other.as;
@@ -118,8 +118,8 @@ namespace AlignCalc
             double x = SRAT_COMPARE(r1, r2, r2, r3, r3, r1);
             return x;
         }
-        static double sr_compare3(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double sr_compare3(const Triangle &self,
+                                  const Triangle &other)
         {
             double r1 = self.as / other.bs;
             double r2 = self.bs / other.cs;
@@ -127,8 +127,8 @@ namespace AlignCalc
             double x = SRAT_COMPARE(r1, r2, r2, r3, r3, r1);
             return x;
         }
-        static double sr_compare4(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double sr_compare4(const Triangle &self,
+                                  const Triangle &other)
         {
             double r1 = self.as / other.cs;
             double r2 = self.bs / other.bs;
@@ -136,8 +136,8 @@ namespace AlignCalc
             double x = SRAT_COMPARE(r1, r2, r2, r3, r3, r1);
             return x;
         }
-        static double sr_compare5(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double sr_compare5(const Triangle &self,
+                                  const Triangle &other)
         {
             double r1 = self.as / other.cs;
             double r2 = self.bs / other.as;
@@ -147,47 +147,47 @@ namespace AlignCalc
         }
         //
         //
-        static double side_ratio0(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double side_ratio0(const Triangle &self,
+                                  const Triangle &other)
         {
             return SIDE_RATIO(self.as, other.as, self.bs, other.bs,
                               self.cs, other.cs);
         }
-        static double side_ratio1(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double side_ratio1(const Triangle &self,
+                                  const Triangle &other)
         {
             return SIDE_RATIO(self.as, other.as, self.bs, other.cs,
                               self.cs, other.bs);
         }
-        static double side_ratio2(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double side_ratio2(const Triangle &self,
+                                  const Triangle &other)
         {
             return SIDE_RATIO(self.as, other.bs, self.bs, other.as,
                               self.cs, other.cs);
         }
-        static double side_ratio3(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double side_ratio3(const Triangle &self,
+                                  const Triangle &other)
         {
             return SIDE_RATIO(self.as, other.bs, self.bs, other.cs,
                               self.cs, other.as);
         }
-        static double side_ratio4(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double side_ratio4(const Triangle &self,
+                                  const Triangle &other)
         {
             return SIDE_RATIO(self.as, other.cs, self.bs, other.bs,
                               self.cs, other.as);
         }
-        static double side_ratio5(const Triangle2D &self,
-                                  const Triangle2D &other)
+        static double side_ratio5(const Triangle &self,
+                                  const Triangle &other)
         {
             return SIDE_RATIO(self.as, other.cs, self.bs, other.as,
                               self.cs, other.bs);
         }
 
         //
-        void Triangle2D::construct(const DoubleMatrixR &pts,
-                                   const int32_t ii, const int32_t jj,
-                                   const int32_t kk)
+        void Triangle::construct(const DoubleMatrixR &pts,
+                                 const int32_t ii, const int32_t jj,
+                                 const int32_t kk)
         {
             this->as = std::hypot(pts(kk, 0) - pts(jj, 0),
                                   pts(kk, 1) - pts(jj, 1));
@@ -197,14 +197,13 @@ namespace AlignCalc
                                   pts(jj, 1) - pts(ii, 1));
         }
 
-        bool Triangle2D::valid() const
+        bool Triangle::valid() const
         {
             return (as > MIN_DIST && bs > MIN_DIST && cs > MIN_DIST);
         };
 
-        bool Triangle2D::compare(const Triangle2D &other,
-                                 uint8_t check[6], double scaleRange,
-                                 double epsilon) const
+        bool Triangle::compare(const Triangle &other, uint8_t check[6],
+                               double scaleRange, double epsilon) const
         {
             check[0] = BINARY_CMP(0, other, scaleRange, epsilon);
             check[1] = BINARY_CMP(1, other, scaleRange, epsilon);

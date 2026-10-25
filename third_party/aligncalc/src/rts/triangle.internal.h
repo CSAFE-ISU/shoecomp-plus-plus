@@ -1,5 +1,5 @@
-#ifndef ALIGNCALC_TRIANGLE2D_INTERNAL_H
-#define ALIGNCALC_TRIANGLE2D_INTERNAL_H
+#ifndef ALIGNCALC_TRIANGLE_INTERNAL_H
+#define ALIGNCALC_TRIANGLE_INTERNAL_H
 #include "aligncalc/alignTypes.h"
 #include <cstdint>
 
@@ -7,7 +7,7 @@ namespace AlignCalc
 {
     namespace RTS
     {
-        struct Triangle2D
+        struct Triangle
         {
             double as, bs, cs; /* sides */
             double at, bt, ct; /* angles */
@@ -17,7 +17,7 @@ namespace AlignCalc
             bool valid() const;
             /* check[n] is set for each of the six vertex orderings
              * n under which |other| matches this triangle */
-            bool compare(const Triangle2D &, uint8_t check[6], double,
+            bool compare(const Triangle &, uint8_t check[6], double,
                          double) const;
         };
     } /* namespace RTS */

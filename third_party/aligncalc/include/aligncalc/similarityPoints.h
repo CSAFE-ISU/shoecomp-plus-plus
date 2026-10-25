@@ -26,16 +26,15 @@ namespace AlignCalc
     {
         // Triangle geometry for SimilarityPoints (independent of the
         // Rules, so it is compiled once in the library).
-        class SimilarityIndex2D
+        class SimilarityIndex
         {
            public:
-            ALIGNCALC_API SimilarityIndex2D(
+            ALIGNCALC_API SimilarityIndex(
                 const DoubleMatrixR& left, const DoubleMatrixR& right,
                 const PointCols& cols, const SimilarityParams& params);
-            ALIGNCALC_API ~SimilarityIndex2D();
-            SimilarityIndex2D(const SimilarityIndex2D&) = delete;
-            SimilarityIndex2D& operator=(const SimilarityIndex2D&) =
-                delete;
+            ALIGNCALC_API ~SimilarityIndex();
+            SimilarityIndex(const SimilarityIndex&) = delete;
+            SimilarityIndex& operator=(const SimilarityIndex&) = delete;
 
             ALIGNCALC_API bool valid() const;
             // appends every right triangle (and vertex ordering)
@@ -109,7 +108,7 @@ namespace AlignCalc
        private:
         const DoubleMatrixR& L_;
         const DoubleMatrixR& R_;
-        detail::SimilarityIndex2D index_;
+        detail::SimilarityIndex index_;
         Rules rules_;
         int32_t nL_;
         int32_t nR_;
