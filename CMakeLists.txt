@@ -352,6 +352,19 @@ if(SHOECOMP_BUILD_GUI)
     hello_imgui_add_app(shoecomp ${SC_SRCS})
     target_link_libraries(shoecomp PRIVATE shoecomp_core shoecomp_licenses)
 
+    # Web build: Emscripten's default stacks are 64 KB (main thread and
+    # pthreads). submain()'s frame never unwinds on the web (the main
+    # loop is entered by throwing out of main), so AppState (~35 KB)
+    # stays on the main stack, and a PNG decode needs ~45 KB more: the
+    # overflow silently overwrote SDL's statics below the stack and
+    # crashed on the next canvas mouseenter/leave. Use 1 MB, the
+    # Windows desktop default, for the main thread and for workers.
+    if(EMSCRIPTEN)
+        target_link_options(shoecomp PRIVATE
+            "-sSTACK_SIZE=1048576"
+            "-sDEFAULT_PTHREAD_STACK_SIZE=1048576")
+    endif()
+
     # Web build with -pthread (release workflows): preload one Web
     # Worker per thread the app can have alive at once -- SDL's timer
     # thread (started in SDL_Init), the GUI worker, the PNG save thread
