@@ -6,8 +6,6 @@
 #include <filesystem>
 #else
 #include <emscripten.h>
-#include <cstdio>
-#include <cstring>
 #endif
 
 namespace shoecomp
@@ -103,10 +101,7 @@ namespace shoecomp
                         }
                     }
                 }
-                else
-                {
-                    fileName = entry;
-                }
+                else { fileName = entry; }
             }
         }
         ImGui::EndChild();
@@ -169,21 +164,17 @@ namespace shoecomp
 
 #ifdef __EMSCRIPTEN__
 
+    // Same scheme as the image picker (loadBrowser.cpp): the file goes
+    // into MEMFS via FS.writeFile and reaches onOk by path.
+    EM_JS_DEPS(scpp_save_browser, "$FS,$ccall,$UTF8ToString");
+
     static SaveBrowser* s_activeSaveBrowser = nullptr;
 
-    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_onJsonFileUploaded(
-        const char* name, const uint8_t* data, int size)
+    extern "C" void EMSCRIPTEN_KEEPALIVE
+    scpp_onJsonFileUploaded(const char* path)
     {
-        if (!s_activeSaveBrowser) return;
-        std::string filename(name);
-        std::string path = "/tmp/" + filename;
-        FILE* f = fopen(path.c_str(), "wb");
-        if (f)
-        {
-            fwrite(data, 1, (size_t)size, f);
-            fclose(f);
-        }
-        if (s_activeSaveBrowser->onOk) s_activeSaveBrowser->onOk(path);
+        if (s_activeSaveBrowser && s_activeSaveBrowser->onOk)
+            s_activeSaveBrowser->onOk(path);
     }
 
     EM_JS(void, scpp_emOpenJsonPicker, (), {
@@ -194,20 +185,12 @@ namespace shoecomp
         {
             var file = e.target.files[0];
             if (!file) return;
-            var reader = new FileReader();
-            reader.onload = function()
-            {
-                var data = new Uint8Array(reader.result);
-                var nameLen = lengthBytesUTF8(file.name) + 1;
-                var namePtr = _malloc(nameLen);
-                stringToUTF8(file.name, namePtr, nameLen);
-                var dataPtr = _malloc(data.length);
-                HEAPU8.set(data, dataPtr);
-                _scpp_onJsonFileUploaded(namePtr, dataPtr, data.length);
-                _free(namePtr);
-                _free(dataPtr);
-            };
-            reader.readAsArrayBuffer(file);
+            file.arrayBuffer().then(function(buf) {
+                var path = "/tmp/" + file.name;
+                FS.writeFile(path, new Uint8Array(buf));
+                ccall("scpp_onJsonFileUploaded",
+                      null, ["string"], [path]);
+            });
         };
         input.click();
     });

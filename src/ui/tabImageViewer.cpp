@@ -193,6 +193,10 @@ namespace shoecomp
                                        posY + textSize.y + gap));
             if (ImGui::Button(btnLabel, ImVec2(btnW, btnH)))
                 openImagePicker(state.imageLoadBrowser);
+#ifdef __EMSCRIPTEN__
+            if (ImGui::IsItemHovered())
+                setLoadBrowserHovered(&state.imageLoadBrowser);
+#endif
         }
 
         ImGui::EndChild();

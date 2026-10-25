@@ -6,8 +6,6 @@
 #include <filesystem>
 #else
 #include <emscripten.h>
-#include <cstdio>
-#include <cstring>
 #endif
 
 namespace shoecomp
@@ -142,34 +140,85 @@ namespace shoecomp
 
 #ifdef __EMSCRIPTEN__
 
+    // Web image picker. Browsers open a file dialog only from a user
+    // gesture, so a canvas pointerdown listener clicks a hidden
+    // <input type=file> when the pointer is over a widget that called
+    // setLoadBrowserHovered() this frame. The chosen file goes into
+    // MEMFS via FS.writeFile and reaches onSelect by path: JS never
+    // touches the wasm heap (a page-script HEAPU8 view goes stale when
+    // a -pthread build grows memory) and needs no malloc/free, which
+    // current Emscripten no longer exports by default.
+    EM_JS_DEPS(scpp_load_browser, "$FS,$ccall,$UTF8ToString");
+
     static LoadBrowser* s_activeLoadBrowser = nullptr;
     static LoadBrowser* s_hoveredLoadBrowser = nullptr;
+    static int s_hoveredFrame = -1;
+    static std::string s_pickerAccept;
 
-    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_onImageFileUploaded(
-        const char* name, const uint8_t* data, int size)
+    extern "C" void EMSCRIPTEN_KEEPALIVE
+    scpp_onImageFileUploaded(const char* path, const char* name)
     {
-        if (!s_activeLoadBrowser) return;
-        std::string filename(name);
-        std::string path = "/tmp/" + filename;
-        FILE* f = fopen(path.c_str(), "wb");
-        if (f)
-        {
-            fwrite(data, 1, (size_t)size, f);
-            fclose(f);
-        }
-        if (s_activeLoadBrowser->onSelect)
-            s_activeLoadBrowser->onSelect(path, filename);
+        if (s_activeLoadBrowser && s_activeLoadBrowser->onSelect)
+            s_activeLoadBrowser->onSelect(path, name);
     }
 
-    extern "C" void EMSCRIPTEN_KEEPALIVE scpp_activateLoadBrowser()
+    // Called by the pointerdown listener (between frames, so the frame
+    // count is still the one the hover was recorded in). Returns the
+    // file input's accept list, or null when no picker is hovered.
+    extern "C" const char* EMSCRIPTEN_KEEPALIVE
+    scpp_activateLoadBrowser()
     {
+        if (!s_hoveredLoadBrowser ||
+            s_hoveredFrame != ImGui::GetFrameCount())
+            return nullptr;
         s_activeLoadBrowser = s_hoveredLoadBrowser;
+        s_hoveredLoadBrowser = nullptr;
+        s_pickerAccept.clear();
+        for (const std::string& e :
+             s_activeLoadBrowser->extensionChoices)
+        {
+            if (e.empty()) continue;
+            if (!s_pickerAccept.empty()) s_pickerAccept += ',';
+            s_pickerAccept += e;
+        }
+        if (s_pickerAccept.empty())
+            s_pickerAccept = s_activeLoadBrowser->extension;
+        return s_pickerAccept.c_str();
     }
+
+    EM_JS(void, scpp_emInstallImagePicker, (), {
+        var input = document.createElement("input");
+        input.type = "file";
+        input.style.display = "none";
+        document.body.appendChild(input);
+        input.addEventListener(
+            "change", function(e) {
+                var file = e.target.files[0];
+                if (!file) return;
+                file.arrayBuffer().then(function(buf) {
+                    var path = "/tmp/" + file.name;
+                    FS.writeFile(path, new Uint8Array(buf));
+                    ccall("scpp_onImageFileUploaded", null,
+                          [ "string", "string" ], [ path, file.name ]);
+                });
+                input.value = "";
+            });
+        Module["canvas"].addEventListener(
+            "pointerdown", function() {
+                var accept = _scpp_activateLoadBrowser();
+                if (!accept) return;
+                input.accept = UTF8ToString(accept);
+                input.click();
+            });
+    });
 
     void setLoadBrowserHovered(LoadBrowser* browser)
     {
+        static const bool installed =
+            (scpp_emInstallImagePicker(), true);
+        (void)installed;
         s_hoveredLoadBrowser = browser;
-        EM_ASM({ Module.scpp_loadButtonHovered = true; });
+        s_hoveredFrame = ImGui::GetFrameCount();
     }
 
     void openImagePicker(LoadBrowser& browser)

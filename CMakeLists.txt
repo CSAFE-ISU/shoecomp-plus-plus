@@ -351,4 +351,15 @@ if(SHOECOMP_BUILD_GUI)
 
     hello_imgui_add_app(shoecomp ${SC_SRCS})
     target_link_libraries(shoecomp PRIVATE shoecomp_core shoecomp_licenses)
+
+    # Web build with -pthread (release workflows): preload one Web
+    # Worker per thread the app can have alive at once -- SDL's timer
+    # thread (started in SDL_Init), the GUI worker, the PNG save thread
+    # and aligncalc's hardware_concurrency() - 1 graph-build threads.
+    # Without a pool each thread waits for a new Worker and Emscripten
+    # warns "the thread pool is exhausted".
+    if(EMSCRIPTEN AND CMAKE_CXX_FLAGS MATCHES "(^| )-pthread( |$)")
+        target_link_options(shoecomp PRIVATE
+            "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency+2")
+    endif()
 endif()
