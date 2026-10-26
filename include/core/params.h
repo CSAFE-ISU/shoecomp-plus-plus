@@ -23,13 +23,14 @@ namespace shoecomp
 
     struct StriationSettings
     {
-        float minLengthMm = 0.1f;
-        float minHeightUm = 0.2f;
+        // detection defaults = the HS10 sweeps' (run d4)
+        float minLengthMm = 0.2f;
+        float minHeightUm = 0.1f;
         float maxSurfDevDeg = 20.0f;
-        int maxCount = 200;
-        bool includeValleys = true;
+        int maxCount = 300;
+        bool includeValleys = false;
         bool excludeShoulders = true;
-        float shoulderMarginUm = 20.0f;
+        float shoulderMarginUm = 10.0f;
         // Hough direction search (deg): cone and step across the land
         // and in depth (StriationParams::dirCone & co); defaults
         // picked on the HS10 bullets (a 2.5 deg step quantized line

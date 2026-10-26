@@ -105,11 +105,11 @@ scpp version                             # version + licenses
   points); `disjoint` drops every pair that uses one of the
   alignment's points (left or right), so later alignments share no
   point with it. Each later alignment needs `[clique] min_matched`
-  (default 5) and at least `[clique] distinct_min_frac` (default 0.7)
-  of the best's count. x3p alignments that rotate a land by more than
-  `max_rotation_deg` (default 30; e.g. reversed end-for-end) are
-  rejected. Results are reproducible: the same inputs give the same
-  alignments for any `-j`. Every extra result costs another search,
+  (default 5; the GUI's x3p Align dialog starts at 10) and at least
+  `[clique] distinct_min_frac` (default 0.7) of the best's count. x3p
+  alignments that rotate a land by more than `max_rotation_deg`
+  (default 30; e.g. reversed end-for-end) are rejected. Results are
+  reproducible: the same inputs give the same alignments for any `-j`. Every extra result costs another search,
   so keep `results` small for big runs. Each alignment also reports
   `explained` (`summary.csv` column for the best, `info.explained` in
   the JSON): how many pairs it accounts for one-to-one, its matched

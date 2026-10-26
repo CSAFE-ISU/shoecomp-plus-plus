@@ -23,7 +23,14 @@ namespace shoecomp
         std::string leftName, rightName;
 
         Align3DSettings settings;
-        CliqueSettings clique;
+        // min 10 matched striations (HS10 run d4); 2-D keeps
+        // CliqueSettings' 5
+        CliqueSettings clique = []
+        {
+            CliqueSettings c;
+            c.minMatched = 10;
+            return c;
+        }();
         int maxLines = 0;  // fewer of the two lands' line counts
         int numWorkers = 4;
 
