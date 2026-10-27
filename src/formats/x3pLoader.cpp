@@ -1,5 +1,6 @@
 #include "formats/x3p.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdint>
 #include <cstring>
@@ -418,6 +419,14 @@ namespace shoecomp
         out.offX = toDouble(tagText(cx, "Offset"), 0.0);
         out.offY = toDouble(tagText(cy, "Offset"), 0.0);
         out.offZ = toDouble(tagText(cz, "Offset"), 0.0);
+        out.micrometres =
+            std::max(std::fabs(out.incX), std::fabs(out.incY)) >= 1e-3;
+        if (out.micrometres)
+        {
+            for (double* v : {&out.incX, &out.incY, &out.incZ,
+                              &out.offX, &out.offY, &out.offZ})
+                *v *= 1e-6;
+        }
 
         out.z.resize(sizeY, sizeX);
         size_t count = (size_t)sizeX * (size_t)sizeY;

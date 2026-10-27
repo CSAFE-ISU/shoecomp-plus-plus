@@ -43,9 +43,10 @@ namespace shoecomp
 
         // Filled by prepareItem.
         bool prepared = false;
-        std::string error;      // non-empty: preparation failed
-        bool timedOut = false;  // preparation hit the timeout
-        std::string annSource;  // where the annotations came from
+        std::string error;         // non-empty: preparation failed
+        bool timedOut = false;     // preparation hit the timeout
+        std::string annSource;     // where the annotations came from
+        bool micrometres = false;  // x3p header read as micrometres
         jt::Json annotations;
         size_t count = 0;               // 2-D points or 3-D striations
         AlignCalc::DoubleMatrixR rows;  // 3-D striation rows

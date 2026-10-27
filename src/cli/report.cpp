@@ -160,7 +160,16 @@ namespace shoecomp
                << fmt("%.6f", a.scale) << ',';
         }
         else { os << (is3DType(left.type) ? ",,,,,,,," : ",,,,"); }
-        os << fmt("%.1f", r.timeMs) << ',' << csvField(r.message);
+        std::string msg = r.message;
+        const char* um = left.micrometres && right.micrometres ? "both"
+                         : left.micrometres                    ? "left"
+                         : right.micrometres                   ? "right"
+                                             : nullptr;
+        if (um)
+            msg += (msg.empty() ? "" : "; ") +
+                   std::string("x3p units read as micrometres (") + um +
+                   ")";
+        os << fmt("%.1f", r.timeMs) << ',' << csvField(msg);
         return os.str();
     }
 

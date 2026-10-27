@@ -30,6 +30,8 @@ namespace shoecomp
         // Metres per grid step and coordinate origin, per axis.
         double incX = 1.0, incY = 1.0, incZ = 1.0;
         double offX = 0.0, offY = 0.0, offZ = 0.0;
+        // Header was in micrometres (see loadX3P); rescaled to metres.
+        bool micrometres = false;
 
         HeightMatrix z;     // (sizeY, sizeX); NaN = invalid
         float zMin = 0.0f;  // over finite values only
@@ -58,7 +60,9 @@ namespace shoecomp
     // Returns false and sets |err| on any I/O error, malformed
     // container/XML, or unsupported layout. Annotations are left empty
     // (loaded separately). Height values are converted to float; NaN
-    // marks invalid samples in float source formats.
+    // marks invalid samples in float source formats. A lateral
+    // increment of 1 mm or more means the writer used micrometres for
+    // every axis; such files are read as micrometres.
     bool loadX3P(const std::string& path, Surface3D& out,
                  std::string& err);
 }  // namespace shoecomp
