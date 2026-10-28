@@ -23,11 +23,12 @@ namespace shoecomp
 
     struct StriationSettings
     {
-        // detection defaults = the HS10 sweeps' (run d4)
+        // detection defaults = the HS10 sweeps' (run d4), max count
+        // 200 (run s4c200: HS10 land AUCs within 0.003, ~1.8x faster)
         float minLengthMm = 0.2f;
         float minHeightUm = 0.1f;
         float maxSurfDevDeg = 20.0f;
-        int maxCount = 300;
+        int maxCount = 200;
         bool includeValleys = false;
         bool excludeShoulders = true;
         float shoulderMarginUm = 10.0f;
@@ -74,7 +75,7 @@ namespace shoecomp
     struct Align3DSettings
     {
         float angleTolDeg = 5.0f;
-        float sepTolUm = 5.0f;
+        float sepTolUm = 4.0f;         // run s4c200 (HS10 run d4: 5)
         float maxLengthRatio = 0.0f;   // 0 = off
         float extentScale = 0.0f;      // 0 = off
         float maxRotationDeg = 30.0f;  // 0 = off
