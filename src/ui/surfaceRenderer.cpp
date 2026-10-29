@@ -4,6 +4,7 @@
 #include <cmath>
 #include <cstdint>
 
+#include "calc/gridFilter.h"
 #include "core/eulerAngles.h"
 
 // GL headers only on the OpenGL backend; everything else here is
@@ -15,6 +16,19 @@
 
 namespace shoecomp
 {
+    namespace
+    {
+        // Relief exaggeration: model Z is this many times the X/Y
+        // model scale of the same physical length (same for every
+        // surface, so two compared lands share it).
+        const double kReliefExaggeration = 3.0;
+
+        // Normals are taken from heights smoothed by two box passes
+        // of this half-window (physical, um) so sample noise does not
+        // speckle the shading; vertex positions stay raw.
+        const double kNormalSmoothUm = 2.0;
+    }  // namespace
+
     // =================================================================
     // GL-free math: camera, mesh build, grid inversion
     // =================================================================
@@ -92,9 +106,9 @@ namespace shoecomp
         if (!(zRange > 0.0f)) zRange = 1.0f;
         P.zRange = zRange;
         P.zc = 0.5f * (surf.zMin + surf.zMax);
-        // Exaggerate relief so shallow surfaces read as 3D: map the
-        // full Z range to ~0.35 model units.
-        P.zScale = 0.35f / zRange;
+        // Exaggerate relief by a fixed physical factor so shallow
+        // surfaces read as 3D.
+        P.zScale = (float)(kReliefExaggeration * s * surf.incZ);
         return P;
     }
 
@@ -166,10 +180,25 @@ namespace shoecomp
             }
         }
 
+        // Smoothed heights for the normals (NaN-aware; valid cells
+        // stay finite).
+        const double incXY = std::min(surf.incX, surf.incY);
+        const int hw =
+            incXY > 0.0
+                ? (int)std::lround(kNormalSmoothUm * 1e-6 / incXY)
+                : 0;
+        std::vector<float> zs(surf.z.data(), surf.z.data() + nv);
+        if (hw > 0)
+        {
+            std::vector<float> tmp;
+            boxMeanSeparable(zs, X, Y, hw, tmp);
+            boxMeanSeparable(tmp, X, Y, hw, zs);
+        }
         auto pos = [&](int r, int c)
         {
             const float* V = &out.vertices[((size_t)r * X + c) * 7];
-            return Eigen::Vector3f(V[0], V[1], V[2]);
+            float z = (zs[(size_t)r * X + c] - P.zc) * P.zScale;
+            return Eigen::Vector3f(V[0], V[1], z);
         };
         for (int r = 0; r < Y; ++r)
         {

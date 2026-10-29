@@ -9,6 +9,8 @@
 
 #include <Eigen/Eigenvalues>
 
+#include "calc/gridFilter.h"
+
 // See .claude/striation-hough-plan.md for the design. The pipeline is:
 // (1) local high-pass of the height grid -> ridge/groove crest points
 // (fit-independent prominence), (2) estimate the axial direction from
@@ -65,67 +67,6 @@ namespace shoecomp
             Eigen::Vector3d e1;  // projection-plane basis
             Eigen::Vector3d e2;
         };
-
-        // Separable NaN-aware box mean of a (H x W) float grid
-        // (row-major index r*W+c), half-window |hw| cells, into |dst|.
-        // Cells with no finite neighbour stay NaN.
-        void boxMeanSeparable(const std::vector<float>& src, int W,
-                              int H, int hw, std::vector<float>& dst)
-        {
-            const float NaN = (float)kNaN;
-            std::vector<float> tmp((size_t)W * H, NaN);
-            std::vector<double> ps;
-            std::vector<int> pc;
-
-            ps.resize(W + 1);
-            pc.resize(W + 1);
-            for (int r = 0; r < H; ++r)
-            {
-                ps[0] = 0.0;
-                pc[0] = 0;
-                for (int c = 0; c < W; ++c)
-                {
-                    double v = src[(size_t)r * W + c];
-                    bool fin = std::isfinite(v);
-                    ps[c + 1] = ps[c] + (fin ? v : 0.0);
-                    pc[c + 1] = pc[c] + (fin ? 1 : 0);
-                }
-                for (int c = 0; c < W; ++c)
-                {
-                    int lo = std::max(0, c - hw);
-                    int hi = std::min(W - 1, c + hw);
-                    int cnt = pc[hi + 1] - pc[lo];
-                    if (cnt > 0)
-                        tmp[(size_t)r * W + c] =
-                            (float)((ps[hi + 1] - ps[lo]) / cnt);
-                }
-            }
-
-            dst.assign((size_t)W * H, NaN);
-            ps.resize(H + 1);
-            pc.resize(H + 1);
-            for (int c = 0; c < W; ++c)
-            {
-                ps[0] = 0.0;
-                pc[0] = 0;
-                for (int r = 0; r < H; ++r)
-                {
-                    double v = tmp[(size_t)r * W + c];
-                    bool fin = std::isfinite(v);
-                    ps[r + 1] = ps[r] + (fin ? v : 0.0);
-                    pc[r + 1] = pc[r] + (fin ? 1 : 0);
-                }
-                for (int r = 0; r < H; ++r)
-                {
-                    int lo = std::max(0, r - hw);
-                    int hi = std::min(H - 1, r + hw);
-                    int cnt = pc[hi + 1] - pc[lo];
-                    if (cnt > 0)
-                        dst[(size_t)r * W + c] =
-                            (float)((ps[hi + 1] - ps[lo]) / cnt);
-                }
-            }
-        }
 
         // Groove shoulders of a bullet land. Averaged along the
         // striations, a land's cross-section is a dome; at each side it

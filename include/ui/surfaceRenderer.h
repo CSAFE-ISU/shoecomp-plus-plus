@@ -43,7 +43,8 @@ namespace shoecomp
         int sizeX = 0, sizeY = 0;
         double sx = 1.0, sy = 1.0;  // model units per column / row
         double cx = 0.0, cy = 0.0;  // grid center (columns, rows)
-        float zScale = 1.0f;        // model units per Z unit
+        float zScale =
+            1.0f;         // model units per Z unit (fixed exaggeration)
         float zc = 0.0f;  // Z center subtracted before scaling
         float zMin = 0.0f, zRange = 1.0f;
 
@@ -64,7 +65,9 @@ namespace shoecomp
 
     // Build the triangle mesh from |surf| (GL-free). Cells touching a
     // NaN (invalid) sample are dropped, leaving holes. Normals are
-    // central-difference based; Z is exaggerated so shallow relief is
+    // central differences of lightly smoothed heights (matte look, no
+    // sample-noise speckle); positions use the raw heights. Z is
+    // exaggerated by a fixed physical factor so shallow relief is
     // visible.
     void buildSurfaceMesh(const Surface3D& surf, SurfaceMesh& out);
 
