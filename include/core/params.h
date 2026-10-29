@@ -24,9 +24,11 @@ namespace shoecomp
     struct StriationSettings
     {
         // detection defaults = the HS10 sweeps' (run d4), max count
-        // 200 (run s4c200: HS10 land AUCs within 0.003, ~1.8x faster)
+        // 200 (run s4c200: HS10 land AUCs within 0.003, ~1.8x faster),
+        // min height 0.25 um (run h025: pooled HS land norm AUC 0.918
+        // -> 0.941, no HS land at the 200 cap)
         float minLengthMm = 0.2f;
-        float minHeightUm = 0.1f;
+        float minHeightUm = 0.25f;
         float maxSurfDevDeg = 20.0f;
         int maxCount = 200;
         bool includeValleys = false;
