@@ -239,11 +239,13 @@ namespace shoecomp
         std::vector<float> wide;
         boxMeanSeparable(zf, X, Y, hw, wide);
 
+        // In metres (z values are in file units, scaled by incZ), so
+        // minHeight applies to micrometre files too.
         std::vector<float> hLoc((size_t)Y * X, (float)kNaN);
         for (size_t i = 0; i < hLoc.size(); ++i)
         {
             if (std::isfinite(zf[i]) && std::isfinite(wide[i]))
-                hLoc[i] = zf[i] - wide[i];
+                hLoc[i] = (float)((zf[i] - wide[i]) * surf.incZ);
         }
 
         // --- (2) crest feature points ------------------------------
