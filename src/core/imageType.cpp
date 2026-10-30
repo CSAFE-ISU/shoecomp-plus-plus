@@ -46,7 +46,7 @@ namespace shoecomp
         static const std::vector<std::string> raster = {
             ".png", ".PNG", ".jpg", ".JPG", ".jpeg", ".JPEG"};
         static const std::vector<std::string> ebts = {
-            ".png", ".PNG", ".an2", ".AN2", ".irr", ".lffs", ".ebts"};
+            ".irr", ".png", ".PNG", ".an2", ".AN2", ".lffs", ".ebts"};
         static const std::vector<std::string> x3p = {".x3p", ".X3P"};
         switch (t)
         {

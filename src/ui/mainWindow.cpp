@@ -243,6 +243,8 @@ namespace shoecomp
         state.activeProto = makeCanvas(state.settings.activeKind);
         state.imageLoadBrowser.extensionChoices =
             state.activeProto->imageExtensions();
+        state.imageLoadBrowser.extension =
+            state.imageLoadBrowser.extensionChoices.front();
 
         // Opportunistically (re)check for the optional onnxruntime
         // library whenever the canvas kind changes. Idempotent and
@@ -851,9 +853,10 @@ namespace shoecomp
         state.alignmentSaveBrowser.onOk = [&state](const std::string& p)
         { onAlignmentSaveOk(state, p); };
 
-        state.imageLoadBrowser.extension = ".png";
         state.imageLoadBrowser.extensionChoices =
             state.activeProto->imageExtensions();
+        state.imageLoadBrowser.extension =
+            state.imageLoadBrowser.extensionChoices.front();
         state.imageLoadBrowser.title = "Load Image";
         state.imageLoadBrowser.onSelect =
             [&state](const std::string& p, const std::string& n)
