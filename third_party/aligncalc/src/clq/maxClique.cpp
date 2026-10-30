@@ -83,6 +83,20 @@ namespace AlignCalc
             }
         }
 
+        // Search order shared by the passes of one searchCliques call:
+        // |order| from coreOrder, |pos| its inverse.
+        struct CoreOrder
+        {
+            std::vector<int32_t> order, pos, core;
+            explicit CoreOrder(const GraphRows& g)
+            {
+                coreOrder(g, order, core);
+                pos.resize(order.size());
+                for (size_t i = 0; i < order.size(); ++i)
+                    pos[order[i]] = int32_t(i);
+            }
+        };
+
         bool adjacent(const GraphRows& g, int32_t a, int32_t b)
         {
             const int32_t* row = g.row(a);
@@ -104,10 +118,11 @@ namespace AlignCalc
             // size (see searchCliques): every root keeps the first
             // clique its search finds, and run() returns those of the
             // |tieCap| lowest roots that have one, in root order.
-            Solver(const GraphRows& g, const CliqueParams& p,
-                   Progress& progress, size_t tieCap = kTieCap,
-                   int32_t fixedSize = 0)
-                : g_(g), p_(p), progress_(progress), tieCap_(tieCap),
+            Solver(const GraphRows& g, const CoreOrder& co,
+                   const CliqueParams& p, Progress& progress,
+                   size_t tieCap = kTieCap, int32_t fixedSize = 0)
+                : g_(g), order_(co.order), pos_(co.pos), core_(co.core),
+                  p_(p), progress_(progress), tieCap_(tieCap),
                   fixed_(fixedSize)
             {
             }
@@ -158,11 +173,13 @@ namespace AlignCalc
             }
 
             const GraphRows& g_;
+            const std::vector<int32_t>& order_;
+            const std::vector<int32_t>& pos_;
+            const std::vector<int32_t>& core_;
             const CliqueParams& p_;
             Progress& progress_;
             const size_t tieCap_;
             const int32_t fixed_;
-            std::vector<int32_t> order_, pos_, core_;
             std::atomic<int32_t> best_{0};
             std::atomic<bool> strict_{false};
             std::atomic<bool> stop_{false};
@@ -453,9 +470,6 @@ namespace AlignCalc
         {
             const int32_t n = int32_t(g_.size());
             if (fixed_ > 0) rootHit_.assign(n, {});
-            coreOrder(g_, order_, core_);
-            pos_.resize(n);
-            for (int32_t i = 0; i < n; ++i) pos_[order_[i]] = i;
             // With a constraint, greedy's clique may be anchored on a
             // pair the search never uses as anchor, so its size is not
             // a safe starting bound.
@@ -533,9 +547,10 @@ namespace AlignCalc
             return false;
         const size_t want = std::max<size_t>(1, params.numResults);
         std::vector<std::vector<int32_t>> cliques;
+        const CoreOrder co(rows);
         if (!params.deterministic)
         {
-            Solver solver(rows, params, progress);
+            Solver solver(rows, co, params, progress);
             if (!solver.run(cliques) || cliques.empty()) return false;
         }
         else
@@ -548,7 +563,7 @@ namespace AlignCalc
             // A clique at upperBound ends the first phase at once, so
             // it is whichever one a thread reached first: settle it
             // too.
-            Solver solver(rows, params, progress, 1);
+            Solver solver(rows, co, params, progress, 1);
             if (!solver.run(cliques) || cliques.empty()) return false;
             if (solver.capped() ||
                 int32_t(cliques.front().size()) >= params.upperBound)
@@ -558,7 +573,7 @@ namespace AlignCalc
                     int32_t(cliques.front().size());
                 // the first pass has reported this stage already
                 detail::CancelOnly quiet(progress);
-                Solver again(rows, fixed, quiet, want,
+                Solver again(rows, co, fixed, quiet, want,
                              fixed.lowerBound);
                 cliques.clear();
                 if (!again.run(cliques) || cliques.empty())
