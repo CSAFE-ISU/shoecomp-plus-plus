@@ -214,6 +214,10 @@ namespace shoecomp
         StriationRules rules;
         rules.maxLengthRatio = params.maxLengthRatio;
         rules.maxRotation = params.maxRotationDeg * kPi / 180.0;
+        // striationRows orients the directions; an anchor turned 180
+        // deg could only form alignments the rotation limit rejects
+        lp.oriented =
+            rules.maxRotation > 0.0 && rules.maxRotation < kPi / 2;
         rules.angleTol = lp.angleTol;
         rules.sepTol = lp.sepTol;
         AlignCalc::CliqueOptions clique;

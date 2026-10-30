@@ -45,8 +45,9 @@ namespace AlignCalc
     LineAnchor3D::LineAnchor3D(const DoubleMatrixR& left,
                                const DoubleMatrixR& right,
                                const LineCols& cols, double acrossTol,
-                               double depthTol)
-        : acrossTol_(acrossTol), depthTol_(depthTol)
+                               double depthTol, bool oriented)
+        : acrossTol_(acrossTol), depthTol_(depthTol),
+          oriented_(oriented)
     {
         if (cols.valid(left) && cols.valid(right))
         {
@@ -78,7 +79,7 @@ namespace AlignCalc
         thread_local std::vector<uint8_t> other;
         other.resize(n);
         size_t kept[2] = {0, 0};
-        for (int s = 0; s < 2; ++s)
+        for (int s = 0; s < (oriented_ ? 1 : 2); ++s)
         {
             Eigen::Matrix3d F = FR;
             if (s)

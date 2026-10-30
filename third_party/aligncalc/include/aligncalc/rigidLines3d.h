@@ -43,6 +43,9 @@ namespace AlignCalc
         // > 0: anchored clique search (LineAnchor3D) with this depth
         // tolerance and sepTol across; 0 = off.
         double anchorTol = 1e-6;
+        // Directions are oriented on both sides: the anchor does not
+        // also try the frame turned 180 deg about its offset.
+        bool oriented = false;
     };
 
     // Invariants of a line pair, left (i1, j1) and right (i2, j2):

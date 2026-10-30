@@ -438,7 +438,7 @@ namespace AlignCalc
         DistinctParams dp =
             detail::distinctParams(clique, left.rows(), right.rows());
         const LineAnchor3D anchor(left, right, cols, params.sepTol,
-                                  params.anchorTol);
+                                  params.anchorTol, params.oriented);
         if (params.anchorTol > 0.0) dp.constraint = &anchor;
         BuildParams bp;
         bp.numWorkers = dp.numWorkers;
