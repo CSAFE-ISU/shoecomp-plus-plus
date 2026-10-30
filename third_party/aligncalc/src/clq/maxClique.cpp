@@ -136,6 +136,8 @@ namespace AlignCalc
             struct Scratch
             {
                 std::vector<int32_t> local;
+                std::vector<uint32_t> mark;  // == stamp: in |later|
+                uint32_t stamp = 0;
                 std::vector<int32_t> members;
                 std::vector<Word> adj;
                 std::vector<Word> stack;
@@ -316,6 +318,8 @@ namespace AlignCalc
             std::sort(later.begin(), later.end(),
                       [&](int32_t a, int32_t b)
                       { return pos_[a] < pos_[b]; });
+            ++s.stamp;
+            for (int32_t w : later) s.mark[w] = s.stamp;
 
             for (size_t i = 0; i < later.size(); ++i)
             {
@@ -329,12 +333,11 @@ namespace AlignCalc
                 if (core_[v2] + 1 < thr) continue;
                 s.members.clear();
                 const int32_t* r2 = g_.row(v2);
-                const int32_t* e2 = r2 + g_.degree(v2);
-                for (size_t j = i + 1; j < later.size(); ++j)
+                for (size_t k = 0; k < g_.degree(v2); ++k)
                 {
-                    const int32_t w = later[j];
-                    if (core_[w] + 1 >= thr &&
-                        std::binary_search(r2, e2, w))
+                    const int32_t w = r2[k];
+                    if (s.mark[w] == s.stamp && pos_[w] > pos_[v2] &&
+                        core_[w] + 1 >= thr)
                         s.members.push_back(w);
                 }
                 if (int32_t(s.members.size()) + 2 < thr) continue;
@@ -489,6 +492,7 @@ namespace AlignCalc
                 {
                     Scratch s;
                     s.local.assign(n, -1);
+                    if (p_.constraint) s.mark.assign(n, 0);
                     for (;;)
                     {
                         if (stop_.load() || progress_.cancelled())
