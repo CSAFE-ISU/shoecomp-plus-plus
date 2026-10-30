@@ -419,13 +419,18 @@ namespace shoecomp
         out.offX = toDouble(tagText(cx, "Offset"), 0.0);
         out.offY = toDouble(tagText(cy, "Offset"), 0.0);
         out.offZ = toDouble(tagText(cz, "Offset"), 0.0);
-        out.micrometres =
-            std::max(std::fabs(out.incX), std::fabs(out.incY)) >= 1e-3;
-        if (out.micrometres)
+        const double step =
+            std::max(std::fabs(out.incX), std::fabs(out.incY));
+        out.units = step >= 0.05   ? X3PUnits::Micrometres
+                    : step >= 5e-5 ? X3PUnits::Millimetres
+                                   : X3PUnits::Metres;
+        if (out.units != X3PUnits::Metres)
         {
+            const double scale =
+                out.units == X3PUnits::Micrometres ? 1e-6 : 1e-3;
             for (double* v : {&out.incX, &out.incY, &out.incZ,
                               &out.offX, &out.offY, &out.offZ})
-                *v *= 1e-6;
+                *v *= scale;
         }
 
         out.z.resize(sizeY, sizeX);

@@ -26,9 +26,11 @@ surface-topography files (ISO 25178-72 / ISO5436_2) as interactive lit
   (`F`/`D`) and integer (`I`/`L`) data types are read; invalid samples
   become holes. Non-conforming files fail with a clear message rather
   than a guess. One exception: x3p units are metres, but some writers
-  use micrometres; a file whose X or Y increment is 1 mm or more is
-  read as micrometres on every axis (`scpp -v` logs it, and the pair's
-  `summary.csv` `message` says "x3p units read as micrometres").
+  use millimetres or micrometres. The larger of the X / Y increments
+  picks the unit for every axis: below 5e-5 metres, below 0.05
+  millimetres, otherwise micrometres (`scpp -v` logs it, and the
+  pair's `summary.csv` `message` says e.g. "x3p units read as
+  micrometres (both)").
 - **View:** a height-colormapped (viridis), Lambert-lit mesh with an
   orbit camera — **drag** to orbit, **wheel** to zoom,
   **Ctrl/Right/Middle-drag** to pan. Place **Peak** points and **bounds**

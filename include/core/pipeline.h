@@ -10,6 +10,7 @@
 #include "core/alignment.h"
 #include "core/imageType.h"
 #include "core/params.h"
+#include "formats/x3p.h"
 #include "jtjson/json.h"
 
 // Headless prepare + compare: what the GUI's Detect / Align dialogs do,
@@ -43,10 +44,10 @@ namespace shoecomp
 
         // Filled by prepareItem.
         bool prepared = false;
-        std::string error;         // non-empty: preparation failed
-        bool timedOut = false;     // preparation hit the timeout
-        std::string annSource;     // where the annotations came from
-        bool micrometres = false;  // x3p header read as micrometres
+        std::string error;      // non-empty: preparation failed
+        bool timedOut = false;  // preparation hit the timeout
+        std::string annSource;  // where the annotations came from
+        X3PUnits units = X3PUnits::Metres;  // x3p header units
         jt::Json annotations;
         size_t count = 0;               // 2-D points or 3-D striations
         AlignCalc::DoubleMatrixR rows;  // 3-D striation rows

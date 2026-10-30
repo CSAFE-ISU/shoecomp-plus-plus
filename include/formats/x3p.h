@@ -16,6 +16,27 @@
 // are recovered from the per-axis increment/offset.
 namespace shoecomp
 {
+    // Units an x3p header was written in (see loadX3P).
+    enum class X3PUnits
+    {
+        Metres,
+        Millimetres,
+        Micrometres
+    };
+
+    inline const char* x3pUnitsName(X3PUnits u)
+    {
+        switch (u)
+        {
+            case X3PUnits::Millimetres:
+                return "millimetres";
+            case X3PUnits::Micrometres:
+                return "micrometres";
+            default:
+                return "metres";
+        }
+    }
+
     // Dense height grid. RowMajor, sized (sizeY, sizeX), so the memory
     // layout matches data.bin (X fastest) and element access is
     // z(row, col). Invalid samples are stored as NaN.
@@ -30,8 +51,8 @@ namespace shoecomp
         // Metres per grid step and coordinate origin, per axis.
         double incX = 1.0, incY = 1.0, incZ = 1.0;
         double offX = 0.0, offY = 0.0, offZ = 0.0;
-        // Header was in micrometres (see loadX3P); rescaled to metres.
-        bool micrometres = false;
+        // Header units; the values above are rescaled to metres.
+        X3PUnits units = X3PUnits::Metres;
 
         HeightMatrix z;     // (sizeY, sizeX); NaN = invalid
         float zMin = 0.0f;  // over finite values only
@@ -60,9 +81,10 @@ namespace shoecomp
     // Returns false and sets |err| on any I/O error, malformed
     // container/XML, or unsupported layout. Annotations are left empty
     // (loaded separately). Height values are converted to float; NaN
-    // marks invalid samples in float source formats. A lateral
-    // increment of 1 mm or more means the writer used micrometres for
-    // every axis; such files are read as micrometres.
+    // marks invalid samples in float source formats. Some writers use
+    // millimetres or micrometres instead of metres; the larger lateral
+    // increment picks the unit for every axis: < 5e-5 metres, < 0.05
+    // millimetres, else micrometres.
     bool loadX3P(const std::string& path, Surface3D& out,
                  std::string& err);
 }  // namespace shoecomp

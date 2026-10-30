@@ -347,11 +347,10 @@ namespace shoecomp
                     err = it.path + ": " + err;
                     return false;
                 }
-                it.micrometres = surf.micrometres;
-                if (surf.micrometres)
-                    say(opts, it.label +
-                                  ": x3p units read as "
-                                  "micrometres");
+                it.units = surf.units;
+                if (surf.units != X3PUnits::Metres)
+                    say(opts, it.label + ": x3p units read as " +
+                                  x3pUnitsName(surf.units));
                 say(opts, it.label + ": detecting striations...");
                 std::vector<StriationLine> lines;
                 StriationParams sp = params.striation.toParams(
