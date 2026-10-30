@@ -370,42 +370,51 @@ namespace shoecomp
         for (const auto& cr : crests) mean += cr.p;
         mean /= (double)N;
 
-        // The axial direction is the mean PHYSICAL tangent along the
-        // chosen along-striation grid axis. A PCA of the crest cloud
-        // would instead return the cross direction, because many
-        // parallel striations spread the cloud widest across
-        // themselves.
-        Eigen::Vector3d aEst = Eigen::Vector3d::Zero();
+        // The axial direction is the PHYSICAL tangent along the chosen
+        // along-striation grid axis, with the median slope between the
+        // shoulders (a mean is pulled off by steep scan regions). A PCA
+        // of the crest cloud would instead return the cross direction,
+        // because many parallel striations spread the cloud widest
+        // across themselves.
+        Eigen::Vector3d aEst;
         {
-            int stride = std::max(1, (X * Y) / 200000);
+            const int r0 = axialAlongRows ? 1 : std::max(1, crossLo);
+            const int r1 =
+                axialAlongRows ? Y - 1 : std::min(Y - 1, crossHi + 1);
+            const int c0 = axialAlongRows ? std::max(1, crossLo) : 1;
+            const int c1 =
+                axialAlongRows ? std::min(X - 1, crossHi + 1) : X - 1;
+            const long cells =
+                (long)std::max(0, r1 - r0) * std::max(0, c1 - c0);
+            const long stride = std::max(1L, cells / 200000);
+            const double step = axialAlongRows
+                                    ? surf.py(2) - surf.py(0)
+                                    : surf.px(2) - surf.px(0);
+            std::vector<double> slopes;
             long k = 0;
-            for (int r = 1; r < Y - 1; ++r)
-                for (int c = 1; c < X - 1; ++c, ++k)
+            for (int r = r0; r < r1; ++r)
+                for (int c = c0; c < c1; ++c, ++k)
                 {
                     if (k % stride) continue;
-                    Eigen::Vector3d tng;
-                    if (axialAlongRows)
-                    {
-                        float zu = surf.z(r - 1, c),
-                              zd = surf.z(r + 1, c);
-                        if (!std::isfinite(zu) || !std::isfinite(zd))
-                            continue;
-                        tng = Eigen::Vector3d(
-                            0.0, surf.py(r + 1) - surf.py(r - 1),
-                            surf.pz(zd) - surf.pz(zu));
-                    }
-                    else
-                    {
-                        float zl = surf.z(r, c - 1),
-                              zr = surf.z(r, c + 1);
-                        if (!std::isfinite(zl) || !std::isfinite(zr))
-                            continue;
-                        tng = Eigen::Vector3d(
-                            surf.px(c + 1) - surf.px(c - 1), 0.0,
-                            surf.pz(zr) - surf.pz(zl));
-                    }
-                    aEst += tng;
+                    float za = axialAlongRows ? surf.z(r - 1, c)
+                                              : surf.z(r, c - 1);
+                    float zb = axialAlongRows ? surf.z(r + 1, c)
+                                              : surf.z(r, c + 1);
+                    if (!std::isfinite(za) || !std::isfinite(zb))
+                        continue;
+                    slopes.push_back((surf.pz(zb) - surf.pz(za)) /
+                                     step);
                 }
+            double m = 0.0;
+            if (!slopes.empty())
+            {
+                auto mid = slopes.begin() + slopes.size() / 2;
+                std::nth_element(slopes.begin(), mid, slopes.end());
+                m = *mid;
+            }
+            aEst = axialAlongRows
+                       ? Eigen::Vector3d(0.0, step, m * step)
+                       : Eigen::Vector3d(step, 0.0, m * step);
         }
         if (aEst.norm() < 1e-20)
             aEst = axialAlongRows ? Eigen::Vector3d(0, 1, 0)
