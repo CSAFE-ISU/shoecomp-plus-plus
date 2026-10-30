@@ -14,7 +14,7 @@
 // See .claude/striation-hough-plan.md for the design. The pipeline is:
 // (1) local high-pass of the height grid -> ridge/groove crest points
 // (fit-independent prominence), (2) estimate the axial direction from
-// the surface (gradient structure picks the along-striation grid axis;
+// the surface (the grid axis along which the high-pass stays coherent;
 // aEst is its mean physical tangent), (3) iterative
 // direction-constrained 3-D Hough (project crests onto the plane
 // perpendicular to each candidate direction; the densest bin is a line;
@@ -191,26 +191,41 @@ namespace shoecomp
 
         // --- (2) crest feature points ------------------------------
         tick(0.25f, "Finding crest points...");
-        // Estimate striation orientation from the high-pass gradients:
-        // variation is largest ACROSS striations, so the grid axis with
-        // the larger squared gradient is the cross direction. (A land's
-        // circumferential extent can exceed its axial extent, so the
-        // longer grid dimension is NOT a reliable axial cue.)
-        double sgx2 = 0.0, sgy2 = 0.0;
-        for (int r = 1; r < Y - 1; ++r)
-            for (int c = 1; c < X - 1; ++c)
+        // Striations survive averaging along the axis, not across it:
+        // compare row- and column-mean variance (box edge zone left
+        // out).
+        const int br = Y > 2 * hw + 2 ? hw : 0;
+        const int bc = X > 2 * hw + 2 ? hw : 0;
+        std::vector<double> rowSum(Y, 0.0), colSum(X, 0.0);
+        std::vector<int> rowCnt(Y, 0), colCnt(X, 0);
+        for (int r = br; r < Y - br; ++r)
+            for (int c = bc; c < X - bc; ++c)
             {
-                double vl = hLoc[(size_t)r * X + c - 1];
-                double vr = hLoc[(size_t)r * X + c + 1];
-                double vu = hLoc[(size_t)(r - 1) * X + c];
-                double vd = hLoc[(size_t)(r + 1) * X + c];
-                if (std::isfinite(vl) && std::isfinite(vr))
-                    sgx2 += 0.25 * (vr - vl) * (vr - vl);
-                if (std::isfinite(vu) && std::isfinite(vd))
-                    sgy2 += 0.25 * (vd - vu) * (vd - vu);
+                double v = hLoc[(size_t)r * X + c];
+                if (!std::isfinite(v)) continue;
+                rowSum[r] += v;
+                ++rowCnt[r];
+                colSum[c] += v;
+                ++colCnt[c];
             }
-        // Larger cross-column gradient => striations run along rows.
-        const bool axialAlongRows = sgx2 > sgy2;
+        auto meanVar = [](const std::vector<double>& sum,
+                          const std::vector<int>& cnt)
+        {
+            double s = 0.0, s2 = 0.0;
+            int n = 0;
+            for (size_t i = 0; i < sum.size(); ++i)
+            {
+                if (cnt[i] == 0) continue;
+                double m = sum[i] / cnt[i];
+                s += m;
+                s2 += m * m;
+                ++n;
+            }
+            return n > 1 ? s2 / n - (s / n) * (s / n) : 0.0;
+        };
+        // Column means vary => striations run along Y.
+        const bool axialAlongRows =
+            meanVar(colSum, colCnt) > meanVar(rowSum, rowCnt);
 
         // Crests are taken only between the groove shoulders (less the
         // margin), so shoulder marks never form lines. Cross index =
