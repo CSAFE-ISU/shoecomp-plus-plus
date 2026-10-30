@@ -339,7 +339,37 @@ namespace shoecomp
             }
             return true;
         }
+
+        X3PUnits unitsFor(double incX, double incY)
+        {
+            const double step =
+                std::max(std::fabs(incX), std::fabs(incY));
+            return step >= 0.05   ? X3PUnits::Micrometres
+                   : step >= 5e-5 ? X3PUnits::Millimetres
+                                  : X3PUnits::Metres;
+        }
     }  // namespace
+
+    bool readX3PUnits(const std::string& path, X3PUnits& units,
+                      std::string& err)
+    {
+        ZipArchive zip;
+        if (!zip.open(path, err)) return false;
+        std::vector<uint8_t> xmlBytes;
+        if (!zip.extract("main.xml", xmlBytes, err)) return false;
+        std::string xml((const char*)xmlBytes.data(), xmlBytes.size());
+        std::string axes = tagBlock(xml, "Axes");
+        std::string cx = tagBlock(axes, "CX");
+        std::string cy = tagBlock(axes, "CY");
+        if (cx.empty() || cy.empty())
+        {
+            err = "x3p main.xml missing axis definitions";
+            return false;
+        }
+        units = unitsFor(toDouble(tagText(cx, "Increment"), 1.0),
+                         toDouble(tagText(cy, "Increment"), 1.0));
+        return true;
+    }
 
     bool loadX3P(const std::string& path, Surface3D& out,
                  std::string& err)
@@ -419,11 +449,7 @@ namespace shoecomp
         out.offX = toDouble(tagText(cx, "Offset"), 0.0);
         out.offY = toDouble(tagText(cy, "Offset"), 0.0);
         out.offZ = toDouble(tagText(cz, "Offset"), 0.0);
-        const double step =
-            std::max(std::fabs(out.incX), std::fabs(out.incY));
-        out.units = step >= 0.05   ? X3PUnits::Micrometres
-                    : step >= 5e-5 ? X3PUnits::Millimetres
-                                   : X3PUnits::Metres;
+        out.units = unitsFor(out.incX, out.incY);
         if (out.units != X3PUnits::Metres)
         {
             const double scale =

@@ -87,6 +87,10 @@ namespace shoecomp
     // millimetres, else micrometres.
     bool loadX3P(const std::string& path, Surface3D& out,
                  std::string& err);
+
+    // Header units only (main.xml), as loadX3P would pick them.
+    bool readX3PUnits(const std::string& path, X3PUnits& units,
+                      std::string& err);
 }  // namespace shoecomp
 
 #endif

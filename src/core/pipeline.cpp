@@ -338,7 +338,20 @@ namespace shoecomp
             const bool hasPeaks = base.contains("peaks") &&
                                   base["peaks"].isArray() &&
                                   !base["peaks"].getArray().empty();
-            if (hasPeaks) { it.annSource = from; }
+            auto noteUnits = [&](X3PUnits u)
+            {
+                it.units = u;
+                if (u != X3PUnits::Metres)
+                    say(opts, it.label + ": x3p units read as " +
+                                  x3pUnitsName(u));
+            };
+            if (hasPeaks)
+            {
+                it.annSource = from;
+                X3PUnits u = X3PUnits::Metres;
+                std::string unitErr;
+                if (readX3PUnits(it.path, u, unitErr)) noteUnits(u);
+            }
             else
             {
                 Surface3D surf;
@@ -347,10 +360,7 @@ namespace shoecomp
                     err = it.path + ": " + err;
                     return false;
                 }
-                it.units = surf.units;
-                if (surf.units != X3PUnits::Metres)
-                    say(opts, it.label + ": x3p units read as " +
-                                  x3pUnitsName(surf.units));
+                noteUnits(surf.units);
                 say(opts, it.label + ": detecting striations...");
                 std::vector<StriationLine> lines;
                 StriationParams sp = params.striation.toParams(
