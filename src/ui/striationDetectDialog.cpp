@@ -1,5 +1,6 @@
 #include "ui/striationDetectDialog.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstring>
@@ -134,9 +135,11 @@ namespace shoecomp
                 ImGui::DragFloat("Min length (mm)",
                                  &settings.minLengthMm, 0.01f, 0.0f,
                                  100.0f, "%.3f");
-                ImGui::DragFloat("Min height |dr| (um)",
-                                 &settings.minHeightUm, 0.1f, 0.0f,
-                                 1000.0f, "%.2f");
+                ImGui::InputFloat("Min height |dr| (um)",
+                                  &settings.minHeightUm, 0.05f, 0.25f,
+                                  "%.2f");
+                settings.minHeightUm =
+                    std::clamp(settings.minHeightUm, 0.0f, 1000.0f);
                 ImGui::InputInt("Max count", &settings.maxCount);
                 if (settings.maxCount < 1) settings.maxCount = 1;
                 ImGui::PopItemWidth();
