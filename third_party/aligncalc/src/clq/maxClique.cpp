@@ -274,9 +274,8 @@ namespace AlignCalc
         }
 
         // Anchored search: every clique is anchored on its two lowest
-        // vertices in search order (v, v2), and the constraint picks
-        // v2's candidates among v's later neighbors before any bitset
-        // is built.
+        // vertices in search order (v, v2), and the constraint filters
+        // their common later neighbors before any bitset is built.
         void Solver::anchoredRoot(int32_t v, Scratch& s)
         {
             int32_t thr = threshold();
@@ -300,10 +299,6 @@ namespace AlignCalc
             std::sort(later.begin(), later.end(),
                       [&](int32_t a, int32_t b)
                       { return pos_[a] < pos_[b]; });
-            s.cands.resize(later.size());
-            for (size_t i = 0; i < later.size(); ++i)
-                s.cands[i] = g_.nodes[later[i]];
-            s.keep.resize(later.size());
 
             for (size_t i = 0; i < later.size(); ++i)
             {
@@ -315,20 +310,29 @@ namespace AlignCalc
                 if (int32_t(rest) + 2 < thr) return;
                 const int32_t v2 = later[i];
                 if (core_[v2] + 1 < thr) continue;
-                p_.constraint->filter(g_.nodes[v], g_.nodes[v2],
-                                      s.cands.data() + i + 1, rest,
-                                      s.keep.data());
                 s.members.clear();
                 const int32_t* r2 = g_.row(v2);
                 const int32_t* e2 = r2 + g_.degree(v2);
-                for (size_t j = 0; j < rest; ++j)
+                for (size_t j = i + 1; j < later.size(); ++j)
                 {
-                    const int32_t w = later[i + 1 + j];
-                    if (s.keep[j] && core_[w] + 1 >= thr &&
+                    const int32_t w = later[j];
+                    if (core_[w] + 1 >= thr &&
                         std::binary_search(r2, e2, w))
                         s.members.push_back(w);
                 }
                 if (int32_t(s.members.size()) + 2 < thr) continue;
+                const size_t m = s.members.size();
+                s.cands.resize(m);
+                s.keep.resize(m);
+                for (size_t j = 0; j < m; ++j)
+                    s.cands[j] = g_.nodes[s.members[j]];
+                p_.constraint->filter(g_.nodes[v], g_.nodes[v2],
+                                      s.cands.data(), m, s.keep.data());
+                size_t kept = 0;
+                for (size_t j = 0; j < m; ++j)
+                    if (s.keep[j]) s.members[kept++] = s.members[j];
+                s.members.resize(kept);
+                if (int32_t(kept) + 2 < thr) continue;
                 s.clique.assign({v, v2});
                 branch(s);
             }

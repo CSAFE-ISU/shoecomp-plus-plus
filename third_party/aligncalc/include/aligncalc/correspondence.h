@@ -73,7 +73,7 @@ namespace AlignCalc
     // anchored on its two lowest vertices in the solver's (core)
     // order; the remaining members must pass the constraint against
     // that anchor, so a result is a maximum clique among those. The
-    // solver filters an anchor's candidates before building any
+    // solver filters the anchor's common neighbors before building any
     // bitset. Called from several threads at once.
     class ALIGNCALC_API CliqueConstraint
     {
