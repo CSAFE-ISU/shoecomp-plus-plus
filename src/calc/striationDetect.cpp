@@ -11,15 +11,15 @@
 
 #include "calc/gridFilter.h"
 
-// See .claude/striation-hough-plan.md for the design. The pipeline is:
-// (1) local high-pass of the height grid -> ridge/groove crest points
-// (fit-independent prominence), (2) estimate the axial direction from
-// the surface (the grid axis along which the high-pass stays coherent;
-// aEst is its mean physical tangent), (3) iterative
-// direction-constrained 3-D Hough (project crests onto the plane
-// perpendicular to each candidate direction; the densest bin is a line;
-// peel off its inliers and repeat), (4) per line PCA refit ->
-// start/direction/length + filters.
+// See .claude/archive/striation-hough-plan.md for the design. The
+// pipeline is: (1) local high-pass of the height grid -> ridge/groove
+// crest points (fit-independent prominence), (2) estimate the axial
+// direction from the surface (the grid axis along which the high-pass
+// stays coherent; aEst is its median slope between the shoulders),
+// (3) iterative direction-constrained 3-D Hough (project crests onto
+// the plane perpendicular to each candidate direction; the densest bin
+// is a line; peel off its inliers and repeat), (4) per line PCA refit
+// -> start/direction/length + filters.
 namespace shoecomp
 {
     namespace
