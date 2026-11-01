@@ -368,12 +368,15 @@ if(SHOECOMP_BUILD_GUI)
 
     # Web build with -pthread (release workflows): preload one Web
     # Worker per thread the app can have alive at once -- SDL's timer
-    # thread (started in SDL_Init), the GUI worker, the PNG save thread
-    # and aligncalc's hardware_concurrency() - 1 graph-build threads.
-    # Without a pool each thread waits for a new Worker and Emscripten
-    # warns "the thread pool is exhausted".
+    # thread (started in SDL_Init), the detect / align dialog worker,
+    # the PNG save thread, x3p mesh builds (one per visible 3-D
+    # canvas) and the hardware_concurrency() - 1 inner workers of
+    # aligncalc or striation detection. Without a pool each thread
+    # waits for a new Worker, which only starts once the main thread
+    # yields: Emscripten warns "the thread pool is exhausted", and a
+    # dialog Cancel that joins its worker on the main thread can hang.
     if(EMSCRIPTEN AND CMAKE_CXX_FLAGS MATCHES "(^| )-pthread( |$)")
         target_link_options(shoecomp PRIVATE
-            "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency+2")
+            "-sPTHREAD_POOL_SIZE=navigator.hardwareConcurrency+6")
     endif()
 endif()

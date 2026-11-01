@@ -138,7 +138,14 @@ namespace shoecomp
             ImGui::SetTooltip(
                 "Distinct alignments, best first: each "
                 "later one is a different transform.");
-        ImGui::SliderInt("Workers", &numWorkers, 1, 16);
+#ifdef __EMSCRIPTEN__
+        const int maxWorkers =
+            std::clamp((int)std::thread::hardware_concurrency(), 1, 16);
+#else
+        const int maxWorkers = 16;
+#endif
+        numWorkers = std::clamp(numWorkers, 1, maxWorkers);
+        ImGui::SliderInt("Workers", &numWorkers, 1, maxWorkers);
         ImGui::PopItemWidth();
         ImGui::EndDisabled();
 
