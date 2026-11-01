@@ -108,6 +108,7 @@ namespace shoecomp
         {
             if (meshThread_.joinable()) meshThread_.join();
             renderer.uploadMesh(pendingMesh_);
+            ++meshUploads_;
             pendingMesh_ = SurfaceMesh{};
             meshBuilding_ = false;
         }
@@ -319,14 +320,29 @@ namespace shoecomp
         if (hovered && tex && !panning)
         {
             ImVec2 rel = io.MousePos - canvasPos;
-            int col = 0, row = 0;
-            if (renderer.pick((int)(rel.x * fbs), (int)(rel.y * fbs),
-                              camera, modelXform, col, row))
+            int px = (int)(rel.x * fbs), py = (int)(rel.y * fbs);
+            Eigen::Matrix4f mvp = camera.proj((float)fbW / (float)fbH) *
+                                  camera.view() * modelXform.matrix();
+            if (px != pickPx_ || py != pickPy_ || fbW != pickW_ ||
+                fbH != pickH_ || meshUploads_ != pickMesh_ ||
+                mvp != pickMvp_)
             {
-                hoverValid = true;
-                hoverCol = col;
-                hoverRow = row;
+                int col = 0, row = 0;
+                pickHit_ =
+                    renderer.pick(px, py, camera, modelXform, col, row);
+                if (pickHit_)
+                {
+                    hoverCol = col;
+                    hoverRow = row;
+                }
+                pickPx_ = px;
+                pickPy_ = py;
+                pickW_ = fbW;
+                pickH_ = fbH;
+                pickMesh_ = meshUploads_;
+                pickMvp_ = mvp;
             }
+            hoverValid = pickHit_;
         }
 
         // --- markup: click (no drag) places / removes a point ---

@@ -211,6 +211,14 @@ namespace shoecomp
         std::atomic<bool> meshBuilding_{false};
         std::atomic<bool> meshReady_{false};
         SurfaceMesh pendingMesh_;
+        unsigned meshUploads_ = 0;
+
+        // Last hover pick and what it depended on; re-picked only when
+        // one of these changes (each pick is a GPU readback).
+        int pickPx_ = -1, pickPy_ = -1, pickW_ = 0, pickH_ = 0;
+        unsigned pickMesh_ = 0;
+        Eigen::Matrix4f pickMvp_ = Eigen::Matrix4f::Zero();
+        bool pickHit_ = false;
     };
 
     // Concrete x3p surface canvas.
