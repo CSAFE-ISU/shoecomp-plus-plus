@@ -266,7 +266,8 @@ namespace shoecomp
     namespace
     {
 #if defined(HELLOIMGUI_USE_GLES3)
-#define SC_GLSL_HEADER "#version 300 es\nprecision highp float;\n"
+#define SC_GLSL_HEADER \
+    "#version 300 es\nprecision highp float;\nprecision highp int;\n"
 #else
 #define SC_GLSL_HEADER "#version 330 core\n"
 #endif
@@ -288,7 +289,8 @@ namespace shoecomp
         const char* kFrag = SC_GLSL_HEADER
             "in vec3 vNormal;\n"
             "in float vT;\n"
-            "out vec4 FragColor;\n"
+            "layout(location=0) out vec4 FragColor;\n"
+            "layout(location=1) out vec4 PickOut;\n"
             "uniform vec3 uLightDir;\n"
             "void main(){\n"
             "  vec3 base = vec3(0.902, 0.749, 0.596);\n"
@@ -297,6 +299,10 @@ namespace shoecomp
             "  float amb = 0.35;\n"
             "  vec3 col = base * (amb + (1.0-amb)*d);\n"
             "  FragColor = vec4(col, 1.0);\n"
+            "  uint z = uint(clamp(gl_FragCoord.z, 0.0, 1.0) * "
+            "16777215.0 + 0.5);\n"
+            "  PickOut = vec4(float((z >> 16) & 255u), "
+            "float((z >> 8) & 255u), float(z & 255u), 255.0) / 255.0;\n"
             "}\n";
 
         GLuint compile(GLenum type, const char* src)
@@ -318,7 +324,7 @@ namespace shoecomp
     struct SurfaceRenderer::Impl
     {
         GLuint prog = 0, vao = 0, vbo = 0, ebo = 0;
-        GLuint fbo = 0, colorTex = 0, depthRbo = 0;
+        GLuint fbo = 0, colorTex = 0, pickTex = 0, depthRbo = 0;
         int fw = 0, fh = 0;
         GLsizei indexCount = 0;
         GLint uMVP = -1, uNormalMat = -1, uLightDir = -1;
@@ -362,23 +368,34 @@ namespace shoecomp
             if (fbo && fw == w && fh == h) return;
             if (!fbo) glGenFramebuffers(1, &fbo);
             if (!colorTex) glGenTextures(1, &colorTex);
+            if (!pickTex) glGenTextures(1, &pickTex);
             if (!depthRbo) glGenRenderbuffers(1, &depthRbo);
-            glBindTexture(GL_TEXTURE_2D, colorTex);
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA,
-                         GL_UNSIGNED_BYTE, nullptr);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
-                            GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
-                            GL_LINEAR);
+            const GLuint texs[2] = {colorTex, pickTex};
+            const GLint filters[2] = {GL_LINEAR, GL_NEAREST};
+            for (int i = 0; i < 2; ++i)
+            {
+                glBindTexture(GL_TEXTURE_2D, texs[i]);
+                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0,
+                             GL_RGBA, GL_UNSIGNED_BYTE, nullptr);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+                                filters[i]);
+                glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER,
+                                filters[i]);
+            }
             glBindRenderbuffer(GL_RENDERBUFFER, depthRbo);
             glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24,
                                   w, h);
             glBindFramebuffer(GL_FRAMEBUFFER, fbo);
             glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0,
                                    GL_TEXTURE_2D, colorTex, 0);
+            glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT1,
+                                   GL_TEXTURE_2D, pickTex, 0);
             glFramebufferRenderbuffer(GL_FRAMEBUFFER,
                                       GL_DEPTH_ATTACHMENT,
                                       GL_RENDERBUFFER, depthRbo);
+            const GLenum bufs[2] = {GL_COLOR_ATTACHMENT0,
+                                    GL_COLOR_ATTACHMENT1};
+            glDrawBuffers(2, bufs);
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
             fw = w;
             fh = h;
@@ -391,9 +408,11 @@ namespace shoecomp
             if (vao) glDeleteVertexArrays(1, &vao);
             if (depthRbo) glDeleteRenderbuffers(1, &depthRbo);
             if (colorTex) glDeleteTextures(1, &colorTex);
+            if (pickTex) glDeleteTextures(1, &pickTex);
             if (fbo) glDeleteFramebuffers(1, &fbo);
             if (prog) glDeleteProgram(prog);
-            ebo = vbo = vao = depthRbo = colorTex = fbo = prog = 0;
+            ebo = vbo = vao = depthRbo = colorTex = pickTex = fbo =
+                prog = 0;
             indexCount = 0;
             progTried = progOk = false;
         }
@@ -460,8 +479,12 @@ namespace shoecomp
 
         glBindFramebuffer(GL_FRAMEBUFFER, d.fbo);
         glViewport(0, 0, w, h);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        const GLfloat white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
+        const GLfloat none[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        const GLfloat farDepth = 1.0f;
+        glClearBufferfv(GL_COLOR, 0, white);
+        glClearBufferfv(GL_COLOR, 1, none);
+        glClearBufferfv(GL_DEPTH, 0, &farDepth);
         glEnable(GL_DEPTH_TEST);
         glDisable(GL_CULL_FACE);
 
@@ -500,12 +523,16 @@ namespace shoecomp
         GLint prevFbo = 0;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
         glBindFramebuffer(GL_FRAMEBUFFER, d.fbo);
-        float depth = 1.0f;
+        glReadBuffer(GL_COLOR_ATTACHMENT1);
+        unsigned char rgba[4] = {0, 0, 0, 0};
         // GL pixel origin is bottom-left; input py is top-left.
-        glReadPixels(px, lastH_ - 1 - py, 1, 1, GL_DEPTH_COMPONENT,
-                     GL_FLOAT, &depth);
+        glReadPixels(px, lastH_ - 1 - py, 1, 1, GL_RGBA,
+                     GL_UNSIGNED_BYTE, rgba);
         glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
-        if (depth >= 1.0f) return false;  // background
+        if (rgba[3] == 0) return false;  // background
+        const uint32_t zi = ((uint32_t)rgba[0] << 16) |
+                            ((uint32_t)rgba[1] << 8) | rgba[2];
+        const float depth = (float)((double)zi / 16777215.0);
 
         float ndcx = 2.0f * px / lastW_ - 1.0f;
         float ndcy = 1.0f - 2.0f * py / lastH_;
@@ -530,6 +557,7 @@ namespace shoecomp
         GLint prevFbo = 0;
         glGetIntegerv(GL_FRAMEBUFFER_BINDING, &prevFbo);
         glBindFramebuffer(GL_FRAMEBUFFER, d.fbo);
+        glReadBuffer(GL_COLOR_ATTACHMENT0);
         glReadPixels(0, 0, w, h, GL_RGBA, GL_UNSIGNED_BYTE, out.data());
         glBindFramebuffer(GL_FRAMEBUFFER, (GLuint)prevFbo);
         // GL origin is bottom-left; flip rows to top-down.
