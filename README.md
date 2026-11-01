@@ -40,8 +40,13 @@ surface-topography files (ISO 25178-72 / ISO5436_2) as interactive lit
   anchor).
 - **Comparison:** load two surfaces side by side, **Lock** to sync the
   orbit cameras, and adjust a **manual alignment** (translate / rotate /
-  scale) so the two register; alignments save to JSON. *Automatic 3D
-  registration is planned future work.*
+  scale) so the two register; alignments save to JSON.
+- **Automatic alignment (bullet lands):** run **Detect striations**
+  from each land's toolbar, then **Align** in the comparison's
+  alignment box registers the right land to the left from their
+  matched striation lines (the same search as `scpp -t x3p`). Results
+  are listed best first with their matched line count and rms, and can
+  be fine-tuned by hand.
 - **Save PNG** captures the current 3D view.
 
 The 3D **view** requires an **OpenGL** backend: desktop OpenGL (the
