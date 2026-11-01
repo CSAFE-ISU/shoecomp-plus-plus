@@ -18,8 +18,8 @@ and comparisons.
 
 Besides 2D raster images, `shoecomp` can load and view **x3p**
 surface-topography files (ISO 25178-72 / ISO5436_2) as interactive lit
-3D surfaces. Pick **3D surface (x3p)** as the active canvas in *Settings
-> Active Canvas*, then load a `.x3p` file.
+3D surfaces. Pick **Bullet land (x3p)** as the active canvas in
+*Settings > Active Canvas*, then load a `.x3p` file.
 
 - **Supported layout:** the common **SUR** case — incremental X/Y axes
   with an absolute Z axis, so the height data is a dense matrix. Float
