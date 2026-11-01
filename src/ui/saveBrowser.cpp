@@ -6,6 +6,8 @@
 #include <filesystem>
 #else
 #include <emscripten.h>
+#include <fstream>
+#include <iterator>
 #endif
 
 namespace shoecomp
@@ -228,6 +230,19 @@ namespace shoecomp
         scpp_emDownloadString(data, len, filename, filenameLen);
     }
 
+    bool downloadMemfsFile(const std::string& path,
+                           const std::string& name)
+    {
+        std::ifstream ifs(path, std::ios::binary);
+        if (!ifs) return false;
+        std::string data((std::istreambuf_iterator<char>(ifs)),
+                         std::istreambuf_iterator<char>());
+        if (ifs.bad() || data.empty()) return false;
+        downloadJsonString(data.c_str(), (int)data.size(), name.c_str(),
+                           (int)name.size());
+        return true;
+    }
+
 #else  // desktop
 
     void openJsonPicker(SaveBrowser& browser) { browser.show = true; }
@@ -236,6 +251,12 @@ namespace shoecomp
                             const char* /*filename*/,
                             int /*filenameLen*/)
     {
+    }
+
+    bool downloadMemfsFile(const std::string& /*path*/,
+                           const std::string& /*name*/)
+    {
+        return false;
     }
 
 #endif  // __EMSCRIPTEN__

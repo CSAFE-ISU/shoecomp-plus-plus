@@ -69,6 +69,7 @@ namespace shoecomp
     }
 
     static void renderAlignmentBox(AppState& state);
+    static void saveAlignment(AppState& state);
     static std::shared_ptr<Surface3D> sourceSurface(AppState& state,
                                                     int idx);
     static X3PBulletLand* asBulletLand(ImageCanvas* c);
@@ -282,6 +283,35 @@ namespace shoecomp
         ImGui::EndChild();
     }
 
+    // Web has no save dialog: write the JSON to MEMFS through the
+    // dialog's onOk, then download it.
+    static void saveAlignment(AppState& state)
+    {
+#ifdef __EMSCRIPTEN__
+        const std::string memfsPath = "/tmp/alignment.json";
+        std::remove(memfsPath.c_str());
+        if (state.alignmentSaveBrowser.onOk)
+            state.alignmentSaveBrowser.onOk(memfsPath);
+        if (state.alignmentSaveError.show) return;
+        std::string fname = "alignment.json";
+        if (state.viewerLeft && state.viewerRight &&
+            !state.viewerLeft->name().empty() &&
+            !state.viewerRight->name().empty())
+            fname = state.viewerLeft->name() + "_vs_" +
+                    state.viewerRight->name() + ".json";
+        if (!downloadMemfsFile(memfsPath, fname))
+        {
+            state.alignmentSaveError.show = true;
+            state.alignmentSaveError.message =
+                "Failed to save alignment.";
+        }
+#else
+        state.alignmentSaveBrowser.show = true;
+        state.alignmentSaveBrowser.dirNeedsRefresh = true;
+        state.alignmentSaveBrowser.fileName.clear();
+#endif
+    }
+
     static X3PBulletLand* asBulletLand(ImageCanvas* c)
     {
         return (c && c->kind() == ImageCanvas::Kind::X3PBulletLand)
@@ -383,11 +413,7 @@ namespace shoecomp
 
         ImGui::BeginDisabled(!state.viewerLocked);
         if (dockButton("Save Alignment", ImVec2(fullW, 0)))
-        {
-            state.alignmentSaveBrowser.show = true;
-            state.alignmentSaveBrowser.dirNeedsRefresh = true;
-            state.alignmentSaveBrowser.fileName.clear();
-        }
+            saveAlignment(state);
         ImGui::EndDisabled();
 
         if (!state.viewerLocked) return;
@@ -599,11 +625,7 @@ namespace shoecomp
 
         ImGui::BeginDisabled(!state.viewerLocked);
         if (dockButton("Save Alignment", ImVec2(fullW, 0)))
-        {
-            state.alignmentSaveBrowser.show = true;
-            state.alignmentSaveBrowser.dirNeedsRefresh = true;
-            state.alignmentSaveBrowser.fileName.clear();
-        }
+            saveAlignment(state);
         ImGui::EndDisabled();
 
         if (!state.viewerLocked) return;

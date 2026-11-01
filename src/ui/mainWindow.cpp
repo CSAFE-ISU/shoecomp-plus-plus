@@ -333,24 +333,19 @@ namespace shoecomp
                             hasActive))
         {
 #ifdef __EMSCRIPTEN__
-            auto& img =
-                asCanvas2D(*state.images[state.activeGalleryImage])
-                    ->image;
-            jt::Json copy = img->annotations;
-            std::string data = copy.toStringPretty();
-            if (data.empty())
+            const ImageCanvas& canvas =
+                *state.images[state.activeGalleryImage];
+            const std::string memfsPath = "/tmp/annotations.json";
+            std::remove(memfsPath.c_str());
+            const std::string fname =
+                canvas.name().empty() ? std::string("annotations.json")
+                                      : canvas.name() + ".json";
+            if (canvas.saveAnnotations(memfsPath) != 0 ||
+                !downloadMemfsFile(memfsPath, fname))
             {
                 state.annotationError.show = true;
                 state.annotationError.message =
-                    "Failed to serialize annotations.";
-            }
-            else
-            {
-                std::string fname =
-                    img->name.empty() ? std::string("annotations.json")
-                                      : img->name + ".json";
-                downloadJsonString(data.c_str(), (int)data.size(),
-                                   fname.c_str(), (int)fname.size());
+                    "Failed to save annotations.";
             }
 #else
             state.annotationFileBrowser.show = true;
