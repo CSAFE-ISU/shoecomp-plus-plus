@@ -265,8 +265,13 @@ namespace shoecomp
 
     namespace
     {
-        const char* kVert =
-            "#version 330 core\n"
+#if defined(HELLOIMGUI_USE_GLES3)
+#define SC_GLSL_HEADER "#version 300 es\nprecision highp float;\n"
+#else
+#define SC_GLSL_HEADER "#version 330 core\n"
+#endif
+
+        const char* kVert = SC_GLSL_HEADER
             "layout(location=0) in vec3 aPos;\n"
             "layout(location=1) in vec3 aNormal;\n"
             "layout(location=2) in float aT;\n"
@@ -280,8 +285,7 @@ namespace shoecomp
             "  vT = aT;\n"
             "}\n";
 
-        const char* kFrag =
-            "#version 330 core\n"
+        const char* kFrag = SC_GLSL_HEADER
             "in vec3 vNormal;\n"
             "in float vT;\n"
             "out vec4 FragColor;\n"
