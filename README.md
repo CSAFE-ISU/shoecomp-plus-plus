@@ -44,13 +44,16 @@ surface-topography files (ISO 25178-72 / ISO5436_2) as interactive lit
   registration is planned future work.*
 - **Save PNG** captures the current 3D view.
 
-The 3D **view** requires a desktop **OpenGL** backend (the default on
-Windows / macOS / Linux). The **web (Emscripten) build does not offer the
-3D surface kind** — it is omitted from the Active Canvas list, since the
-renderer's desktop-GL shaders and depth-buffer picking are unavailable on
-WebGL2. On a desktop build using a non-OpenGL backend (Metal, DX11) the
-kind is still selectable but the view shows a "3D view not available on
-this build" placeholder. The ZIP container is read with the vendored
+The 3D **view** requires an **OpenGL** backend: desktop OpenGL (the
+default on Windows / macOS / Linux) or WebGL2 in the **web (Emscripten)
+build**, which offers the x3p kind too — loading, viewing, markup,
+striation detection, automatic alignment, and Save Annotations / Save
+Alignment (as browser downloads) all work there. On the web, expect
+detection and alignment to run slower than native, and very large
+surfaces to be limited by the browser's WebAssembly memory; Save PNG is
+not available on the web build. On a desktop build using a non-OpenGL
+backend (Metal, DX11) the kind is still selectable but the view shows a
+"3D view not available on this build" placeholder. The ZIP container is read with the vendored
 **zlib** submodule; no new dependencies are added.
 
 ## Command-line tool (`scpp`)
